@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from . import job
 
 
-class Scheduler(object):
+class Scheduler(ABC):
     queue_waiting: List[job.Job]
     queue_running: List[job.Job]
     queue_completed: List[job.Job]
@@ -48,14 +48,14 @@ class Scheduler(object):
         self.used_processors -= j.processors_allocated
 
     def new_running_jobs(self):
-        return _filter_update_queue(
+        return filter_update_queue(
             lambda j: j.submission_time <= self.current_time and j.status == job.JobStatus.SCHEDULED,
             self.start_running,
             self.queue_waiting
         )
 
     def new_completed_jobs(self):
-        return _filter_update_queue(
+        return filter_update_queue(
             lambda j: j.start_time + j.execution_time >= self.current_time,
             self.complete_job,
             self.queue_running
@@ -76,7 +76,7 @@ class Scheduler(object):
 
     @abstractmethod
     def schedule(self):
-        pass
+        "Schedules tasks."
 
     def step(self, time_steps: int = 1):
         self.increase_time(time_steps)
@@ -84,7 +84,8 @@ class Scheduler(object):
         self.schedule()
 
     def can_schedule(self, j: job.Job):
-        return self.used_processors + j.processors_allocated < self.number_of_processors \
+        return self.current_time >= j.submission_time and \
+               self.used_processors + j.processors_allocated < self.number_of_processors \
                and self.used_memory + j.memory_use < self.total_memory
 
     def submit(self, j: job.Job):
@@ -92,7 +93,7 @@ class Scheduler(object):
         self.queue_waiting.append(j)
 
 
-def _filter_update_queue(predicate: Callable, update: Callable, queue: List[job.Job]) -> Tuple[Generator, Generator]:
+def filter_update_queue(predicate: Callable, update: Callable, queue: List[job.Job]) -> Tuple[Generator, Generator]:
     true_idx, false_idx = [], []
     for i in range(len(queue)):
         if predicate(queue[i]):

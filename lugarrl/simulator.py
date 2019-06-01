@@ -18,7 +18,7 @@ class Simulator(ABC):
 
     @abstractmethod
     def step(self):
-        pass
+        "Runs a simulation step."
 
 
 class TimeBasedSimulator(Simulator):

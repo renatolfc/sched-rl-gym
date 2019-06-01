@@ -65,8 +65,17 @@ class JobParameters(object):
     lower_resource_bound: int
     upper_resource_bound: int
 
-    def __init__(self, lower_time_bound, upper_time_bound, lower_cpu_bound, upper_cpu_bound, lower_mem_bound,
-                 upper_mem_bound):
+    @staticmethod
+    def _validate_parameters(*args):
+        for param in args:
+            if param <= 0:
+                raise AssertionError("Unable to work with non-positive bounds.")
+
+    def __init__(self, lower_time_bound: int, upper_time_bound: int, lower_cpu_bound: int,
+                 upper_cpu_bound: int, lower_mem_bound: int, upper_mem_bound: int):
+        self._validate_parameters(lower_time_bound, upper_time_bound, lower_cpu_bound, upper_cpu_bound,
+                                  lower_mem_bound, upper_mem_bound)
+
         self.lower_time_bound = lower_time_bound
         self.upper_time_bound = upper_time_bound
         self.lower_cpu_bound = lower_cpu_bound
@@ -80,9 +89,11 @@ class JobParameters(object):
         }
 
         self.job_id = 1
-        self.time_step = 1
+        self.time_step = 0
 
     def add_time(self, steps=1):
+        if steps < 0:
+            raise AssertionError("Time can't be negative.")
         self.time_step += steps
 
     def sample(self, submission_time=0):

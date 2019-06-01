@@ -11,18 +11,18 @@ from lugarrl.job import JobParameters
 class WorkloadGenerator(ABC):
     @abstractmethod
     def __next__(self):
-        pass
+        "Next element in iterator."
 
     @abstractmethod
     def __iter__(self):
-        pass
+        "Iterator."
 
     @abstractmethod
-    def sample(self):
-        pass
+    def sample(self, submission_time=0):
+        "Sample a job with submission time equal to :param submission_time:."
 
 
-class DistributionalWorkloadGenerator(WorkloadGenerator):
+class DistributionalWorkloadGenerator(WorkloadGenerator, ABC):
     length: int
     current_element: int
 
@@ -32,9 +32,9 @@ class DistributionalWorkloadGenerator(WorkloadGenerator):
 
     def __next__(self):
         if self.length and self.current_element >= self.length:
-            raise StopIteration
-        yield self.sample()
+            raise StopIteration()
         self.current_element += 1
+        return self.sample()
 
     def __iter__(self):
         return self
