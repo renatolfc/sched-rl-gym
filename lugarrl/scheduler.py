@@ -62,13 +62,25 @@ class Scheduler(ABC):
         )
 
     def update_queues(self):
-        started_running, still_waiting = self.new_running_jobs()
-        completed, still_running = self.new_completed_jobs()
+        started_running = []
+        for j in self.queue_waiting:
+            if j.status == job.JobStatus.RUNNING:
+                started_running.append(j)
+            elif j.status == job.JobStatus.SCHEDULED and self.can_start(j):
+                self.start_running(j)
+                started_running.append(j)
+        for j in started_running:
+            self.queue_waiting.remove(j)
+        self.queue_running += started_running
 
-        self.last_completed = list(completed)
-        self.queue_completed += self.last_completed
-        self.queue_running = list(still_running) + list(started_running)
-        self.queue_waiting = list(still_waiting)
+        finished_running = []
+        for j in self.queue_running:
+            if (j.start_time + j.execution_time) <= self.current_time:
+                self.complete_job(j)
+                finished_running.append(j)
+        for j in finished_running:
+            self.queue_running.remove(j)
+        self.queue_completed += finished_running
 
     @property
     def free_resources(self):
@@ -79,17 +91,19 @@ class Scheduler(ABC):
         "Schedules tasks."
 
     def step(self, time_steps: int = 1):
-        self.increase_time(time_steps)
-        self.update_queues()
-        self.schedule()
+        for i in range(time_steps):
+            self.increase_time(1)
+            self.update_queues()
+            self.schedule()
 
-    def can_schedule(self, j: job.Job):
+    def can_start(self, j: job.Job):
         return self.current_time >= j.submission_time and \
                self.used_processors + j.processors_allocated < self.number_of_processors \
                and self.used_memory + j.memory_use < self.total_memory
 
     def submit(self, j: job.Job):
         j.submission_time = self.current_time
+        j.status = job.JobStatus.SUBMITTED
         self.queue_waiting.append(j)
 
 

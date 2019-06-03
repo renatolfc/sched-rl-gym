@@ -20,10 +20,9 @@ class FifoScheduler(scheduler.Scheduler):
 
     def schedule(self):
         first: Optional[Job] = self.first_job()
-        while first and self.can_schedule(first):
-            print('Scheduling a job.')
-            self.queue_waiting.remove(first)
-            first.status = JobStatus.SCHEDULED
-            self.start_running(first)
-            self.queue_running.append(first)
-            first = self.first_job()
+        if first:
+            if first.status in (JobStatus.WAITING, JobStatus.SUBMITTED):
+                first.status = JobStatus.SCHEDULED
+            if self.can_start(first):
+                self.start_running(first)
+                self.update_queues()

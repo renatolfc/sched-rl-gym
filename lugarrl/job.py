@@ -58,6 +58,9 @@ class Job(object):
         self.start_time = None
         self.finish_time = None
 
+    def __str__(self):
+        return f'Job<{self.id}, {self.status.name}>'
+
 
 class JobParameters(object):
     lower_time_bound: int
@@ -104,7 +107,7 @@ class JobParameters(object):
 
         job = Job(
             self.job_id, submission_time if submission_time else self.time_step, time_duration, cpu, 0, mem, cpu,
-            time_duration, mem, SwfJobStatus.COMPLETED, 1, 1, 1, 1, 1, -1, -1, -1
+            time_duration, mem, JobStatus.WAITING, 1, 1, 1, 1, 1, -1, -1, -1
         )
         self.job_id += 1
 

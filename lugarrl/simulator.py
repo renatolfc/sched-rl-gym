@@ -1,9 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import enum
+
 from abc import ABC, abstractmethod
 
 from . import workload, scheduler as sched
+
+
+class SimulationType(enum.Enum):
+    TIME_BASED = 0
+    EVENT_BASED = 1
 
 
 class Simulator(ABC):
@@ -16,6 +23,15 @@ class Simulator(ABC):
         self.scheduler = scheduler
         self.simulation_start_time = 0
 
+    @staticmethod
+    def make(simulation_type: SimulationType,
+             workload_generator: workload.WorkloadGenerator,
+             scheduler: sched.Scheduler):
+        if simulation_type == SimulationType.TIME_BASED:
+            return TimeBasedSimulator(workload_generator, scheduler)
+        else:
+            raise RuntimeError(f"Unsupported simulation type {simulation_type}")
+
     @abstractmethod
     def step(self):
         "Runs a simulation step."
@@ -27,10 +43,10 @@ class TimeBasedSimulator(Simulator):
         super().__init__(workload_generator, scheduler)
         self.current_time = 0
 
-    def step(self):
+    def step(self, submit=True):
         self.current_time += 1
         self.scheduler.step()
-        job = self.workload.sample(self.current_time)
+        job = self.workload.sample(self.current_time) if submit else None
         if job:
             self.scheduler.submit(job)
 
