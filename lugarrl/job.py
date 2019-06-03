@@ -5,6 +5,8 @@ import enum
 
 import numpy as np
 
+from .resource_pool import IntervalTree
+
 
 class PrimaryResource(enum.IntEnum):
     CPU = 0
@@ -30,6 +32,8 @@ class SwfJobStatus(enum.IntEnum):
 
 
 class Job(object):
+    processor_list: IntervalTree
+
     def __init__(self, job_id, submission_time, execution_time, processors_allocated, average_cpu_use, memory_use,
                  requested_processors, requested_time, requested_memory, status, user_id, group_id, executable,
                  queue_number, partition_number, preceding_job_id, think_time, wait_time):
@@ -52,8 +56,7 @@ class Job(object):
         self.think_time = think_time
         self.wait_time = wait_time
 
-        # intervals of used procs e.g. [(0-10),(15-20)]
-        self.processor_list = []
+        self.processor_list = IntervalTree()
         self.first_scheduling_promise = None
         self.start_time = None
         self.finish_time = None
