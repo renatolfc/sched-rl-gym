@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import enum
+import warnings
 
 from .heap import Heap
 from .resource_pool import ResourceType, IntervalTree
@@ -21,15 +22,18 @@ class ResourceEvent:
 
 class ResourceEventQueue:
     def __init__(self, time=0):
+        self.past = []
         self.time = time
-        self.past = Heap()
         self.future = Heap()
 
     def add(self, event: ResourceEvent):
         if event.time >= self.time:
             self.future.add(event, event.time)
         else:
-            self.past.add(event, event.time)
+            self.past.append(event)
+            self.past.sort(key=lambda e: e.time)
+            warnings.warn('Adding events to the past might change the ordering of '
+                          'events that happened at the same time.')
 
     def step(self, time=1):
         if time < 0:
@@ -40,7 +44,7 @@ class ResourceEventQueue:
         while first and first.time <= self.time:
             current = self.future.pop()
             present.append(current)
-            self.past.add(current, -current.time)
+            self.past.append(current)
             first = self.future.first
         return present
 
@@ -52,4 +56,4 @@ class ResourceEventQueue:
 
     @property
     def last(self):
-        return self.past.first
+        return self.past[-1]
