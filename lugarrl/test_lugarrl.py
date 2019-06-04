@@ -4,8 +4,7 @@
 import random
 import unittest
 
-import resource_pool
-from . import lugarrl, simulator, job, scheduler, workload, fifo_scheduler, resource_pool
+from . import lugarrl, simulator, job, scheduler, workload, fifo_scheduler, resource_pool, event, heap
 
 
 class MockLugarRL(object):
@@ -371,3 +370,98 @@ class TestResourcePool(unittest.TestCase):
         self.resource_pool.deallocate(r3)
         self.assertEqual(1, len(self.resource_pool.intervals))
 
+
+class TestEvent(unittest.TestCase):
+    def setUp(self) -> None:
+        self.req = event.ResourceEventQueue()
+
+    def build_event(self, type, interval, time=0):
+        t = resource_pool.IntervalTree([resource_pool.Interval(interval[0], interval[1])])
+        re = event.ResourceEvent(
+            time, type, resource_pool.ResourceType.CPU, t
+        )
+        return re
+
+    def test_add_event(self):
+        re = self.build_event(event.EventType.ALLOCATION, (0, 2))
+        self.req.add(re)
+        self.assertEqual(re, self.req.next)
+
+    def test_time_passing(self):
+        re = self.build_event(event.EventType.ALLOCATION, (0, 2))
+        self.req.add(re)
+        present = self.req.step()
+        self.assertEqual(present[0], re)
+        self.assertEqual(None, self.req.next)
+        self.assertEqual(0, len(self.req.future))
+        self.assertEqual(1, len(self.req.past))
+        self.assertEqual(self.req.last, re)
+
+    def test_double_step_with_zero_yields_no_present_updates(self):
+        re = self.build_event(event.EventType.ALLOCATION, (0, 2))
+        self.req.add(re)
+        present = self.req.step()
+        self.assertEqual(1, len(present))
+        present = self.req.step(0)
+        self.assertEqual(0, len(present))
+
+    def test_future_does_not_leak_in(self):
+        re = self.build_event(event.EventType.ALLOCATION, (0, 2), 1)
+        self.req.add(re)
+        present = self.req.step(0)
+        self.assertEqual(0, len(present))
+
+    def test_leap_into_the_future(self):
+        for i in range(100):
+            re = self.build_event(event.EventType.ALLOCATION, (0, 2), i)
+            self.req.add(re)
+        present = self.req.step(101)
+        self.assertEqual(100, len(present))
+        self.assertEqual(0, len(self.req.future))
+        self.assertEqual(100, len(self.req.past))
+
+    def test_step_into_the_past_should_fail(self):
+        with self.assertRaises(AssertionError):
+            self.req.step(-1)
+
+    def test_add_event_in_the_past_should_work(self):
+        self.assertEqual(0, len(self.req.step(100)))
+        re = self.build_event(event.EventType.ALLOCATION, (0, 2), 1)
+        self.req.add(re)
+        self.assertEqual(1, len(self.req.past))
+        self.assertEqual(0, len(self.req.future))
+
+    def test_event_in_the_past_should_not_leak_into_present(self):
+        self.assertEqual(0, len(self.req.step(100)))
+        re = self.build_event(event.EventType.ALLOCATION, (0, 2), 1)
+        self.req.add(re)
+        present = self.req.step()
+        self.assertEqual(0, len(present))
+
+
+class TestHeap(unittest.TestCase):
+    def setUp(self) -> None:
+        self.heap = heap.Heap()
+
+    def test_should_change_priority(self):
+        item = 42
+        self.heap.add(item, 0)
+        self.heap.add(item, 10)
+        self.assertEqual(1, len(self.heap))
+
+    def test_removing_from_empty_heap_should_fail(self):
+        with self.assertRaises(KeyError):
+            self.heap.pop()
+
+    def test_should_iterate_over_elements(self):
+        for i in range(1000):
+            self.heap.add(i, i)
+        self.assertEqual(list(sorted(self.heap)), list(range(1000)))
+
+    def test_should_contain_element(self):
+        self.heap.add(0, 0)
+        self.assertTrue(0 in self.heap)
+
+    def test_should_not_contain_missing_element(self):
+        self.heap.add(0, 0)
+        self.assertFalse(1 in self.heap)
