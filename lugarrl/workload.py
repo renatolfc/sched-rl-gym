@@ -3,7 +3,8 @@
 
 from abc import ABC, abstractmethod
 
-import numpy as np
+import random
+import itertools
 
 from lugarrl.job import JobParameters
 
@@ -48,16 +49,19 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
     def __init__(self, new_job_rate, small_job_chance, small_job_parameters, large_job_parameters, length=0):
         super().__init__(length)
 
+        self.counter = itertools.count()
         self.new_job_rate = new_job_rate
         self.small_job_chance = small_job_chance
         self.small_job = small_job_parameters
         self.large_job = large_job_parameters
 
     def sample(self, submission_time=0):
-        if np.random.rand() > self.new_job_rate:
+        if random.random() > self.new_job_rate:
             return None
         else:
-            if np.random.rand() < self.small_job_chance:
-                return self.small_job.sample(submission_time)
+            if random.random() < self.small_job_chance:
+                j = self.small_job.sample(submission_time)
             else:
-                return self.large_job.sample(submission_time)
+                j = self.large_job.sample(submission_time)
+            j.id = next(self.counter)
+            return j
