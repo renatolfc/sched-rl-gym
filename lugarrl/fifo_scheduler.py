@@ -1,28 +1,36 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys
-from typing import Optional
+from typing import Tuple, Iterable, Optional
 
-from lugarrl.job import Job, JobStatus
-from . import scheduler
+from .job import Job, JobStatus
+from .scheduler import Scheduler
+from .resource_pool import ResourcePool
 
 
-class FifoScheduler(scheduler.Scheduler):
-    def first_job(self) -> Optional[Job]:
-        first: Optional[Job] = None
-        submission_time: int = sys.maxsize
-        for job in self.queue_waiting:
-            if job.submission_time < submission_time:
-                submission_time = job.submission_time
-                first = job
-        return first
-
+class FifoScheduler(Scheduler):
     def schedule(self):
-        first: Optional[Job] = self.first_job()
-        if first:
-            if first.status in (JobStatus.WAITING, JobStatus.SUBMITTED):
-                first.status = JobStatus.SCHEDULED
-            if self.can_start(first):
-                self.start_running(first)
-                self.update_queues()
+        for job in self.queue_admission:
+            time, resources = self.find_first_time_for(job)
+            processors = resources.find(job.requested_processors)
+            self.add_job_events(job, processors, time)
+            job.status = JobStatus.WAITING
+            job.processor_list = processors
+            self.queue_waiting.append(job)
+        self.queue_admission.clear()
+
+    def find_first_time_for(self, job: Job) -> Tuple[int, ResourcePool]:
+        resources, pool = self.fits(self.current_time, job, self.processor_pool.clone(), self.job_events)
+        if resources:
+            return self.current_time, pool
+
+        for event in self.job_events:
+            near_future = [e for e in self.job_events if e.time <= event.time]
+            pool = self.play_events(
+                near_future,
+                self.processor_pool.clone()
+            )
+            resources = self.fits(event.time, job, pool, self.job_events)
+            if resources:
+                return event.time, pool
+        raise AssertionError('Failed to find time for job, even in the far future.')
