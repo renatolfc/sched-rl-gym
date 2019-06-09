@@ -3,9 +3,10 @@
 
 import enum
 
-import numpy as np
+import random
+from typing import Iterable
 
-from .resource_pool import IntervalTree
+from resource_pool import Interval, IntervalTree
 
 
 class PrimaryResource(enum.IntEnum):
@@ -32,7 +33,7 @@ class SwfJobStatus(enum.IntEnum):
 
 
 class Job(object):
-    processor_list: IntervalTree
+    processor_list: Iterable[Interval]
 
     def __init__(self, job_id, submission_time, execution_time, processors_allocated, average_cpu_use, memory_use,
                  requested_processors, requested_time, requested_memory, status, user_id, group_id, executable,
@@ -90,8 +91,8 @@ class JobParameters(object):
         self.upper_mem_bound = upper_mem_bound
 
         self.resource_samplers = {
-            PrimaryResource.CPU: lambda: np.random.randint(self.lower_cpu_bound, self.upper_cpu_bound + 1),
-            PrimaryResource.MEMORY: lambda: np.random.randint(self.lower_mem_bound, self.upper_mem_bound + 1),
+            PrimaryResource.CPU: lambda: random.randint(self.lower_cpu_bound, self.upper_cpu_bound + 1),
+            PrimaryResource.MEMORY: lambda: random.randint(self.lower_mem_bound, self.upper_mem_bound + 1),
         }
 
         self.job_id = 1
@@ -103,7 +104,7 @@ class JobParameters(object):
         self.time_step += steps
 
     def sample(self, submission_time=0):
-        time_duration = np.random.randint(self.lower_time_bound, self.upper_time_bound + 1)
+        time_duration = random.randint(self.lower_time_bound, self.upper_time_bound + 1)
 
         cpu = self.resource_samplers[PrimaryResource.CPU]()
         mem = self.resource_samplers[PrimaryResource.MEMORY]()
