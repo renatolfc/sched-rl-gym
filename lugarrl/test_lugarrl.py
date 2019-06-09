@@ -244,7 +244,6 @@ class TestScheduler(unittest.TestCase):
 #        self.assertFalse(self.fits())
 
 
-
 class TestFifoScheduler(unittest.TestCase):
     def setUp(self):
         self.scheduler = fifo_scheduler.FifoScheduler(16, 64)
@@ -367,10 +366,10 @@ class TestResourcePool(unittest.TestCase):
 
     def test_jobs_of_size_up_to_max_fit(self):
         for size in range(1, self.max_size + 1):
-            self.assertTrue(self.resource_pool.fits(size)[0])
+            self.assertTrue(self.resource_pool.fits(size))
 
     def test_jobs_bigger_than_resource_pool_size_do_not_fit(self):
-        self.assertFalse(self.resource_pool.fits(self.max_size + 1)[0])
+        self.assertFalse(self.resource_pool.fits(self.max_size + 1))
 
     def test_can_allocate_size_of_resource(self):
         t = self.resource_pool.find(self.max_size)
