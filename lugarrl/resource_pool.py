@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import copy
 import enum
 from typing import Iterable
 
@@ -17,6 +21,9 @@ class ResourcePool(object):
         self.used_resources = 0
         self.type = resource_type
         self.used_pool = IntervalTree()
+
+    def clone(self):
+        return copy.deepcopy(self)
 
     @property
     def free_resources(self) -> int:
