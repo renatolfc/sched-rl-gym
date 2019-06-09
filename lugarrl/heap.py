@@ -3,7 +3,7 @@
 
 import heapq, itertools
 
-REMOVED = '<removed-entry>'
+REMOVED: str = '<removed-entry>'
 
 
 class Heap(object):
@@ -61,4 +61,12 @@ class Heap(object):
         for (priority, count, item) in self.priority_queue:
             if item is not REMOVED:
                 return item
+
+    def heapsort(self):
+        h = []
+        for entry in self.priority_queue:
+            if entry[-1] is not REMOVED:
+                heapq.heappush(h, entry)
+
+        return (heapq.heappop(h)[-1] for _ in range(len(h)))
 
