@@ -1,123 +1,143 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from typing import List, Callable, Tuple, Generator
+from typing import List, Callable, Tuple, Iterable, Optional, Dict
 from abc import ABC, abstractmethod
+from collections import defaultdict
 
-from . import job
+from .job import Job, JobStatus
+from .event import JobEvent, EventType, EventQueue
+from .resource_pool import ResourceType, ResourcePool, Interval, IntervalTree
 
 
 class Scheduler(ABC):
-    queue_waiting: List[job.Job]
-    queue_running: List[job.Job]
-    queue_completed: List[job.Job]
+    job_events: EventQueue[JobEvent]
+    processor_pool: ResourcePool
+    queue_waiting: List[Job]
+    queue_running: List[Job]
+    queue_completed: List[Job]
+    queue_admission: List[Job]
 
     def __init__(self, number_of_processors, total_memory):
         self.number_of_processors = number_of_processors
         self.total_memory = total_memory
-        self.queue_waiting, self.queue_running, self.queue_completed = [], [], []
+
+        self.queue_waiting = []
+        self.queue_running = []
+        self.queue_completed = []
+        self.queue_admission = []
 
         self.used_memory = 0
         self.current_time = 0
         self.used_processors = 0
         self.last_completed = []
+        self.job_events = EventQueue(self.current_time)
+        self.processor_pool = ResourcePool(ResourceType.CPU, number_of_processors)
 
     @property
-    def all_jobs(self):
-        return self.queue_completed + self.queue_running + self.queue_waiting
+    def all_jobs(self) -> List[Job]:
+        return self.queue_completed + self.queue_running + self.queue_waiting + self.queue_admission
 
-    def increase_time(self, offset=1):
-        if offset < 0:
-            raise AssertionError("Tried to decrement time.")
-        self.current_time += offset
-
+    @property
     def makespan(self):
         return max([j.finish_time for j in self.all_jobs])
 
-    def start_running(self, j: job.Job):
-        j.status = job.JobStatus.RUNNING
+    def start_running(self, j: Job):
+        self.queue_waiting.remove(j)
+        self.queue_running.append(j)
+
+        j.status = JobStatus.RUNNING
         j.start_time = self.current_time
         self.used_memory += j.memory_use
         self.used_processors += j.processors_allocated
         j.wait_time = j.start_time - j.submission_time
 
-    def complete_job(self, j: job.Job):
-        j.status = job.JobStatus.COMPLETED
+    def complete_job(self, j: Job):
+        self.queue_running.remove(j)
+        self.queue_completed.append(j)
+
+        j.status = JobStatus.COMPLETED
         j.finish_time = self.current_time
         self.used_memory -= j.memory_use
         self.used_processors -= j.processors_allocated
 
-    def new_running_jobs(self):
-        return filter_update_queue(
-            lambda j: j.submission_time <= self.current_time and j.status == job.JobStatus.SCHEDULED,
-            self.start_running,
-            self.queue_waiting
+    def add_job_events(self, job: Job, resources: Iterable[Interval], time):
+        if not resources or sum((ResourcePool.measure(i) for i in resources)) < job.requested_processors:
+            raise AssertionError("Tried to allocate job without enough resources.")
+        start = JobEvent(
+            time, EventType.JOB_START, job
         )
-
-    def new_completed_jobs(self):
-        return filter_update_queue(
-            lambda j: j.start_time + j.execution_time >= self.current_time,
-            self.complete_job,
-            self.queue_running
-        )
-
-    def update_queues(self):
-        started_running = []
-        for j in self.queue_waiting:
-            if j.status == job.JobStatus.RUNNING:
-                started_running.append(j)
-            elif j.status == job.JobStatus.SCHEDULED and self.can_start(j):
-                self.start_running(j)
-                started_running.append(j)
-        for j in started_running:
-            self.queue_waiting.remove(j)
-        self.queue_running += started_running
-
-        finished_running = []
-        for j in self.queue_running:
-            if (j.start_time + j.execution_time) <= self.current_time:
-                self.complete_job(j)
-                finished_running.append(j)
-        for j in finished_running:
-            self.queue_running.remove(j)
-        self.queue_completed += finished_running
+        finish = start.clone()
+        finish.time += job.execution_time
+        finish.event_type = EventType.JOB_FINISH
+        self.job_events.add(start)
+        self.job_events.add(finish)
 
     @property
     def free_resources(self):
         return self.number_of_processors - self.used_processors, self.total_memory - self.used_memory
 
-    @abstractmethod
-    def schedule(self):
-        "Schedules tasks."
+    def step(self, offset: int = 1):
+        if offset < 0:
+            raise AssertionError("Tried to move backwards in time")
 
-    def step(self, time_steps: int = 1):
-        for i in range(time_steps):
-            self.increase_time(1)
-            self.update_queues()
+        if self.queue_admission:
             self.schedule()
 
-    def can_start(self, j: job.Job):
+        self.current_time += offset
+        present = self.job_events.step(offset)
+        self.play_events(present, self.processor_pool, update_queues=True)
+
+        self.schedule()
+
+    def can_start(self, j: Job):
         return self.current_time >= j.submission_time and \
                self.used_processors + j.processors_allocated < self.number_of_processors \
                and self.used_memory + j.memory_use < self.total_memory
 
-    def submit(self, j: job.Job):
-        j.submission_time = self.current_time
-        j.status = job.JobStatus.SUBMITTED
-        self.queue_waiting.append(j)
+    def play_events(self, events: Iterable[JobEvent], pool: ResourcePool,
+                    update_queues: bool = False) -> ResourcePool:
+        for event in events:
+            if event.event_type == EventType.JOB_START:
+                pool.allocate(event.job.processor_list)
+                if update_queues:
+                    self.start_running(event.job)
+            elif event.event_type == EventType.JOB_FINISH:
+                pool.deallocate(event.job.processor_list)
+                if update_queues:
+                    self.complete_job(event.job)
+            else:
+                raise RuntimeError("Unexpected event type found")
+        return pool
 
+    @staticmethod
+    def fits(time: int, job: Job, pool: ResourcePool, events: EventQueue[JobEvent]) -> Tuple[Iterable[Interval], ResourcePool]:
+        tree = IntervalTree(pool.used_pool)
+        events = [e for e in events if time < e.time < job.requested_time + time]
+        while events:
+            event = events.pop(0)
+            if event.event_type == EventType.JOB_START:
+                pool.allocate(event.job.processor_list)
+                for i in pool.find(job.requested_processors):
+                    tree.add(i)
+            elif event.event_type == EventType.JOB_FINISH:
+                pool.deallocate(event.job.processor_list)
+        tmp = ResourcePool(pool.type, pool.size)
+        tree.merge_overlaps()
+        tmp.used_pool = tree
+        tmp.used_resources = sum([ResourcePool.measure(i) for i in tree])
+        return tmp.find(job.requested_processors), tmp
 
-def filter_update_queue(predicate: Callable, update: Callable, queue: List[job.Job]) -> Tuple[Generator, Generator]:
-    true_idx, false_idx = [], []
-    for i in range(len(queue)):
-        if predicate(queue[i]):
-            true_idx.append(i)
-        else:
-            false_idx.append(i)
+    def submit(self, job: Job):
+        if job.requested_processors > self.number_of_processors:
+            raise RuntimeError(
+                'Impossible to allocate resources for job bigger than cluster.'
+            )
+        job.submission_time = self.current_time
+        job.status = JobStatus.SUBMITTED
+        self.queue_admission.append(job)
 
-    def true_generator():
-        for idx in true_idx:
-            update(queue[idx])
-            yield queue[idx]
+    @abstractmethod
+    def schedule(self):
+        "Schedules tasks."
 
-    return true_generator(), (queue[i] for i in false_idx)
