@@ -63,7 +63,7 @@ class Job(object):
         self.finish_time = None
 
     def __str__(self):
-        return f'Job<{self.id}, {self.status.name}>'
+        return f'Job<{self.id}, {self.status.name}, start={self.start_time}, processors={self.requested_processors}>'
 
 
 class JobParameters(object):
