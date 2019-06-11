@@ -39,14 +39,13 @@ class Scheduler(ABC):
 
     @property
     def makespan(self):
-        return max([j.finish_time for j in self.all_jobs])
+        return max([j.finish_time for j in self.queue_completed])
 
     def start_running(self, j: Job):
         self.queue_waiting.remove(j)
         self.queue_running.append(j)
 
         j.status = JobStatus.RUNNING
-        j.start_time = self.current_time
         self.used_memory += j.memory_use
         self.used_processors += j.processors_allocated
         j.wait_time = j.start_time - j.submission_time
@@ -56,7 +55,7 @@ class Scheduler(ABC):
         self.queue_completed.append(j)
 
         j.status = JobStatus.COMPLETED
-        j.finish_time = self.current_time
+        j.finish_time = j.start_time + j.execution_time
         self.used_memory -= j.memory_use
         self.used_processors -= j.processors_allocated
 
@@ -98,11 +97,11 @@ class Scheduler(ABC):
                     update_queues: bool = False) -> ResourcePool:
         for event in events:
             if event.event_type == EventType.JOB_START:
-                pool.allocate(event.job.processor_list)
+                pool.allocate(event.processors)
                 if update_queues:
                     self.start_running(event.job)
             elif event.event_type == EventType.JOB_FINISH:
-                pool.deallocate(event.job.processor_list)
+                pool.deallocate(event.processors)
                 if update_queues:
                     self.complete_job(event.job)
             else:
@@ -119,7 +118,7 @@ class Scheduler(ABC):
         processors_touched = IntervalTree(pool.used_pool)
         for event in (e for e in events if time + 1 <= e.time < job.requested_time + time):
             if event.event_type == EventType.JOB_START:
-                for i in event.job.processor_list:
+                for i in event.processors:
                     processors_touched.add(i)
         processors_touched.merge_overlaps()
         current_pool = ResourcePool(pool.type, pool.size, processors_touched)

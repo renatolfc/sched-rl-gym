@@ -51,7 +51,7 @@ class JobEvent(Event):
 
     @property
     def processors(self):
-        return self.job.requested_processors
+        return self.job.processor_list
 
     @property
     def memory(self):
