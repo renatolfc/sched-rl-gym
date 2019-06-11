@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Iterable
+from typing import List, Iterable
 
 from .job import Job, JobStatus
 from .event import JobEvent, EventType, EventQueue
@@ -59,9 +59,13 @@ class Scheduler(ABC):
         self.used_memory -= j.memory_use
         self.used_processors -= j.processors_allocated
 
-    def add_job_events(self, job: Job, resources: Iterable[Interval], time):
-        if not resources or sum((ResourcePool.measure(i) for i in resources)) < job.requested_processors:
-            raise AssertionError("Tried to allocate job without enough resources.")
+    def add_job_events(self, job: Job, time: int):
+        if not job.processor_list or \
+                sum((ResourcePool.measure(i) for i in job.processor_list)) < job.requested_processors:
+            raise AssertionError(
+                "Malformed job submitted either with no processors, or with insufficient number of "
+                "processors"
+            )
         start = JobEvent(
             time, EventType.JOB_START, job
         )
@@ -136,4 +140,3 @@ class Scheduler(ABC):
     @abstractmethod
     def schedule(self):
         "Schedules tasks."
-
