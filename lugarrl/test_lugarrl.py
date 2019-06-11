@@ -20,7 +20,6 @@ class TestLugarRL(unittest.TestCase):
         self.lugar.step()
 
 
-@unittest.skip
 class TestSimulator(unittest.TestCase):
     def setUp(self):
         self.small_job_parameters = job.JobParameters(1, 3, 1, 2, 2, 16)
@@ -141,7 +140,7 @@ class TestJobParameters(unittest.TestCase):
 
 class MockScheduler(scheduler.Scheduler):
     def schedule(self):
-        pass
+        """"""
 
 
 class TestScheduler(unittest.TestCase):
