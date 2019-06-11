@@ -16,8 +16,8 @@ T = TypeVar('T', bound='Event')
 class EventType(enum.IntEnum):
     RESOURCE_ALLOCATE = 0
     RESOURCE_FREE = 1
+    JOB_FINISH = 2
     JOB_START = 3
-    JOB_FINISH = 4
 
 
 class Event(object):
@@ -57,6 +57,9 @@ class JobEvent(Event):
     def memory(self):
         return self.job.requested_memory
 
+    def __str__(self):
+        return f'JobEvent<{self.time}, {self.event_type.name}, {self.job}>'
+
 
 class EventQueue(Generic[T]):
     time: int
@@ -70,7 +73,7 @@ class EventQueue(Generic[T]):
 
     def add(self, event: T):
         if event.time >= self.time:
-            self.future.add(event, event.time)
+            self.future.add(event, (event.time, event.event_type))
         else:
             self.past.append(event)
             self.past.sort(key=lambda e: e.time)
@@ -102,3 +105,6 @@ class EventQueue(Generic[T]):
 
     def __iter__(self) -> Iterator[T]:
         return self.future.heapsort()
+
+    def __str__(self) -> str:
+        return f'{self.future.heapsort()}'
