@@ -236,6 +236,7 @@ class TestScheduler(unittest.TestCase):
         self.play_events(6)
         self.assertTrue(self.scheduler.fits(6, j, self.scheduler.processor_pool.clone(), self.events))
 
+
 #    def test_should_fail_to_find_resources(self):
 #        self.scheduler = MockScheduler(16, 10000)
 #        self.scheduler.current_time = 4
@@ -257,7 +258,6 @@ class TestFifoScheduler(unittest.TestCase):
         self.counter += 1
         return job.Job(self.counter, submission, duration, processors, 1, 1, processors, duration, 1,
                        job.JobStatus.SCHEDULED, 1, 1, 1, 1, 1, -1, -1, 0)
-
 
     def assertQueuesSane(self, time, completed, running, waiting, admission):
         self.assertEqual(self.scheduler.current_time, time)
@@ -311,6 +311,7 @@ class TestFifoScheduler(unittest.TestCase):
         self.scheduler.submit(j)
         self.assertQueuesSane(0, 0, 0, 0, 1)
         self.scheduler.step()
+        self.assertEqual(self.scheduler.free_resources[0], self.scheduler.number_of_processors - j.processors_allocated)
         self.assertQueuesSane(1, 0, 1, 0, 0)
         j = self.small_job_parameters.sample(1)
         j.execution_time = 5
@@ -368,6 +369,17 @@ class TestFifoScheduler(unittest.TestCase):
         self.assertEqual(3, j5.start_time)
         self.assertEqual(5, j6.start_time)
         self.assertEqual(7, j7.start_time)
+
+        s.step(8)
+        self.assertEqual(7, s.makespan)
+
+        s.step(1)
+        self.assertEqual(9, s.makespan)
+
+    def test_submitting_invalid_job_fails(self):
+        j = self.make_job(0, 2, 256)
+        with self.assertRaises(RuntimeError):
+            self.scheduler.submit(j)
 
 
 class TestBinomialWorkloadGenerator(unittest.TestCase):
