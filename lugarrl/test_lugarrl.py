@@ -236,12 +236,34 @@ class TestScheduler(unittest.TestCase):
         self.play_events(6)
         self.assertTrue(self.scheduler.fits(6, j, self.scheduler.processor_pool.clone(), self.events))
 
+    def test_should_fail_to_add_malformed_job(self):
+        j = self.new_job(1, 0)
+        with self.assertRaises(AssertionError):
+            self.scheduler.add_job_events(j, 0)
 
-#    def test_should_fail_to_find_resources(self):
-#        self.scheduler = MockScheduler(16, 10000)
-#        self.scheduler.current_time = 4
-#
-#        self.assertFalse(self.fits())
+    def test_should_fail_to_play_unsupported_event_type(self):
+        j = self.jp.sample()
+        j.requested_processors = 10
+        j.requested_time = 5
+
+        alloc, free = self.build_event_pair(5, (0, 10), j)
+        alloc.event_type = event.EventType.RESOURCE_ALLOCATE
+
+        with self.assertRaises(RuntimeError):
+            self.scheduler.play_events([alloc, free], self.scheduler.processor_pool)
+
+    def test_should_fail_to_find_resources_on_empty_cluster_with_large_job(self):
+        self.scheduler = MockScheduler(16, 10000)
+
+        j = self.new_job(17, 0)
+        self.assertFalse(self.scheduler.processor_pool.find(
+            j.requested_processors
+        ))
+
+        alloc, free = self.build_event_pair(0, (0, 17), j)
+        self.assertFalse(self.scheduler.fits(
+            0, j, self.scheduler.processor_pool, [alloc, free]
+        ))
 
 
 class TestFifoScheduler(unittest.TestCase):
@@ -507,7 +529,7 @@ class TestResourcePool(unittest.TestCase):
 
 
 class TestEvent(unittest.TestCase):
-    req: event.EventQueue[event.JobEvent]
+    req: event.EventQueue[event.ResourceEvent]
 
     def setUp(self) -> None:
         self.req = event.EventQueue()
@@ -528,7 +550,7 @@ class TestEvent(unittest.TestCase):
     def test_time_passing(self):
         re = self.build_event(event.EventType.RESOURCE_ALLOCATE, (0, 2))
         self.req.add(re)
-        present = self.req.step()
+        present = list(self.req.step())
         self.assertEqual(present[0], re)
         self.assertEqual(None, self.req.next)
         self.assertEqual(0, len(self.req.future))
@@ -538,22 +560,22 @@ class TestEvent(unittest.TestCase):
     def test_double_step_with_zero_yields_no_present_updates(self):
         re = self.build_event(event.EventType.RESOURCE_ALLOCATE, (0, 2))
         self.req.add(re)
-        present = self.req.step()
+        present = list(self.req.step())
         self.assertEqual(1, len(present))
-        present = self.req.step(0)
+        present = list(self.req.step(0))
         self.assertEqual(0, len(present))
 
     def test_future_does_not_leak_in(self):
         re = self.build_event(event.EventType.RESOURCE_ALLOCATE, (0, 2), 1)
         self.req.add(re)
-        present = self.req.step(0)
+        present = list(self.req.step(0))
         self.assertEqual(0, len(present))
 
     def test_leap_into_the_future(self):
         for i in range(100):
             re = self.build_event(event.EventType.RESOURCE_ALLOCATE, (0, 2), i)
             self.req.add(re)
-        present = self.req.step(101)
+        present = list(self.req.step(101))
         self.assertEqual(100, len(present))
         self.assertEqual(0, len(self.req.future))
         self.assertEqual(100, len(self.req.past))
@@ -563,17 +585,17 @@ class TestEvent(unittest.TestCase):
             self.req.step(-1)
 
     def test_add_event_in_the_past_should_work(self):
-        self.assertEqual(0, len(self.req.step(100)))
+        self.assertEqual(0, len(list(self.req.step(100))))
         re = self.build_event(event.EventType.RESOURCE_ALLOCATE, (0, 2), 1)
         self.req.add(re)
         self.assertEqual(1, len(self.req.past))
         self.assertEqual(0, len(self.req.future))
 
     def test_event_in_the_past_should_not_leak_into_present(self):
-        self.assertEqual(0, len(self.req.step(100)))
+        self.assertEqual(0, len(list(self.req.step(100))))
         re = self.build_event(event.EventType.RESOURCE_ALLOCATE, (0, 2), 1)
         self.req.add(re)
-        present = self.req.step()
+        present = list(self.req.step())
         self.assertEqual(0, len(present))
 
 
