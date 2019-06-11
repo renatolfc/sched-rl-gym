@@ -252,6 +252,13 @@ class TestFifoScheduler(unittest.TestCase):
         self.workload = workload.BinomialWorkloadGenerator(
             0.7, 0.8, self.small_job_parameters, self.large_job_parameters, length=1
         )
+        self.counter = 0
+
+    def make_job(self, submission, duration, processors):
+        self.counter += 1
+        return job.Job(self.counter, submission, duration, processors, 1, 1, processors, duration, 1,
+                       job.JobStatus.SCHEDULED, 1, 1, 1, 1, 1, -1, -1, 0)
+
 
     def assertQueuesSane(self, time, completed, running, waiting, admission):
         self.assertEqual(self.scheduler.current_time, time)
@@ -330,6 +337,38 @@ class TestFifoScheduler(unittest.TestCase):
         self.scheduler.step()
         j = self.small_job_parameters.sample(1)
         self.assertNotEqual(self.scheduler.current_time, self.scheduler.find_first_time_for(j))
+
+    def test_submitting_seven_jobs(self):
+        j1 = self.make_job(0, 2, 2)
+        j2 = self.make_job(1, 2, 1)
+        j3 = self.make_job(1, 3, 1)
+        j4 = self.make_job(1, 1, 1)
+        j5 = self.make_job(1, 4, 2)
+        j6 = self.make_job(1, 4, 1)
+        j7 = self.make_job(1, 2, 2)
+
+        s = fifo_scheduler.FifoScheduler(3, 999999)
+
+        s.submit(j1)
+        s.schedule()
+        s.step()
+
+        s.submit(j2)
+        s.submit(j3)
+        s.submit(j4)
+        s.submit(j5)
+        s.submit(j6)
+        s.submit(j7)
+
+        s.schedule()
+
+        self.assertEqual(0, j1.start_time)
+        self.assertEqual(1, j2.start_time)
+        self.assertEqual(2, j3.start_time)
+        self.assertEqual(2, j4.start_time)
+        self.assertEqual(3, j5.start_time)
+        self.assertEqual(5, j6.start_time)
+        self.assertEqual(7, j7.start_time)
 
 
 class TestBinomialWorkloadGenerator(unittest.TestCase):
