@@ -31,7 +31,7 @@ class Scheduler(ABC):
         self.current_time = 0
         self.used_processors = 0
         self.last_completed = []
-        self.job_events = EventQueue(self.current_time)
+        self.job_events = EventQueue(self.current_time - 1)
         self.processor_pool = ResourcePool(ResourceType.CPU, number_of_processors)
 
     @property
@@ -84,9 +84,9 @@ class Scheduler(ABC):
         if self.queue_admission:
             self.schedule()
 
-        self.current_time += offset
         present = self.job_events.step(offset)
         self.play_events(present, self.processor_pool, update_queues=True)
+        self.current_time += offset
 
         self.schedule()
 
