@@ -16,11 +16,15 @@ class ResourceType(enum.IntEnum):
 class ResourcePool(object):
     used_pool: IntervalTree
 
-    def __init__(self, resource_type: ResourceType, size):
+    def __init__(self, resource_type: ResourceType, size: int, used_pool: IntervalTree = None):
         self.size = size
         self.used_resources = 0
         self.type = resource_type
-        self.used_pool = IntervalTree()
+        if used_pool is None:
+            self.used_pool = IntervalTree()
+        else:
+            self.used_pool = used_pool
+            self.used_resources = sum([ResourcePool.measure(i) for i in used_pool])
 
     def clone(self):
         return copy.deepcopy(self)
@@ -76,3 +80,6 @@ class ResourcePool(object):
     @property
     def intervals(self):
         return [i for i in self.used_pool]
+
+    def __repr__(self):
+        return f'ResourcePool<pool={self.used_pool}, used={self.used_resources}, size={self.size}>'
