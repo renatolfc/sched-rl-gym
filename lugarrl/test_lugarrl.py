@@ -190,17 +190,17 @@ class TestScheduler(unittest.TestCase):
         j.requested_processors = 4
         j.requested_time = 5
 
-        self.assertTrue(self.scheduler.fits(0, j, self.scheduler.processor_pool.clone(), self.events)[0])
+        self.assertTrue(self.scheduler.fits(0, j, self.scheduler.processor_pool.clone(), self.events))
 
     def test_fits_partially_filled_pool_with_no_events(self):
         self.scheduler.processor_pool.allocate(resource_pool.IntervalTree([resource_pool.Interval(0, 6)]))
         j = self.jp.sample()
-        self.assertTrue(self.scheduler.fits(0, j, self.scheduler.processor_pool.clone(), self.events)[0])
+        self.assertTrue(self.scheduler.fits(0, j, self.scheduler.processor_pool.clone(), self.events))
 
     def test_doesnt_fit_fully_filled_pool_with_no_events(self):
         self.scheduler.processor_pool.allocate(resource_pool.IntervalTree([resource_pool.Interval(0, 10)]))
         j = self.jp.sample()
-        self.assertFalse(self.scheduler.fits(0, j, self.scheduler.processor_pool.clone(), self.events)[0])
+        self.assertFalse(self.scheduler.fits(0, j, self.scheduler.processor_pool.clone(), self.events))
 
     def test_past_events_dont_influence_the_present(self):
         j = self.jp.sample()
@@ -214,7 +214,7 @@ class TestScheduler(unittest.TestCase):
         j.requested_processors = 4
         j.requested_time = 5
 
-        self.assertTrue(self.scheduler.fits(20, j, self.scheduler.processor_pool.clone(), self.events)[0])
+        self.assertTrue(self.scheduler.fits(20, j, self.scheduler.processor_pool.clone(), self.events))
 
     def play_events(self, time):
         for e in (e for e in self.events if e.time <= time):
@@ -231,11 +231,11 @@ class TestScheduler(unittest.TestCase):
         j = self.new_job(2, 3)
 
         self.play_events(5)
-        self.assertFalse(self.scheduler.fits(5, j, self.scheduler.processor_pool.clone(), self.events)[0])
+        self.assertFalse(self.scheduler.fits(5, j, self.scheduler.processor_pool.clone(), self.events))
 
         self.scheduler = MockScheduler(10, 10000)
         self.play_events(6)
-        self.assertTrue(self.scheduler.fits(6, j, self.scheduler.processor_pool.clone(), self.events)[0])
+        self.assertTrue(self.scheduler.fits(6, j, self.scheduler.processor_pool.clone(), self.events))
 
 #    def test_should_fail_to_find_resources(self):
 #        self.scheduler = MockScheduler(16, 10000)

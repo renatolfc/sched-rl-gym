@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from typing import List, Callable, Tuple, Iterable, Optional, Dict
 from abc import ABC, abstractmethod
-from collections import defaultdict
+from typing import List, Tuple, Iterable
 
 from .job import Job, JobStatus
 from .event import JobEvent, EventType, EventQueue
@@ -111,22 +110,20 @@ class Scheduler(ABC):
         return pool
 
     @staticmethod
-    def fits(time: int, job: Job, pool: ResourcePool, events: EventQueue[JobEvent]) -> Tuple[Iterable[Interval], ResourcePool]:
-        tree = IntervalTree(pool.used_pool)
-        events = [e for e in events if time < e.time < job.requested_time + time]
-        while events:
-            event = events.pop(0)
+    def fits(time: int, job: Job, pool: ResourcePool, events: Iterable[JobEvent]) \
+            -> Iterable[Interval]:
+        """Checks whether a job fits the system starting at a given time.
+
+        It is required that the pool is updated up to :param time:.
+        """
+        processors_touched = IntervalTree(pool.used_pool)
+        for event in (e for e in events if time + 1 <= e.time < job.requested_time + time):
             if event.event_type == EventType.JOB_START:
-                pool.allocate(event.job.processor_list)
-                for i in pool.find(job.requested_processors):
-                    tree.add(i)
-            elif event.event_type == EventType.JOB_FINISH:
-                pool.deallocate(event.job.processor_list)
-        tmp = ResourcePool(pool.type, pool.size)
-        tree.merge_overlaps()
-        tmp.used_pool = tree
-        tmp.used_resources = sum([ResourcePool.measure(i) for i in tree])
-        return tmp.find(job.requested_processors), tmp
+                for i in event.job.processor_list:
+                    processors_touched.add(i)
+        processors_touched.merge_overlaps()
+        current_pool = ResourcePool(pool.type, pool.size, processors_touched)
+        return current_pool.find(job.requested_processors)
 
     def submit(self, job: Job):
         if job.requested_processors > self.number_of_processors:
