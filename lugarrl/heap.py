@@ -63,10 +63,14 @@ class Heap(object):
                 return item
 
     def heapsort(self):
-        h = []
-        for entry in self.priority_queue:
-            if entry[-1] is not REMOVED:
-                heapq.heappush(h, entry)
-
-        return (heapq.heappop(h)[-1] for _ in range(len(h)))
+        h = [e for e in self.priority_queue]
+        entry = REMOVED
+        while h:
+            while entry is REMOVED:
+                entry = heapq.heappop(h)[-1]
+            yield entry
+            if h:
+                entry = heapq.heappop(h)[-1]
+                if entry:
+                    yield entry
 
