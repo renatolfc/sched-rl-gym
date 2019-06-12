@@ -625,3 +625,23 @@ class TestHeap(unittest.TestCase):
     def test_should_not_contain_missing_element(self):
         self.heap.add(0, 0)
         self.assertFalse(1 in self.heap)
+
+
+class TestJob(unittest.TestCase):
+    def setUp(self):
+        self.counter = 0
+
+    def make_job(self, submission, duration, processors):
+        self.counter += 1
+        return job.Job(self.counter, submission, duration, processors, 1, 1, processors, duration, 1,
+                       job.JobStatus.SCHEDULED, 1, 1, 1, 1, 1, -1, -1, 0)
+
+    def test_slowdown_of_unfinished_job_should_fail(self):
+        j = self.make_job(0, 1, 2)
+        j.finish_time = None
+        self.assertEqual(-1, j.slowdown())
+
+    def test_slowdown_of_atomic_idealized_job(self):
+        j = self.make_job(0, 1, 2)
+        j.finish_time = 1
+        self.assertEqual(1, j.slowdown())

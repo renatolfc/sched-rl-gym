@@ -4,6 +4,7 @@
 import enum
 
 import random
+import warnings
 from typing import Iterable
 
 from resource_pool import Interval, IntervalTree
@@ -65,6 +66,12 @@ class Job(object):
     def __str__(self):
         return f'Job<{self.id}, {self.status.name}, start={self.start_time}, processors={self.requested_processors}>'
 
+    def slowdown(self):
+        try:
+            return (self.finish_time - self.submission_time) / self.execution_time
+        except:
+            warnings.warn(f"Failed to obtain slowdown for job {self}. It may not have finished yet.")
+            return -1
 
 class JobParameters(object):
     lower_time_bound: int
