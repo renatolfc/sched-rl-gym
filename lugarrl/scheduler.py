@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from collections import defaultdict
 from abc import ABC, abstractmethod
-from typing import List, Iterable
+from typing import List, Iterable, Tuple
 
 from .job import Job, JobStatus
 from .event import JobEvent, EventType, EventQueue
@@ -121,6 +122,25 @@ class Scheduler(ABC):
         processors_touched.merge_overlaps()
         current_pool = ResourcePool(pool.type, pool.size, processors_touched)
         return current_pool.find(job.requested_processors)
+
+    def find_first_time_for(self, job: Job) -> Tuple[int, Iterable[Interval]]:
+        if (not self.job_events.next) or self.job_events.next.time > self.current_time:
+            resources = self.fits(self.current_time, job, self.processor_pool, self.job_events)
+            if resources:
+                return self.current_time, resources
+
+        near_future = defaultdict(list)
+        for e in self.job_events:
+            near_future[e.time].append(e)
+
+        resource_pool = self.processor_pool.clone()
+        for time in sorted(near_future):
+            resource_pool = self.play_events(near_future[time], resource_pool)
+            resources = self.fits(time, job, resource_pool, self.job_events)
+            if resources:
+                return time, resources
+
+        raise AssertionError('Failed to find time for job, even in the far future.')
 
     def submit(self, job: Job):
         if job.requested_processors > self.number_of_processors:
