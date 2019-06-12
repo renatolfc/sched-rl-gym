@@ -7,11 +7,11 @@ REMOVED: str = '<removed-entry>'
 
 
 class Heap(object):
-    def __init__(self, autovacuum=1000):
+    def __init__(self, auto_vacuum=1000):
         self.priority_queue = []
         self.entry_finder = {}
         self.counter = itertools.count()
-        self.autovacuum = autovacuum
+        self.auto_vacuum = auto_vacuum
 
     def add(self, item, priority=0):
         'Add a new item or update the priority of an existing item'
@@ -21,7 +21,7 @@ class Heap(object):
         entry = [priority, count, item]
         self.entry_finder[item] = entry
         heapq.heappush(self.priority_queue, entry)
-        if (count % self.autovacuum) == 0:
+        if (count % self.auto_vacuum) == 0:
             self.vacuum()
 
     def remove(self, item):
