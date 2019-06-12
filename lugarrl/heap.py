@@ -46,7 +46,7 @@ class Heap(object):
         self.priority_queue = tmp
 
     def __iter__(self):
-        return iter(self.entry_finder)
+        return iter(self.heapsort())
 
     def __contains__(self, item):
         return item in self.entry_finder
