@@ -73,6 +73,7 @@ class Job(object):
             warnings.warn(f"Failed to obtain slowdown for job {self}. It may not have finished yet.")
             return -1
 
+
 class JobParameters(object):
     lower_time_bound: int
     upper_time_bound: int
