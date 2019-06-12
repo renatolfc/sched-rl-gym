@@ -10,7 +10,7 @@ class FifoScheduler(Scheduler):
         for job in self.queue_admission:
             time, processors = self.find_first_time_for(job)
             job.status = JobStatus.WAITING
-            job.processor_list = processors
+            job.processors_used = processors
             job.start_time = time
             self.add_job_events(job, time)
             self.queue_waiting.append(job)

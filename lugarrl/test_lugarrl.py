@@ -154,7 +154,7 @@ class TestScheduler(unittest.TestCase):
     @staticmethod
     def build_event(type, j, interval, time=0):
         p = resource_pool.IntervalTree([resource_pool.Interval(interval[0], interval[1])])
-        j.processor_list = p
+        j.processors_used = p
         return event.JobEvent(
             time, type, j
         )
@@ -223,9 +223,9 @@ class TestScheduler(unittest.TestCase):
     def play_events(self, time):
         for e in (e for e in self.events if e.time <= time):
             if e.event_type == event.EventType.JOB_START:
-                self.scheduler.processor_pool.allocate(e.job.processor_list)
+                self.scheduler.processor_pool.allocate(e.job.processors_used)
             else:
-                self.scheduler.processor_pool.deallocate(e.job.processor_list)
+                self.scheduler.processor_pool.deallocate(e.job.processors_used)
 
     def test_eventually_fits_partially_filled_pool(self):
         for i in range(5):

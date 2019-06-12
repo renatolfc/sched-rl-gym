@@ -34,7 +34,7 @@ class SwfJobStatus(enum.IntEnum):
 
 
 class Job(object):
-    processor_list: Iterable[Interval]
+    processors_used: Iterable[Interval]
 
     def __init__(self, job_id, submission_time, execution_time, processors_allocated, average_cpu_use, memory_use,
                  requested_processors, requested_time, requested_memory, status, user_id, group_id, executable,
@@ -58,7 +58,7 @@ class Job(object):
         self.think_time = think_time
         self.wait_time = wait_time
 
-        self.processor_list = IntervalTree()
+        self.processors_used = IntervalTree()
         self.first_scheduling_promise = None
         self.start_time = None
         self.finish_time = None
