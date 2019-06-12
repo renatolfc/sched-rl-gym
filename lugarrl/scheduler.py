@@ -29,7 +29,6 @@ class Scheduler(ABC):
         self.used_memory = 0
         self.current_time = 0
         self.used_processors = 0
-        self.last_completed = []
         self.job_events = EventQueue(self.current_time - 1)
         self.processor_pool = ResourcePool(ResourceType.CPU, number_of_processors)
 
@@ -91,11 +90,6 @@ class Scheduler(ABC):
         self.current_time += offset
 
         self.schedule()
-
-    def can_start(self, j: Job):
-        return self.current_time >= j.submission_time and \
-               self.used_processors + j.processors_allocated < self.number_of_processors \
-               and self.used_memory + j.memory_use < self.total_memory
 
     def play_events(self, events: Iterable[JobEvent], pool: ResourcePool,
                     update_queues: bool = False) -> ResourcePool:

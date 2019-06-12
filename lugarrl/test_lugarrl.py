@@ -288,22 +288,6 @@ class TestFifoScheduler(unittest.TestCase):
         self.assertEqual(len(self.scheduler.queue_waiting), waiting)
         self.assertEqual(len(self.scheduler.queue_admission), admission)
 
-    def test_can_schedule_small_job(self):
-        self.scheduler.step()
-        self.assertTrue(
-            self.scheduler.can_start(self.small_job_parameters.sample(
-                self.scheduler.current_time
-            ))
-        )
-
-    def test_cant_schedule_future_jobs(self):
-        self.scheduler.step()
-        self.assertFalse(
-            self.scheduler.can_start(self.small_job_parameters.sample(
-                self.scheduler.current_time + 1
-            ))
-        )
-
     def test_all_jobs_completed(self):
         for i in range(100):
             self.scheduler.step()
