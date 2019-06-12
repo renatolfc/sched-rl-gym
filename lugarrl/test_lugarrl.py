@@ -95,6 +95,11 @@ class TestTimeBaseLugarRL(TestLugarRL):
         self.lugar.step()
         self.assertEqual(self.lugar.simulator.current_time, 1)
 
+    def test_simulation_runs_fine(self):
+        for i in range(1000):
+            self.lugar.step()
+        self.assertEqual(self.lugar.simulator.current_time, 1000)
+
 
 class TestJobParameters(unittest.TestCase):
     def setUp(self):
