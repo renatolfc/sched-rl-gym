@@ -14,14 +14,18 @@ class SimulationType(enum.Enum):
 
 
 class Simulator(ABC):
+    current_time: int
+    scheduler: sched.Scheduler
+    simulation_start_time: int
+
     def __init__(self,
                  workload_generator: workload.WorkloadGenerator,
                  scheduler: sched.Scheduler):
-        self.workload = workload_generator
 
         self.current_time = 0
         self.scheduler = scheduler
         self.simulation_start_time = 0
+        self.workload: workload.WorkloadGenerator = workload_generator
 
     @staticmethod
     def make(simulation_type: SimulationType,
@@ -33,7 +37,7 @@ class Simulator(ABC):
             raise RuntimeError(f"Unsupported simulation type {simulation_type}")
 
     @abstractmethod
-    def step(self):
+    def step(self) -> None:
         "Runs a simulation step."
 
 

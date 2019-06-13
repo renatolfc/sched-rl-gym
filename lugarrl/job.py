@@ -7,7 +7,7 @@ import random
 import warnings
 from typing import Iterable
 
-from resource_pool import Interval, IntervalTree
+from .resource_pool import Interval, IntervalTree
 
 
 class PrimaryResource(enum.IntEnum):
@@ -106,12 +106,12 @@ class JobParameters(object):
         self.job_id = 1
         self.time_step = 0
 
-    def add_time(self, steps=1):
+    def add_time(self, steps: int = 1) -> None:
         if steps < 0:
             raise AssertionError("Time can't be negative.")
         self.time_step += steps
 
-    def sample(self, submission_time=0):
+    def sample(self, submission_time: int = 0) -> Job:
         time_duration = random.randint(self.lower_time_bound, self.upper_time_bound + 1)
 
         cpu = self.resource_samplers[PrimaryResource.CPU]()

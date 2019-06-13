@@ -3,7 +3,7 @@
 
 from collections import defaultdict
 from abc import ABC, abstractmethod
-from typing import List, Iterable, Tuple
+from typing import List, Iterable, Tuple, Dict
 
 from .job import Job, JobStatus
 from .event import JobEvent, EventType, EventQueue
@@ -11,12 +11,17 @@ from .resource_pool import ResourceType, ResourcePool, Interval, IntervalTree
 
 
 class Scheduler(ABC):
-    job_events: EventQueue[JobEvent]
-    processor_pool: ResourcePool
+    used_memory: int
+    current_time: int
+    total_memory: int
+    used_processors: int
+    number_of_processors: int
     queue_waiting: List[Job]
     queue_running: List[Job]
-    queue_completed: List[Job]
     queue_admission: List[Job]
+    queue_completed: List[Job]
+    processor_pool: ResourcePool
+    job_events: EventQueue[JobEvent]
 
     def __init__(self, number_of_processors, total_memory):
         self.number_of_processors = number_of_processors
@@ -38,10 +43,10 @@ class Scheduler(ABC):
         return self.queue_completed + self.queue_running + self.queue_waiting + self.queue_admission
 
     @property
-    def makespan(self):
+    def makespan(self) -> int:
         return max([j.finish_time for j in self.queue_completed])
 
-    def start_running(self, j: Job):
+    def start_running(self, j: Job) -> None:
         self.queue_waiting.remove(j)
         self.queue_running.append(j)
 
@@ -50,7 +55,7 @@ class Scheduler(ABC):
         self.used_processors += j.processors_allocated
         j.wait_time = j.start_time - j.submission_time
 
-    def complete_job(self, j: Job):
+    def complete_job(self, j: Job) -> None:
         self.queue_running.remove(j)
         self.queue_completed.append(j)
 
@@ -59,7 +64,7 @@ class Scheduler(ABC):
         self.used_memory -= j.memory_use
         self.used_processors -= j.processors_allocated
 
-    def add_job_events(self, job: Job, time: int):
+    def add_job_events(self, job: Job, time: int) -> None:
         if not job.processors_used or \
                 sum((ResourcePool.measure(i) for i in job.processors_used)) < job.requested_processors:
             raise AssertionError(
@@ -76,10 +81,10 @@ class Scheduler(ABC):
         self.job_events.add(finish)
 
     @property
-    def free_resources(self):
+    def free_resources(self) -> Tuple[int, int]:
         return self.number_of_processors - self.used_processors, self.total_memory - self.used_memory
 
-    def step(self, offset: int = 1):
+    def step(self, offset: int = 1) -> None:
         if offset < 0:
             raise AssertionError("Tried to move backwards in time")
 
@@ -129,7 +134,7 @@ class Scheduler(ABC):
             if resources:
                 return self.current_time, resources
 
-        near_future = defaultdict(list)
+        near_future: Dict[int, List[JobEvent]] = defaultdict(list)
         for e in self.job_events:
             near_future[e.time].append(e)
 
@@ -142,7 +147,7 @@ class Scheduler(ABC):
 
         raise AssertionError('Failed to find time for job, even in the far future.')
 
-    def submit(self, job: Job):
+    def submit(self, job: Job) -> None:
         if job.requested_processors > self.number_of_processors:
             raise RuntimeError(
                 'Impossible to allocate resources for job bigger than cluster.'
@@ -152,5 +157,5 @@ class Scheduler(ABC):
         self.queue_admission.append(job)
 
     @abstractmethod
-    def schedule(self):
+    def schedule(self) -> None:
         "Schedules tasks."

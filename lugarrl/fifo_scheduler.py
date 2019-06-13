@@ -6,7 +6,7 @@ from .scheduler import Scheduler
 
 
 class FifoScheduler(Scheduler):
-    def schedule(self):
+    def schedule(self) -> None:
         for job in self.queue_admission:
             time, processors = self.find_first_time_for(job)
             job.status = JobStatus.WAITING

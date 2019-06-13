@@ -6,7 +6,7 @@ import enum
 import warnings
 from typing import List, Optional, Iterable, TypeVar, Generic, Iterator
 
-from job import Job
+from .job import Job
 from .heap import Heap
 from .resource_pool import ResourceType, Interval
 
@@ -63,8 +63,8 @@ class JobEvent(Event):
 
 class EventQueue(Generic[T]):
     time: int
-    future: Heap
     past: List[T]
+    future: Heap[T]
 
     def __init__(self, time: int = 0):
         self.past = []

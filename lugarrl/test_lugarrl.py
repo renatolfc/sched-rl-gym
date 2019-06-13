@@ -590,7 +590,7 @@ class TestEvent(unittest.TestCase):
 
 class TestHeap(unittest.TestCase):
     def setUp(self) -> None:
-        self.heap = heap.Heap()
+        self.heap: heap.Heap[int] = heap.Heap()
 
     def test_should_change_priority(self):
         item = 42
