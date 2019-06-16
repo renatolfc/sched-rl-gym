@@ -50,11 +50,11 @@ class JobEvent(Event):
         self.job = job
 
     @property
-    def processors(self):
+    def processors(self) -> Iterable[Interval]:
         return self.job.processors_used
 
     @property
-    def memory(self):
+    def memory(self) -> int:
         return self.job.requested_memory
 
     def __str__(self):
@@ -71,7 +71,7 @@ class EventQueue(Generic[T]):
         self.time = time
         self.future = Heap()
 
-    def add(self, event: T):
+    def add(self, event: T) -> None:
         if event.time >= self.time:
             self.future.add(event, (event.time, event.event_type))
         else:

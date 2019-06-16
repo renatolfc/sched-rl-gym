@@ -63,14 +63,14 @@ class ResourcePool(object):
                 break
         return used
 
-    def allocate(self, intervals: Iterable[Interval]):
+    def allocate(self, intervals: Iterable[Interval]) -> None:
         for i in intervals:
             if self.used_resources + self.measure(i) > self.size:
                 raise AssertionError("Tried to allocate past size of resource pool")
             self.used_pool.add(i)
             self.used_resources += self.measure(i)
 
-    def deallocate(self, intervals: Iterable[Interval]):
+    def deallocate(self, intervals: Iterable[Interval]) -> None:
         for i in intervals:
             if i not in self.used_pool:
                 raise AssertionError("Tried to deallocate unused resource set")
@@ -78,7 +78,7 @@ class ResourcePool(object):
             self.used_resources -= self.measure(i)
 
     @property
-    def intervals(self):
+    def intervals(self) -> Iterable[Interval]:
         return [i for i in self.used_pool]
 
     def __repr__(self):
