@@ -2,15 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import heapq, itertools
-from typing import Generic, TypeVar, List, Dict, Generator, Optional, Iterator
+from typing import Generic, TypeVar, List, Dict, Generator, Optional, Iterator, Tuple, cast
 
 T = TypeVar('T')
-REMOVED: str = '<removed-entry>'
+REMOVED: None = None
+ENTRY_T = Tuple[int, int, List[Optional[T]]]
 
 
 class Heap(Generic[T]):
-    priority_queue: List[List]
-    entry_finder: Dict[T, List]
+    entry_finder: Dict[Optional[T], ENTRY_T]
+    priority_queue: List[ENTRY_T]
     auto_vacuum: int
 
     def __init__(self, auto_vacuum=1000):
@@ -24,7 +25,7 @@ class Heap(Generic[T]):
         if item in self.entry_finder:
             self.remove(item)
         count = next(self.counter)
-        entry = [priority, count, item]
+        entry = (priority, count, [item])
         self.entry_finder[item] = entry
         heapq.heappush(self.priority_queue, entry)
         if (count % self.auto_vacuum) == 0:
@@ -33,22 +34,22 @@ class Heap(Generic[T]):
     def remove(self, item) -> None:
         'Mark an existing item as removed. Raise KeyError if not found.'
         entry = self.entry_finder.pop(item)
-        entry[-1] = REMOVED
+        entry[-1][0] = REMOVED
 
     def pop(self) -> T:
         'Remove and return the lowest priority task. Raise KeyError if empty.'
         while self.priority_queue:
-            priority, count, item = heapq.heappop(self.priority_queue)
+            priority, count, (item,) = heapq.heappop(self.priority_queue)
             if item is not REMOVED:
                 del self.entry_finder[item]
-                return item
+                return cast(T, item)
         raise KeyError('pop from an empty priority queue')
 
     def vacuum(self) -> None:
         tmp: List = []
-        for (priority, count, item) in self.priority_queue:
+        for (priority, count, (item,)) in self.priority_queue:
             if item is not REMOVED:
-                heapq.heappush(tmp, [priority, count, item])
+                heapq.heappush(tmp, (priority, count, [item]))
         self.priority_queue = tmp
 
     def __iter__(self) -> Iterator[T]:
@@ -64,7 +65,7 @@ class Heap(Generic[T]):
     def first(self) -> Optional[T]:
         if len(self.entry_finder) == 0:
             return None
-        for (priority, count, item) in self.priority_queue:
+        for (priority, count, (item,)) in self.priority_queue:
             if item is not REMOVED:
                 return item
         return None
@@ -72,6 +73,6 @@ class Heap(Generic[T]):
     def heapsort(self) -> Generator[T, None, None]:
         h = [e for e in self.priority_queue]
         while h:
-            entry = heapq.heappop(h)[-1]
+            entry = heapq.heappop(h)[-1][0]
             if entry is not REMOVED:
-                yield entry
+                yield cast(T, entry)
