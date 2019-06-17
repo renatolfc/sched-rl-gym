@@ -5,7 +5,7 @@ import enum
 
 import random
 import warnings
-from typing import Iterable
+from typing import Iterable, NamedTuple, Tuple
 
 from .resource_pool import Interval, IntervalTree
 
@@ -33,12 +33,25 @@ class SwfJobStatus(enum.IntEnum):
     MEANINGLESS = -1
 
 
+class Resource(object):
+    processors: Iterable[Interval] = IntervalTree()
+    memory: Iterable[Interval] = IntervalTree()
+
+    def measure(self) -> Tuple[int, int]:
+        processors = sum([i.end - i.begin for i in self.processors])
+        memory = sum([i.end - i.begin for i in self.memory])
+        return processors, memory
+
+    def __bool__(self) -> bool:
+        return bool(self.processors) or bool(self.memory)
+
+
 class Job(object):
-    processors_used: Iterable[Interval]
+    resources_used: Resource
 
     def __init__(self, job_id, submission_time, execution_time, processors_allocated, average_cpu_use, memory_use,
                  requested_processors, requested_time, requested_memory, status, user_id, group_id, executable,
-                 queue_number, partition_number, preceding_job_id, think_time, wait_time):
+                 queue_number, partition_number, preceding_job_id, think_time, wait_time, ignore_memory=True):
         self.id = job_id
         self.submission_time = submission_time
         self.execution_time = execution_time
@@ -58,13 +71,19 @@ class Job(object):
         self.think_time = think_time
         self.wait_time = wait_time
 
-        self.processors_used = IntervalTree()
+        self.resources_used = Resource()
         self.first_scheduling_promise = None
         self.start_time = None
         self.finish_time = None
+        self.ignore_memory = ignore_memory
 
     def __str__(self):
         return f'Job<{self.id}, {self.status.name}, start={self.start_time}, processors={self.requested_processors}>'
+
+    @property
+    def proper(self):
+        processors, memory = self.resources_used.measure()
+        return processors == self.requested_processors and (self.ignore_memory or memory == self.requested_memory)
 
     def slowdown(self):
         try:
