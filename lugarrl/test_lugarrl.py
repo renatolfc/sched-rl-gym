@@ -5,6 +5,7 @@ import random
 import unittest
 
 from . import lugarrl, simulator, job, workload, fifo_scheduler, resource_pool, event, heap, scheduler
+from . import cluster as clstr
 
 
 class MockLugarRL(object):
@@ -154,7 +155,7 @@ class TestScheduler(unittest.TestCase):
     @staticmethod
     def build_event(type, j, interval, time=0):
         p = resource_pool.IntervalTree([resource_pool.Interval(interval[0], interval[1])])
-        j.processors_used = p
+        j.resources_used.processors = p
         return event.JobEvent(
             time, type, j
         )
@@ -223,9 +224,9 @@ class TestScheduler(unittest.TestCase):
     def play_events(self, time):
         for e in (e for e in self.events if e.time <= time):
             if e.event_type == event.EventType.JOB_START:
-                self.scheduler.processor_pool.allocate(e.job.processors_used)
+                self.scheduler.processor_pool.allocate(e.job.resources_used.processors)
             else:
-                self.scheduler.processor_pool.deallocate(e.job.processors_used)
+                self.scheduler.processor_pool.deallocate(e.job.resources_used.processors)
 
     def test_eventually_fits_partially_filled_pool(self):
         for i in range(5):
@@ -634,3 +635,59 @@ class TestJob(unittest.TestCase):
         j = self.make_job(0, 1, 2)
         j.finish_time = 1
         self.assertEqual(1, j.slowdown())
+
+
+class TestCluster(unittest.TestCase):
+    def setUp(self):
+        self.counter = 0
+        self.processors = 16
+        self.memory = 1024 * self.processors
+
+    def make_job(self, submission, duration, processors, memory):
+        self.counter += 1
+        return job.Job(self.counter, submission, duration, processors, 1, memory, processors, duration, memory,
+                       job.JobStatus.SCHEDULED, 1, 1, 1, 1, 1, -1, -1, 0)
+
+    def test_basic_fit(self):
+        cluster = clstr.Cluster(self.processors, self.memory)
+        j = self.make_job(0, 10, 1, 1024)
+        self.assertTrue(cluster.fits(j))
+        j = self.make_job(0, 10, self.processors + 1, 1024)
+        self.assertFalse(cluster.fits(j))
+        j = self.make_job(0, 10, self.processors, self.memory)
+        self.assertTrue(cluster.fits(j))
+        j = self.make_job(0, 10, self.processors, self.memory + 1)
+        self.assertFalse(cluster.fits(j))
+
+    def test_fit_ignoring_memory(self):
+        cluster = clstr.Cluster(self.processors, self.memory, ignore_memory=True)
+        self.assertTrue(cluster.fits(self.make_job(0, 10, 1, 1024)))
+        self.assertTrue(cluster.fits(self.make_job(0, 10, self.processors, 1024)))
+        self.assertTrue(cluster.fits(self.make_job(0, 10, self.processors, self.memory)))
+        self.assertTrue(cluster.fits(self.make_job(0, 10, self.processors, self.memory + 1)))
+        self.assertFalse(cluster.fits(self.make_job(0, 10, self.processors + 1, self.memory + 1)))
+
+    def test_free_resources(self):
+        cluster = clstr.Cluster(self.processors, self.memory)
+        self.assertEqual(cluster.free_resources, (self.processors, self.memory))
+
+    def test_allocation(self):
+        cluster = clstr.Cluster(self.processors, self.memory)
+        j = self.make_job(0, 10, 1, 1024)
+        cluster.allocate(j)
+        self.assertEqual(cluster.free_resources[0], self.processors - 1)
+        self.assertEqual(cluster.free_resources[1], self.memory - 1024)
+        cluster.free(j)
+        self.assertEqual(cluster.free_resources[0], self.processors)
+        self.assertEqual(cluster.free_resources[1], self.memory)
+        j = self.make_job(0, 10, self.processors + 1, 1024)
+        with self.assertRaises(AssertionError):
+            cluster.allocate(j)
+        j = self.make_job(0, 10, self.processors, self.memory)
+        j.ignore_memory = False
+        cluster.allocate(j)
+        self.assertEqual(cluster.free_resources, (0, 0))
+        cluster.free(j)
+        j.requested_memory = self.memory + 1
+        with self.assertRaises(AssertionError):
+            cluster.allocate(j)
