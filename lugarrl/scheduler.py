@@ -5,9 +5,9 @@ from collections import defaultdict
 from abc import ABC, abstractmethod
 from typing import List, Iterable, Tuple, Dict
 
-from .job import Job, JobStatus
+from .cluster import Cluster
+from .job import Job, JobStatus, Resource
 from .event import JobEvent, EventType, EventQueue
-from .resource_pool import ResourceType, ResourcePool, Interval, IntervalTree
 
 
 class Scheduler(ABC):
@@ -20,7 +20,7 @@ class Scheduler(ABC):
     queue_running: List[Job]
     queue_admission: List[Job]
     queue_completed: List[Job]
-    processor_pool: ResourcePool
+    cluster: Cluster
     job_events: EventQueue[JobEvent]
 
     def __init__(self, number_of_processors, total_memory):
@@ -36,7 +36,7 @@ class Scheduler(ABC):
         self.current_time = 0
         self.used_processors = 0
         self.job_events = EventQueue(self.current_time - 1)
-        self.processor_pool = ResourcePool(ResourceType.CPU, number_of_processors)
+        self.cluster = Cluster(number_of_processors, total_memory)
 
     @property
     def all_jobs(self) -> List[Job]:
@@ -91,45 +91,34 @@ class Scheduler(ABC):
             self.schedule()
 
         present = self.job_events.step(offset)
-        self.play_events(present, self.processor_pool, update_queues=True)
+        self.cluster = self.play_events(present, self.cluster, update_queues=True)
         self.current_time += offset
 
         self.schedule()
 
-    def play_events(self, events: Iterable[JobEvent], pool: ResourcePool,
-                    update_queues: bool = False) -> ResourcePool:
+    def play_events(self, events: Iterable[JobEvent], cluster: Cluster,
+                    update_queues: bool = False) -> Cluster:
         for event in events:
             if event.event_type == EventType.JOB_START:
-                pool.allocate(event.processors)
+                cluster.allocate(event.job)
                 if update_queues:
                     self.start_running(event.job)
             elif event.event_type == EventType.JOB_FINISH:
-                pool.deallocate(event.processors)
+                cluster.free(event.job)
                 if update_queues:
                     self.complete_job(event.job)
             else:
                 raise RuntimeError("Unexpected event type found")
-        return pool
+        return cluster
 
     @staticmethod
-    def fits(time: int, job: Job, pool: ResourcePool, events: Iterable[JobEvent]) \
-            -> Iterable[Interval]:
-        """Checks whether a job fits the system starting at a given time.
+    def fits(time: int, job: Job, cluster: Cluster, events: Iterable[JobEvent]) \
+            -> Resource:
+        return cluster.find_resources_at_time(time, job, events)
 
-        It is required that the pool is updated up to :param time:.
-        """
-        processors_touched = IntervalTree(pool.used_pool)
-        for event in (e for e in events if time + 1 <= e.time < job.requested_time + time):
-            if event.event_type == EventType.JOB_START:
-                for i in event.processors:
-                    processors_touched.add(i)
-        processors_touched.merge_overlaps()
-        current_pool = ResourcePool(pool.type, pool.size, processors_touched)
-        return current_pool.find(job.requested_processors)
-
-    def find_first_time_for(self, job: Job) -> Tuple[int, Iterable[Interval]]:
+    def find_first_time_for(self, job: Job) -> Tuple[int, Resource]:
         if (not self.job_events.next) or self.job_events.next.time > self.current_time:
-            resources = self.fits(self.current_time, job, self.processor_pool, self.job_events)
+            resources = self.cluster.find_resources_at_time(self.current_time, job, self.job_events)
             if resources:
                 return self.current_time, resources
 
@@ -137,10 +126,10 @@ class Scheduler(ABC):
         for e in self.job_events:
             near_future[e.time].append(e)
 
-        resource_pool = self.processor_pool.clone()
+        cluster = self.cluster.clone()
         for time in sorted(near_future):
-            resource_pool = self.play_events(near_future[time], resource_pool)
-            resources = self.fits(time, job, resource_pool, self.job_events)
+            cluster = self.play_events(near_future[time], cluster)
+            resources = cluster.find_resources_at_time(time, job, self.job_events)
             if resources:
                 return time, resources
 

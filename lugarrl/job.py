@@ -7,7 +7,7 @@ import random
 import warnings
 from typing import Iterable, NamedTuple, Tuple
 
-from .resource_pool import Interval, IntervalTree
+from .resource_pool import Interval, IntervalTree, ResourcePool
 
 
 class PrimaryResource(enum.IntEnum):
@@ -34,8 +34,14 @@ class SwfJobStatus(enum.IntEnum):
 
 
 class Resource(object):
-    processors: Iterable[Interval] = IntervalTree()
-    memory: Iterable[Interval] = IntervalTree()
+    processors: IntervalTree = IntervalTree()
+    memory: IntervalTree = IntervalTree()
+
+    def __init__(self, processors: IntervalTree = IntervalTree(), memory: IntervalTree = IntervalTree(),
+                 ignore_memory: bool = False):
+        self.ignore_memory = ignore_memory
+        self.processors = IntervalTree([i for i in processors])
+        self.memory = IntervalTree([i for i in memory])
 
     def measure(self) -> Tuple[int, int]:
         processors = sum([i.end - i.begin for i in self.processors])
@@ -43,7 +49,13 @@ class Resource(object):
         return processors, memory
 
     def __bool__(self) -> bool:
-        return bool(self.processors) or bool(self.memory)
+        return bool(self.processors) and (self.ignore_memory or bool(self.memory))
+
+    def __repr__(self):
+        return f'Resource({self.processors}, {self.memory})'
+
+    def __str__(self):
+        return f'Resource({self.processors}, {self.memory})'
 
 
 class Job(object):
@@ -88,7 +100,7 @@ class Job(object):
     def slowdown(self):
         try:
             return (self.finish_time - self.submission_time) / self.execution_time
-        except:
+        except TypeError:
             warnings.warn(f"Failed to obtain slowdown for job {self}. It may not have finished yet.")
             return -1
 

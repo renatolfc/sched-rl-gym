@@ -54,8 +54,8 @@ class JobEvent(Event):
         return self.job.resources_used.processors
 
     @property
-    def memory(self) -> int:
-        return self.job.requested_memory
+    def memory(self) -> Iterable[Interval]:
+        return self.job.resources_used.memory
 
     def __str__(self):
         return f'JobEvent<{self.time}, {self.event_type.name}, {self.job}>'

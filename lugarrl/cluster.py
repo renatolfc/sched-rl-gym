@@ -1,19 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import copy
 from typing import Tuple, Iterable
 
 from . import resource_pool
-from .job import Job
+
+from .job import Job, Resource
+from .event import JobEvent, EventType
 
 RESOURCE_TYPE = Tuple[Iterable[resource_pool.Interval], Iterable[resource_pool.Interval]]
 
 
 class Cluster(object):
-    def __init__(self, processors, memory, ignore_memory=False):
+    def __init__(self, processors, memory, ignore_memory=False, used_processors=None, used_memory=None):
         self.ignore_memory = ignore_memory
-        self.memory = resource_pool.ResourcePool(resource_pool.ResourceType.MEMORY, memory)
-        self.processors = resource_pool.ResourcePool(resource_pool.ResourceType.CPU, processors)
+        self.memory = resource_pool.ResourcePool(resource_pool.ResourceType.MEMORY, memory, used_memory)
+        self.processors = resource_pool.ResourcePool(resource_pool.ResourceType.CPU, processors, used_processors)
 
     @property
     def free_resources(self) -> Tuple[int, int]:
@@ -25,12 +28,46 @@ class Cluster(object):
 
     def allocate(self, job: Job) -> None:
         if not self.fits(job):
-            raise AssertionError("Unable to allocate resources for job bigger than cluster")
-        job.resources_used.processors = self.processors.find(job.requested_processors)
-        job.resources_used.memory = self.memory.find(job.requested_memory)
+            raise AssertionError(f"Unable to allocate resources for {job} in {self}")
         self.processors.allocate(job.resources_used.processors)
         self.memory.allocate(job.resources_used.memory)
 
+    def clone(self):
+        return copy.deepcopy(self)
+
+    def find(self, job: Job) -> Resource:
+        p = self.processors.find(job.requested_processors)
+        if not p:
+            return Resource()
+        if self.ignore_memory:
+            return Resource(p, ignore_memory=True)
+        m = self.memory.find(job.requested_memory)
+        return Resource(p, m)
+
     def free(self, job: Job) -> None:
         self.processors.deallocate(job.resources_used.processors)
-        self.memory.deallocate(job.resources_used.memory)
+        if not self.ignore_memory:
+            self.memory.deallocate(job.resources_used.memory)
+
+    def find_resources_at_time(self, time: int, job: Job, events: Iterable[JobEvent]) -> Resource:
+        used = Resource(self.processors.used_pool, self.memory.used_pool)
+        for event in (e for e in events if (time + 1 <= e.time < job.requested_time + time and
+                                            e.event_type == EventType.JOB_START)):
+            for i in event.processors:
+                used.processors.add(i)
+            for i in event.memory:
+                used.memory.add(i)
+        used.processors.merge_overlaps()
+        used.memory.merge_overlaps()
+        return Cluster(
+            self.processors.size, self.memory.size, self.ignore_memory, used.processors, used.memory
+        ).find(job)
+
+    def __bool__(self):
+        return self.processors.free_resources != 0 and self.memory.free_resources != 0
+
+    def __repr__(self):
+        return f'Cluster({self.processors}, {self.memory}, {self.ignore_memory})'
+
+    def __str__(self):
+        return f'Cluster({self.processors}, {self.memory}, {self.ignore_memory})'

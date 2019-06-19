@@ -28,7 +28,7 @@ class TestSimulator(unittest.TestCase):
         self.workload = workload.BinomialWorkloadGenerator(
             0.7, 0.8, self.small_job_parameters, self.large_job_parameters, length=1
         )
-        self.scheduler = fifo_scheduler.FifoScheduler(16, 64)
+        self.scheduler = fifo_scheduler.FifoScheduler(16, 2048)
 
     def test_time_based_simulator(self):
         sim = simulator.Simulator.make(simulator.SimulationType.TIME_BASED,
@@ -55,7 +55,7 @@ class TestSimulator(unittest.TestCase):
                                        self.workload,
                                        self.scheduler)
         for i in range(100):
-                sim.step()
+            sim.step()
         self.assertNotEqual(len(self.scheduler.queue_completed), len(self.scheduler.all_jobs))
 
     def test_all_jobs_executed(self):
@@ -179,9 +179,9 @@ class TestScheduler(unittest.TestCase):
 
     def test_fits_empty_pool_without_events(self):
         j = self.jp.sample()
-        self.assertTrue(self.scheduler.fits(0, j, self.scheduler.processor_pool.clone(), self.events)[0])
+        self.assertTrue(self.scheduler.fits(0, j, self.scheduler.cluster.clone(), self.events).processors)
         j.requested_processors = 10
-        self.assertTrue(self.scheduler.fits(0, j, self.scheduler.processor_pool.clone(), self.events)[0])
+        self.assertTrue(self.scheduler.fits(0, j, self.scheduler.cluster.clone(), self.events).processors)
 
     def test_fits_empty_pool_with_events_in_the_future(self):
         j = self.jp.sample()
@@ -195,17 +195,17 @@ class TestScheduler(unittest.TestCase):
         j.requested_processors = 4
         j.requested_time = 5
 
-        self.assertTrue(self.scheduler.fits(0, j, self.scheduler.processor_pool.clone(), self.events))
+        self.assertTrue(self.scheduler.fits(0, j, self.scheduler.cluster.clone(), self.events))
 
     def test_fits_partially_filled_pool_with_no_events(self):
-        self.scheduler.processor_pool.allocate(resource_pool.IntervalTree([resource_pool.Interval(0, 6)]))
+        self.scheduler.cluster.processors.allocate(resource_pool.IntervalTree([resource_pool.Interval(0, 6)]))
         j = self.jp.sample()
-        self.assertTrue(self.scheduler.fits(0, j, self.scheduler.processor_pool.clone(), self.events))
+        self.assertTrue(self.scheduler.fits(0, j, self.scheduler.cluster.clone(), self.events))
 
     def test_doesnt_fit_fully_filled_pool_with_no_events(self):
-        self.scheduler.processor_pool.allocate(resource_pool.IntervalTree([resource_pool.Interval(0, 10)]))
+        self.scheduler.cluster.processors.allocate(resource_pool.IntervalTree([resource_pool.Interval(0, 10)]))
         j = self.jp.sample()
-        self.assertFalse(self.scheduler.fits(0, j, self.scheduler.processor_pool.clone(), self.events))
+        self.assertFalse(self.scheduler.fits(0, j, self.scheduler.cluster.clone(), self.events))
 
     def test_past_events_dont_influence_the_present(self):
         j = self.jp.sample()
@@ -219,14 +219,14 @@ class TestScheduler(unittest.TestCase):
         j.requested_processors = 4
         j.requested_time = 5
 
-        self.assertTrue(self.scheduler.fits(20, j, self.scheduler.processor_pool.clone(), self.events))
+        self.assertTrue(self.scheduler.fits(20, j, self.scheduler.cluster.clone(), self.events))
 
     def play_events(self, time):
         for e in (e for e in self.events if e.time <= time):
             if e.event_type == event.EventType.JOB_START:
-                self.scheduler.processor_pool.allocate(e.job.resources_used.processors)
+                self.scheduler.cluster.processors.allocate(e.job.resources_used.processors)
             else:
-                self.scheduler.processor_pool.deallocate(e.job.resources_used.processors)
+                self.scheduler.cluster.processors.deallocate(e.job.resources_used.processors)
 
     def test_eventually_fits_partially_filled_pool(self):
         for i in range(5):
@@ -236,11 +236,11 @@ class TestScheduler(unittest.TestCase):
         j = self.new_job(2, 3)
 
         self.play_events(5)
-        self.assertFalse(self.scheduler.fits(5, j, self.scheduler.processor_pool.clone(), self.events))
+        self.assertFalse(self.scheduler.fits(5, j, self.scheduler.cluster.clone(), self.events))
 
         self.scheduler = MockScheduler(10, 10000)
         self.play_events(6)
-        self.assertTrue(self.scheduler.fits(6, j, self.scheduler.processor_pool.clone(), self.events))
+        self.assertTrue(self.scheduler.fits(6, j, self.scheduler.cluster.clone(), self.events))
 
     def test_should_fail_to_add_malformed_job(self):
         j = self.new_job(1, 0)
@@ -256,25 +256,23 @@ class TestScheduler(unittest.TestCase):
         alloc.event_type = event.EventType.RESOURCE_ALLOCATE
 
         with self.assertRaises(RuntimeError):
-            self.scheduler.play_events([alloc, free], self.scheduler.processor_pool)
+            self.scheduler.play_events([alloc, free], self.scheduler.cluster)
 
     def test_should_fail_to_find_resources_on_empty_cluster_with_large_job(self):
         self.scheduler = MockScheduler(16, 10000)
 
         j = self.new_job(17, 0)
-        self.assertFalse(self.scheduler.processor_pool.find(
-            j.requested_processors
-        ))
+        self.assertFalse(self.scheduler.cluster.find(j))
 
         alloc, free = self.build_event_pair(0, (0, 17), j)
         self.assertFalse(self.scheduler.fits(
-            0, j, self.scheduler.processor_pool, [alloc, free]
+            0, j, self.scheduler.cluster, [alloc, free]
         ))
 
 
 class TestFifoScheduler(unittest.TestCase):
     def setUp(self):
-        self.scheduler = fifo_scheduler.FifoScheduler(16, 64)
+        self.scheduler = fifo_scheduler.FifoScheduler(16, 2048)
         self.small_job_parameters = job.JobParameters(1, 3, 1, 2, 2, 16)
         self.large_job_parameters = job.JobParameters(10, 15, 4, 8, 32, 64)
         self.workload = workload.BinomialWorkloadGenerator(
@@ -674,6 +672,8 @@ class TestCluster(unittest.TestCase):
     def test_allocation(self):
         cluster = clstr.Cluster(self.processors, self.memory)
         j = self.make_job(0, 10, 1, 1024)
+        j.resources_used.processors = resource_pool.IntervalTree([resource_pool.Interval(0, 1)])
+        j.resources_used.memory = resource_pool.IntervalTree([resource_pool.Interval(0, 1024)])
         cluster.allocate(j)
         self.assertEqual(cluster.free_resources[0], self.processors - 1)
         self.assertEqual(cluster.free_resources[1], self.memory - 1024)
@@ -684,6 +684,8 @@ class TestCluster(unittest.TestCase):
         with self.assertRaises(AssertionError):
             cluster.allocate(j)
         j = self.make_job(0, 10, self.processors, self.memory)
+        j.resources_used.processors = resource_pool.IntervalTree([resource_pool.Interval(0, self.processors)])
+        j.resources_used.memory = resource_pool.IntervalTree([resource_pool.Interval(0, self.memory)])
         j.ignore_memory = False
         cluster.allocate(j)
         self.assertEqual(cluster.free_resources, (0, 0))
