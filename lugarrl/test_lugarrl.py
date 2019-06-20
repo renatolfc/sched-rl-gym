@@ -4,7 +4,7 @@
 import random
 import unittest
 
-from . import lugarrl, simulator, job, workload, fifo_scheduler, resource_pool, event, heap, scheduler
+from . import lugarrl, simulator, job, workload, fifo_scheduler, pool, event, heap, scheduler
 from . import cluster as clstr
 
 
@@ -154,7 +154,7 @@ class TestScheduler(unittest.TestCase):
 
     @staticmethod
     def build_event(type, j, interval, time=0):
-        p = resource_pool.IntervalTree([resource_pool.Interval(interval[0], interval[1])])
+        p = pool.IntervalTree([pool.Interval(interval[0], interval[1])])
         j.resources_used.processors = p
         return event.JobEvent(
             time, type, j
@@ -198,12 +198,12 @@ class TestScheduler(unittest.TestCase):
         self.assertTrue(self.scheduler.fits(0, j, self.scheduler.cluster.clone(), self.events))
 
     def test_fits_partially_filled_pool_with_no_events(self):
-        self.scheduler.cluster.processors.allocate(resource_pool.IntervalTree([resource_pool.Interval(0, 6)]))
+        self.scheduler.cluster.processors.allocate(pool.IntervalTree([pool.Interval(0, 6)]))
         j = self.jp.sample()
         self.assertTrue(self.scheduler.fits(0, j, self.scheduler.cluster.clone(), self.events))
 
     def test_doesnt_fit_fully_filled_pool_with_no_events(self):
-        self.scheduler.cluster.processors.allocate(resource_pool.IntervalTree([resource_pool.Interval(0, 10)]))
+        self.scheduler.cluster.processors.allocate(pool.IntervalTree([pool.Interval(0, 10)]))
         j = self.jp.sample()
         self.assertFalse(self.scheduler.fits(0, j, self.scheduler.cluster.clone(), self.events))
 
@@ -414,7 +414,7 @@ class TestBinomialWorkloadGenerator(unittest.TestCase):
 class TestResourcePool(unittest.TestCase):
     def setUp(self) -> None:
         self.max_size = 32
-        self.resource_pool = resource_pool.ResourcePool(resource_pool.ResourceType.CPU, self.max_size)
+        self.resource_pool = pool.ResourcePool(pool.ResourceType.CPU, self.max_size)
 
     def test_zero_used_resources(self):
         self.assertEqual(0, self.resource_pool.used_resources)
@@ -461,7 +461,7 @@ class TestResourcePool(unittest.TestCase):
 
     def test_should_fail_to_allocate_more_resources(self):
         with self.assertRaises(AssertionError):
-            self.resource_pool.allocate([resource_pool.Interval(0, 33)])
+            self.resource_pool.allocate([pool.Interval(0, 33)])
 
     def test_should_deallocate_after_allocation(self):
         t = self.resource_pool.find(1)
@@ -524,9 +524,9 @@ class TestEvent(unittest.TestCase):
 
     @staticmethod
     def build_event(type, interval, time=0):
-        t = resource_pool.IntervalTree([resource_pool.Interval(interval[0], interval[1])])
+        t = pool.IntervalTree([pool.Interval(interval[0], interval[1])])
         re = event.ResourceEvent(
-            time, type, resource_pool.ResourceType.CPU, t
+            time, type, pool.ResourceType.CPU, t
         )
         return re
 
@@ -672,8 +672,8 @@ class TestCluster(unittest.TestCase):
     def test_allocation(self):
         cluster = clstr.Cluster(self.processors, self.memory)
         j = self.make_job(0, 10, 1, 1024)
-        j.resources_used.processors = resource_pool.IntervalTree([resource_pool.Interval(0, 1)])
-        j.resources_used.memory = resource_pool.IntervalTree([resource_pool.Interval(0, 1024)])
+        j.resources_used.processors = pool.IntervalTree([pool.Interval(0, 1)])
+        j.resources_used.memory = pool.IntervalTree([pool.Interval(0, 1024)])
         cluster.allocate(j)
         self.assertEqual(cluster.free_resources[0], self.processors - 1)
         self.assertEqual(cluster.free_resources[1], self.memory - 1024)
@@ -684,8 +684,8 @@ class TestCluster(unittest.TestCase):
         with self.assertRaises(AssertionError):
             cluster.allocate(j)
         j = self.make_job(0, 10, self.processors, self.memory)
-        j.resources_used.processors = resource_pool.IntervalTree([resource_pool.Interval(0, self.processors)])
-        j.resources_used.memory = resource_pool.IntervalTree([resource_pool.Interval(0, self.memory)])
+        j.resources_used.processors = pool.IntervalTree([pool.Interval(0, self.processors)])
+        j.resources_used.memory = pool.IntervalTree([pool.Interval(0, self.memory)])
         j.ignore_memory = False
         cluster.allocate(j)
         self.assertEqual(cluster.free_resources, (0, 0))

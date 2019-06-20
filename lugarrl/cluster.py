@@ -4,19 +4,19 @@
 import copy
 from typing import Tuple, Iterable
 
-from . import resource_pool
+from . import pool
 
 from .job import Job, Resource
 from .event import JobEvent, EventType
 
-RESOURCE_TYPE = Tuple[Iterable[resource_pool.Interval], Iterable[resource_pool.Interval]]
+RESOURCE_TYPE = Tuple[Iterable[pool.Interval], Iterable[pool.Interval]]
 
 
 class Cluster(object):
     def __init__(self, processors, memory, ignore_memory=False, used_processors=None, used_memory=None):
         self.ignore_memory = ignore_memory
-        self.memory = resource_pool.ResourcePool(resource_pool.ResourceType.MEMORY, memory, used_memory)
-        self.processors = resource_pool.ResourcePool(resource_pool.ResourceType.CPU, processors, used_processors)
+        self.memory = pool.ResourcePool(pool.ResourceType.MEMORY, memory, used_memory)
+        self.processors = pool.ResourcePool(pool.ResourceType.CPU, processors, used_processors)
 
     @property
     def free_resources(self) -> Tuple[int, int]:

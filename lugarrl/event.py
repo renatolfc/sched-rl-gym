@@ -8,7 +8,7 @@ from typing import List, Optional, Iterable, TypeVar, Generic, Iterator
 
 from .job import Job
 from .heap import Heap
-from .resource_pool import ResourceType, Interval
+from .pool import ResourceType, Interval
 
 T = TypeVar('T', bound='Event')
 

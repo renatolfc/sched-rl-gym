@@ -7,7 +7,7 @@ import random
 import warnings
 from typing import Iterable, NamedTuple, Tuple
 
-from .resource_pool import Interval, IntervalTree, ResourcePool
+from .pool import Interval, IntervalTree, ResourcePool
 
 
 class PrimaryResource(enum.IntEnum):
