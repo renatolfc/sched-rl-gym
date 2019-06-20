@@ -226,7 +226,7 @@ class TestScheduler(unittest.TestCase):
             if e.event_type == event.EventType.JOB_START:
                 self.scheduler.cluster.processors.allocate(e.job.resources_used.processors)
             else:
-                self.scheduler.cluster.processors.deallocate(e.job.resources_used.processors)
+                self.scheduler.cluster.processors.free(e.job.resources_used.processors)
 
     def test_eventually_fits_partially_filled_pool(self):
         for i in range(5):
@@ -466,7 +466,7 @@ class TestResourcePool(unittest.TestCase):
     def test_should_deallocate_after_allocation(self):
         t = self.resource_pool.find(1)
         self.resource_pool.allocate(t)
-        self.resource_pool.deallocate(t)
+        self.resource_pool.free(t)
         self.assertEqual(0, self.resource_pool.used_resources)
         self.assertEqual(self.max_size, self.resource_pool.free_resources)
 
@@ -485,7 +485,7 @@ class TestResourcePool(unittest.TestCase):
             intervals.append(t)
             self.resource_pool.allocate(t)
         for i in intervals:
-            self.resource_pool.deallocate(i)
+            self.resource_pool.free(i)
         self.assertEqual(0, self.resource_pool.used_resources)
         self.assertEqual(self.max_size, self.resource_pool.free_resources)
 
@@ -496,23 +496,23 @@ class TestResourcePool(unittest.TestCase):
             intervals.append(t)
             self.resource_pool.allocate(t)
         for i in intervals:
-            self.resource_pool.deallocate(i)
+            self.resource_pool.free(i)
         with self.assertRaises(AssertionError):
-            self.resource_pool.deallocate(intervals[0])
+            self.resource_pool.free(intervals[0])
 
     def test_should_have_two_sets_after_allocation_deallocation_allocation(self):
         r1 = self.resource_pool.find(self.max_size // 4)
         self.resource_pool.allocate(r1)
         self.assertEqual(1, len(self.resource_pool.intervals))
         r2 = self.resource_pool.find(self.max_size // 4)
-        self.resource_pool.deallocate(r1)
+        self.resource_pool.free(r1)
         self.assertEqual(0, len(self.resource_pool.intervals))
         self.resource_pool.allocate(r2)
         self.assertEqual(1, len(self.resource_pool.intervals))
         r3 = self.resource_pool.find(self.max_size // 2)
         self.resource_pool.allocate(r3)
         self.assertEqual(3, len(self.resource_pool.intervals))
-        self.resource_pool.deallocate(r3)
+        self.resource_pool.free(r3)
         self.assertEqual(1, len(self.resource_pool.intervals))
 
 

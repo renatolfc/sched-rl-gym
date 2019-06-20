@@ -45,9 +45,9 @@ class Cluster(object):
         return Resource(p, m)
 
     def free(self, job: Job) -> None:
-        self.processors.deallocate(job.resources_used.processors)
+        self.processors.free(job.resources_used.processors)
         if not self.ignore_memory:
-            self.memory.deallocate(job.resources_used.memory)
+            self.memory.free(job.resources_used.memory)
 
     def find_resources_at_time(self, time: int, job: Job, events: Iterable[JobEvent]) -> Resource:
         used = Resource(self.processors.used_pool, self.memory.used_pool)

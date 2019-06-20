@@ -70,10 +70,10 @@ class ResourcePool(object):
             self.used_pool.add(i)
             self.used_resources += self.measure(i)
 
-    def deallocate(self, intervals: Iterable[Interval]) -> None:
+    def free(self, intervals: Iterable[Interval]) -> None:
         for i in intervals:
             if i not in self.used_pool:
-                raise AssertionError("Tried to deallocate unused resource set")
+                raise AssertionError("Tried to free unused resource set")
             self.used_pool.remove(i)
             self.used_resources -= self.measure(i)
 
