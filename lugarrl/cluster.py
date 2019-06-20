@@ -36,12 +36,12 @@ class Cluster(object):
         return copy.deepcopy(self)
 
     def find(self, job: Job) -> Resource:
-        p = self.processors.find(job.requested_processors)
+        p = self.processors.find(job.requested_processors, job.id)
         if not p:
             return Resource()
         if self.ignore_memory:
             return Resource(p, ignore_memory=True)
-        m = self.memory.find(job.requested_memory)
+        m = self.memory.find(job.requested_memory, job.id)
         return Resource(p, m)
 
     def free(self, job: Job) -> None:

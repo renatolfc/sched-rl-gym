@@ -3,7 +3,7 @@
 
 import copy
 import enum
-from typing import Iterable
+from typing import Iterable, Optional
 
 from intervaltree import IntervalTree, Interval
 
@@ -42,11 +42,11 @@ class ResourcePool(object):
     def measure(interval: Interval):
         return interval.end - interval.begin
 
-    def find(self, size) -> IntervalTree:
+    def find(self, size: int, data: Optional[int] = None) -> IntervalTree:
         used = IntervalTree()
         if not self.fits(size):
             return used
-        free = IntervalTree([Interval(0, self.size)])
+        free = IntervalTree([Interval(0, self.size, data)])
         used_size: int = 0
         for interval in self.used_pool:
             free.chop(interval.begin, interval.end)
