@@ -59,7 +59,7 @@ class ResourcePool(object):
                 used.add(interval)
                 used_size = temp_size
             else:
-                used.add(Interval(interval.begin, interval.begin + size - used_size))
+                used.add(Interval(interval.begin, interval.begin + size - used_size, data))
                 break
         return used
 
