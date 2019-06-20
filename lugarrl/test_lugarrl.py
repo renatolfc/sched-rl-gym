@@ -380,6 +380,12 @@ class TestFifoScheduler(unittest.TestCase):
         self.assertEqual(5, j6.start_time)
         self.assertEqual(7, j7.start_time)
 
+        for j in [j1, j2, j3, j4, j5, j6, j7]:
+            for i in j.resources_used.processors:
+                self.assertEqual(j.id, i.data)
+            for i in j.resources_used.memory:
+                self.assertEqual(j.id, i.data)
+
         s.step(8)
         self.assertEqual(7, s.makespan)
 
