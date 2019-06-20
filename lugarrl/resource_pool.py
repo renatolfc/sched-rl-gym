@@ -54,17 +54,13 @@ class ResourcePool(object):
             temp_size = ResourcePool.measure(interval) + used_size
             if temp_size == size:
                 used.add(interval)
-                used_size = size
                 break
             elif temp_size < size:
                 used.add(interval)
                 used_size = temp_size
             else:
                 used.add(Interval(interval.begin, interval.begin + size - used_size))
-                used_size = size
                 break
-        if used_size < size:
-            return IntervalTree()
         return used
 
     def allocate(self, intervals: Iterable[Interval]) -> None:
