@@ -223,7 +223,7 @@ class TestScheduler(unittest.TestCase):
 
     def play_events(self, time):
         for e in (e for e in self.events if e.time <= time):
-            if e.event_type == event.EventType.JOB_START:
+            if e.type == event.EventType.JOB_START:
                 self.scheduler.cluster.processors.allocate(e.job.resources_used.processors)
             else:
                 self.scheduler.cluster.processors.free(e.job.resources_used.processors)
@@ -247,13 +247,13 @@ class TestScheduler(unittest.TestCase):
         with self.assertRaises(AssertionError):
             self.scheduler.add_job_events(j, 0)
 
-    def test_should_fail_to_play_unsupported_event_type(self):
+    def test_should_fail_to_play_unsupported_type(self):
         j = self.jp.sample()
         j.requested_processors = 10
         j.requested_time = 5
 
         alloc, free = self.build_event_pair(5, (0, 10), j)
-        alloc.event_type = event.EventType.RESOURCE_ALLOCATE
+        alloc.type = event.EventType.RESOURCE_ALLOCATE
 
         with self.assertRaises(RuntimeError):
             self.scheduler.play_events([alloc, free], self.scheduler.cluster)

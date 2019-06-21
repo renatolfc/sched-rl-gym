@@ -22,11 +22,11 @@ class EventType(enum.IntEnum):
 
 class Event(object):
     time: int
-    event_type: EventType
+    type: EventType
 
-    def __init__(self, time: int, event_type: EventType):
+    def __init__(self, time: int, type: EventType):
         self.time = time
-        self.event_type = event_type
+        self.type = type
 
     def clone(self):
         return copy.copy(self)
@@ -36,8 +36,8 @@ class ResourceEvent(Event):
     resources: Iterable[Interval]
     resource_type: ResourceType
 
-    def __init__(self, time: int, event_type: EventType, resource_type: ResourceType, resources: Iterable[Interval]):
-        super().__init__(time, event_type)
+    def __init__(self, time: int, type: EventType, resource_type: ResourceType, resources: Iterable[Interval]):
+        super().__init__(time, type)
         self.resources = resources
         self.resource_type = resource_type
 
@@ -45,8 +45,8 @@ class ResourceEvent(Event):
 class JobEvent(Event):
     job: Job
 
-    def __init__(self, time: int, event_type: EventType, job: Job):
-        super().__init__(time, event_type)
+    def __init__(self, time: int, type: EventType, job: Job):
+        super().__init__(time, type)
         self.job = job
 
     @property
@@ -58,7 +58,7 @@ class JobEvent(Event):
         return self.job.resources_used.memory
 
     def __str__(self):
-        return f'JobEvent<{self.time}, {self.event_type.name}, {self.job}>'
+        return f'JobEvent<{self.time}, {self.type.name}, {self.job}>'
 
 
 class EventQueue(Generic[T]):
@@ -73,7 +73,7 @@ class EventQueue(Generic[T]):
 
     def add(self, event: T) -> None:
         if event.time >= self.time:
-            self.future.add(event, (event.time, event.event_type))
+            self.future.add(event, (event.time, event.type))
         else:
             self.past.append(event)
             self.past.sort(key=lambda e: e.time)

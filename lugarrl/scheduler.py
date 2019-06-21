@@ -77,7 +77,7 @@ class Scheduler(ABC):
         )
         finish = start.clone()
         finish.time += job.execution_time
-        finish.event_type = EventType.JOB_FINISH
+        finish.type = EventType.JOB_FINISH
         self.job_events.add(start)
         self.job_events.add(finish)
 
@@ -101,11 +101,11 @@ class Scheduler(ABC):
     def play_events(self, events: Iterable[JobEvent], cluster: Cluster,
                     update_queues: bool = False) -> Cluster:
         for event in events:
-            if event.event_type == EventType.JOB_START:
+            if event.type == EventType.JOB_START:
                 cluster.allocate(event.job)
                 if update_queues:
                     self.start_running(event.job)
-            elif event.event_type == EventType.JOB_FINISH:
+            elif event.type == EventType.JOB_FINISH:
                 cluster.free(event.job)
                 if update_queues:
                     self.complete_job(event.job)
