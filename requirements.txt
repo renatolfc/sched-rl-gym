@@ -13,8 +13,6 @@ idna==2.8
 jsonschema==3.0.1
 kiwisolver==1.1.0
 matplotlib==3.1.0
-mkl-fft>=1.0.6
-mkl-random>=1.0.2
 murmurhash==1.0.2
 numexpr==2.6.9
 numpy==1.16.3
