@@ -9,7 +9,7 @@ class FifoScheduler(Scheduler):
     def schedule(self) -> None:
         for job in self.queue_admission:
             time, resources = self.find_first_time_for(job)
-            if not resources.memory or not resources.processors:
+            if not resources:
                 raise AssertionError("Something is terribly wrong")
             job.status = JobStatus.WAITING
             job.resources.memory = resources.memory
