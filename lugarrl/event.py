@@ -51,11 +51,11 @@ class JobEvent(Event):
 
     @property
     def processors(self) -> Iterable[Interval]:
-        return self.job.resources_used.processors
+        return self.job.resources.processors
 
     @property
     def memory(self) -> Iterable[Interval]:
-        return self.job.resources_used.memory
+        return self.job.resources.memory
 
     def __str__(self):
         return f'JobEvent<{self.time}, {self.type.name}, {self.job}>'

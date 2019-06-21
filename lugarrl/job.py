@@ -62,7 +62,7 @@ class Resource(object):
 
 
 class Job(object):
-    resources_used: Resource
+    resources: Resource
 
     def __init__(self, job_id, submission_time, execution_time, processors_allocated, average_cpu_use, memory_use,
                  requested_processors, requested_time, requested_memory, status, user_id, group_id, executable,
@@ -86,7 +86,7 @@ class Job(object):
         self.think_time = think_time
         self.wait_time = wait_time
 
-        self.resources_used = Resource()
+        self.resources = Resource()
         self.first_scheduling_promise = None
         self.start_time = None
         self.finish_time = None
@@ -97,7 +97,7 @@ class Job(object):
 
     @property
     def proper(self):
-        processors, memory = self.resources_used.measure()
+        processors, memory = self.resources.measure()
         return processors == self.requested_processors and (self.ignore_memory or memory == self.requested_memory)
 
     def slowdown(self):

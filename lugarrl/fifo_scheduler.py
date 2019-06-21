@@ -12,8 +12,8 @@ class FifoScheduler(Scheduler):
             if not resources.memory or not resources.processors:
                 raise AssertionError("Something is terribly wrong")
             job.status = JobStatus.WAITING
-            job.resources_used.memory = resources.memory
-            job.resources_used.processors = resources.processors
+            job.resources.memory = resources.memory
+            job.resources.processors = resources.processors
             job.start_time = time
             self.add_job_events(job, time)
             self.queue_waiting.append(job)

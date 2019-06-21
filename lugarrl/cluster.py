@@ -31,8 +31,8 @@ class Cluster(object):
     def allocate(self, job: Job) -> None:
         if not self.fits(job):
             raise AssertionError(f"Unable to allocate resources for {job} in {self}")
-        self.processors.allocate(job.resources_used.processors)
-        self.memory.allocate(job.resources_used.memory)
+        self.processors.allocate(job.resources.processors)
+        self.memory.allocate(job.resources.memory)
 
     def clone(self):
         return copy.deepcopy(self)
@@ -47,9 +47,9 @@ class Cluster(object):
         return Resource(p, m)
 
     def free(self, job: Job) -> None:
-        self.processors.free(job.resources_used.processors)
+        self.processors.free(job.resources.processors)
         if not self.ignore_memory:
-            self.memory.free(job.resources_used.memory)
+            self.memory.free(job.resources.memory)
 
     def find_resources_at_time(self, time: int, job: Job, events: Iterable[JobEvent]) -> Resource:
         used = Resource(self.processors.used_pool, self.memory.used_pool)

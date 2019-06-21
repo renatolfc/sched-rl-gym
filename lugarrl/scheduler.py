@@ -67,7 +67,7 @@ class Scheduler(ABC):
         self.used_processors -= j.processors_allocated
 
     def add_job_events(self, job: Job, time: int) -> None:
-        if not job.resources_used or not job.proper:
+        if not job.resources or not job.proper:
             raise AssertionError(
                 "Malformed job submitted either with no processors, or with insufficient number of "
                 "processors"
