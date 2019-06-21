@@ -11,10 +11,5 @@ class FifoScheduler(Scheduler):
             time, resources = self.find_first_time_for(job)
             if not resources:
                 raise AssertionError("Something is terribly wrong")
-            job.status = JobStatus.WAITING
-            job.resources.memory = resources.memory
-            job.resources.processors = resources.processors
-            job.start_time = time
-            self.add_job_events(job, time)
-            self.queue_waiting.append(job)
+            self.assign_schedule(job, resources, time)
         self.queue_admission.clear()

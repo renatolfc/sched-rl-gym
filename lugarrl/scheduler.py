@@ -173,6 +173,14 @@ class Scheduler(ABC):
 
         return state, jobs, backlog
 
+    def assign_schedule(self, job, resources, time):
+        job.status = JobStatus.WAITING
+        job.resources.memory = resources.memory
+        job.resources.processors = resources.processors
+        job.start_time = time
+        self.add_job_events(job, time)
+        self.queue_waiting.append(job)
+
     @abstractmethod
     def schedule(self) -> None:
         "Schedules tasks."
