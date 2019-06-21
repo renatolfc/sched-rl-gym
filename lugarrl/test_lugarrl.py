@@ -591,8 +591,7 @@ class TestEvent(unittest.TestCase):
     def test_add_event_in_the_past_should_work(self):
         self.assertEqual(0, len(list(self.req.step(100))))
         re = self.build_event(event.EventType.RESOURCE_ALLOCATE, (0, 2), 1)
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
+        with self.assertWarns(UserWarning):
             self.req.add(re)
         self.assertEqual(1, len(self.req.past))
         self.assertEqual(0, len(self.req.future))
@@ -600,8 +599,7 @@ class TestEvent(unittest.TestCase):
     def test_event_in_the_past_should_not_leak_into_present(self):
         self.assertEqual(0, len(list(self.req.step(100))))
         re = self.build_event(event.EventType.RESOURCE_ALLOCATE, (0, 2), 1)
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
+        with self.assertWarns(UserWarning):
             self.req.add(re)
         present = list(self.req.step())
         self.assertEqual(0, len(present))
@@ -647,8 +645,7 @@ class TestJob(unittest.TestCase):
     def test_slowdown_of_unfinished_job_should_fail(self):
         j = self.make_job(0, 1, 2)
         j.finish_time = None
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
+        with self.assertWarns(UserWarning):
             self.assertEqual(-1, j.slowdown())
 
     def test_slowdown_of_atomic_idealized_job(self):
