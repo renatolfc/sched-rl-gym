@@ -269,6 +269,15 @@ class TestScheduler(unittest.TestCase):
             0, j, self.scheduler.cluster, [alloc, free]
         ))
 
+    def test_empty_cluster_should_return_empty_state(self):
+        state, jobs, backlog = self.scheduler.state(10, 10, 10)
+        self.assertEqual(0, jobs[0].sum())
+        self.assertEqual(0, jobs[1].sum())
+        self.assertEqual(0, state[0].sum())
+        self.assertEqual(0, state[1].sum())
+        self.assertEqual(0, backlog[0].sum())
+        self.assertEqual(0, backlog[1].sum())
+
 
 class TestFifoScheduler(unittest.TestCase):
     def setUp(self):

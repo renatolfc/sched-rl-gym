@@ -5,6 +5,8 @@ from collections import defaultdict
 from abc import ABC, abstractmethod
 from typing import List, Iterable, Tuple, Dict
 
+import numpy as np
+
 from .cluster import Cluster
 from .job import Job, JobStatus, Resource
 from .event import JobEvent, EventType, EventQueue
@@ -143,6 +145,33 @@ class Scheduler(ABC):
         job.submission_time = self.current_time
         job.status = JobStatus.SUBMITTED
         self.queue_admission.append(job)
+
+    def state(self, timesteps: int, job_slots: int, backlog_size: int):
+        near_future: Dict[int, List[JobEvent]] = defaultdict(list)
+        for e in (e for e in self.job_events if e.time < self.current_time + timesteps + 1):
+            near_future[e.time].append(e)
+
+        memory = np.zeros((timesteps, self.total_memory))
+        processors = np.zeros((timesteps, self.number_of_processors))
+        cluster = self.cluster.clone()
+        for t in range(timesteps):
+            if t in near_future:
+                cluster = self.play_events(near_future[t], cluster)
+            processors[t, :], memory[t, :] = cluster.state
+        state = (processors, memory)
+
+        memory = np.zeros((job_slots, timesteps, self.total_memory))
+        processors = np.zeros((job_slots, timesteps, self.number_of_processors))
+        for i, job in enumerate(self.queue_admission):
+            if i == job_slots:
+                break
+            processors[i, :, :], memory[i, :, :] = cluster.get_job_state(job, timesteps)
+        jobs = (processors, memory)
+
+        backlog = np.zeros((backlog_size,))
+        backlog[:min(max(len(self.queue_admission) - job_slots, 0), backlog_size)] = 1.0
+
+        return state, jobs, backlog
 
     @abstractmethod
     def schedule(self) -> None:

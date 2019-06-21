@@ -8,6 +8,8 @@ import random
 import warnings
 from typing import Iterable, NamedTuple, Tuple
 
+import numpy as np
+
 from .pool import Interval, IntervalTree, ResourcePool
 
 

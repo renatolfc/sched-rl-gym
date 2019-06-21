@@ -4,6 +4,8 @@
 import copy
 from typing import Tuple, Iterable
 
+import numpy as np
+
 from . import pool
 
 from .job import Job, Resource
@@ -62,6 +64,23 @@ class Cluster(object):
         return Cluster(
             self.processors.size, self.memory.size, self.ignore_memory, used.processors, used.memory
         ).find(job)
+
+    @property
+    def state(self) -> Tuple[np.ndarray, np.ndarray]:
+        processors = np.zeros(self.processors.size)
+        for i in self.processors.used_pool:
+            processors[i.begin:i.end] = i.data
+        memory = np.zeros(self.memory.size)
+        for i in self.memory.used_pool:
+            memory[i.begin:i.end] = i.data
+        return processors, memory
+
+    def get_job_state(self, job: Job, timesteps: int) -> Tuple[np.ndarray, np.ndarray]:
+        processors = np.zeros((timesteps, self.processors.size))
+        memory = np.zeros((timesteps, self.memory.size))
+        processors[:job.requested_time, job.requested_processors] = 1.0
+        memory[:job.requested_time, job.requested_processors] = 1.0
+        return processors, memory
 
     def __bool__(self):
         return self.processors.free_resources != 0 and self.memory.free_resources != 0
