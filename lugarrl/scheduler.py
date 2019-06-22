@@ -118,6 +118,9 @@ class Scheduler(ABC):
             -> Resource:
         return cluster.find_resources_at_time(time, job, events)
 
+    def can_schedule_now(self, job: Job) -> Resource:
+        return self.cluster.find_resources_at_time(self.current_time, job, self.job_events)
+
     def find_first_time_for(self, job: Job) -> Tuple[int, Resource]:
         if (not self.job_events.next) or self.job_events.next.time > self.current_time:
             resources = self.cluster.find_resources_at_time(self.current_time, job, self.job_events)

@@ -196,16 +196,19 @@ class TestScheduler(unittest.TestCase):
         j.requested_processors = 4
         j.requested_time = 5
 
+        self.assertTrue(self.scheduler.can_schedule_now(j))
         self.assertTrue(self.scheduler.fits(0, j, self.scheduler.cluster.clone(), self.events))
 
     def test_fits_partially_filled_pool_with_no_events(self):
         self.scheduler.cluster.processors.allocate(pool.IntervalTree([pool.Interval(0, 6)]))
         j = self.jp.sample()
+        self.assertTrue(self.scheduler.can_schedule_now(j))
         self.assertTrue(self.scheduler.fits(0, j, self.scheduler.cluster.clone(), self.events))
 
     def test_doesnt_fit_fully_filled_pool_with_no_events(self):
         self.scheduler.cluster.processors.allocate(pool.IntervalTree([pool.Interval(0, 10)]))
         j = self.jp.sample()
+        self.assertFalse(self.scheduler.can_schedule_now(j))
         self.assertFalse(self.scheduler.fits(0, j, self.scheduler.cluster.clone(), self.events))
 
     def test_past_events_dont_influence_the_present(self):
