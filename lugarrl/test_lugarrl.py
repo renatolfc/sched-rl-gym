@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import random
-import warnings
 import unittest
 
-from . import lugarrl, simulator, job, workload, fifo_scheduler, pool, event, heap, scheduler
+from . import lugarrl, simulator, job, workload, pool, event, heap, scheduler
+from lugarrl.scheduler import fifo_scheduler
 from . import cluster as clstr
 
 

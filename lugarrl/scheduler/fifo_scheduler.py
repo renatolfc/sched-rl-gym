@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from .job import JobStatus
-from .scheduler import Scheduler
+from lugarrl.job import JobStatus
+from lugarrl.scheduler import Scheduler
 
 
 class FifoScheduler(Scheduler):

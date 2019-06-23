@@ -3,7 +3,7 @@
 
 import random
 
-from .scheduler import Scheduler
+from lugarrl.scheduler import Scheduler
 
 
 class RandomScheduler(Scheduler):

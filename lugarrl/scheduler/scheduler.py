@@ -7,9 +7,9 @@ from typing import List, Iterable, Tuple, Dict
 
 import numpy as np
 
-from .cluster import Cluster
-from .job import Job, JobStatus, Resource
-from .event import JobEvent, EventType, EventQueue
+from lugarrl.cluster import Cluster
+from lugarrl.job import Job, JobStatus, Resource
+from lugarrl.event import JobEvent, EventType, EventQueue
 
 
 class Scheduler(ABC):

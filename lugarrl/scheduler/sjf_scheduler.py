@@ -3,8 +3,8 @@
 
 from typing import List
 
-from .job import Job
-from .scheduler import Scheduler
+from lugarrl.job import Job
+from lugarrl.scheduler import Scheduler
 
 
 class SjfScheduler(Scheduler):
