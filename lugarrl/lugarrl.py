@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from lugarrl.scheduler import fifo_scheduler
+from . import simulator, workload, job
 from .job import JobParameters
 from .scheduler import Scheduler
 from .simulator import Simulator
 from .workload import WorkloadGenerator
-from . import simulator, workload, job
-from lugarrl.scheduler import fifo_scheduler
 
 
 class LugarRL(object):
