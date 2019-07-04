@@ -92,11 +92,12 @@ class Scheduler(ABC):
         if self.queue_admission:
             self.schedule()
 
-        present = self.job_events.step(offset)
-        self.cluster = self.play_events(present, self.cluster, update_queues=True)
-        self.current_time += offset
+        for _ in range(offset):
+            present = self.job_events.step(1)
+            self.cluster = self.play_events(present, self.cluster, update_queues=True)
+            self.current_time += 1
 
-        self.schedule()
+            self.schedule()
 
     def play_events(self, events: Iterable[JobEvent], cluster: Cluster,
                     update_queues: bool = False) -> Cluster:
