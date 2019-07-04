@@ -715,3 +715,77 @@ class TestCluster(unittest.TestCase):
         j.requested_memory = self.memory + 1
         with self.assertRaises(AssertionError):
             cluster.allocate(j)
+
+
+class TestSchedulers(unittest.TestCase):
+    def setUp(self):
+        self.small_job_parameters = job.JobParameters(1, 3, 1, 2, 2, 16)
+        self.large_job_parameters = job.JobParameters(10, 15, 4, 8, 32, 64)
+        self.workload = workload.BinomialWorkloadGenerator(
+            1.0, 0.8, self.small_job_parameters, self.large_job_parameters, length=1
+        )
+
+    def submit_jobs(self, s: scheduler.Scheduler, n: int):
+        for i in range(n):
+            j = self.workload.sample(i)
+            if j:
+                s.submit(j)
+
+    def test_packer_scheduler(self):
+        s = scheduler.PackerScheduler(16, 2048)
+        self.submit_jobs(s, 10)
+        top = max(
+            s.queue_admission,
+            key=lambda j: s.free_resources[0] * j.requested_processors + s.free_resources[1] * j.requested_memory
+        )
+        s.schedule()
+        self.assertEqual(top, s.queue_waiting[0])
+
+    def test_sjf_scheduler(self):
+        s = scheduler.SjfScheduler(16, 2048)
+        self.submit_jobs(s, 10)
+        top = min(
+            s.queue_admission,
+            key=lambda j: j.requested_time
+        )
+        s.schedule()
+        self.assertEqual(top, s.queue_waiting[0])
+
+    def test_tetris_scheduler_behaving_like_packer(self):
+        s = scheduler.TetrisScheduler(64, 2048, 1.0)
+        self.submit_jobs(s, 10)
+        top = max(
+            s.queue_admission,
+            key=lambda j: s.free_resources[0] * j.requested_processors + s.free_resources[1] + j.requested_memory
+        )
+        s.schedule()
+        self.assertEqual(s.get_priority(top), s.get_priority(s.queue_waiting[0]))
+
+    def test_tetris_scheduler_behaving_like_sjf(self):
+        s = scheduler.TetrisScheduler(64, 2048, 0.0)
+        self.submit_jobs(s, 10)
+        top = min(
+            s.queue_admission,
+            key=lambda j: j.requested_time
+        )
+        s.schedule()
+        self.assertEqual(s.get_priority(top), s.get_priority(s.queue_waiting[0]))
+
+    def test_tetris_scheduler(self):
+        s = scheduler.TetrisScheduler(64, 2048, 0.5)
+        self.submit_jobs(s, 10)
+        top = max(
+            s.queue_admission,
+            key=lambda j: 0.5 / j.requested_time + .5 * (
+                s.free_resources[0] * j.requested_processors + s.free_resources[1] + j.requested_memory
+            )
+        )
+        s.schedule()
+        self.assertEqual(s.get_priority(top), s.get_priority(s.queue_waiting[0]))
+
+    def test_random_scheduler(self):
+        s = scheduler.RandomScheduler(16, 2048)
+        self.submit_jobs(s, 10)
+        s.step(100)
+        self.assertEqual(0, len(s.queue_admission))
+        self.assertEqual(0, len(s.queue_waiting))
