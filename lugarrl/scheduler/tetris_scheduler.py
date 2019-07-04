@@ -10,7 +10,7 @@ class TetrisScheduler(PackerScheduler):
 
     packer_sjf_ratio: float
 
-    def __init__(self, number_of_processors, total_memory, packer_sjf_ratio: float = 0.5):
+    def __init__(self, number_of_processors: int, total_memory: int, packer_sjf_ratio: float = 0.5):
         super().__init__(number_of_processors, total_memory)
         self.packer_sjf_ratio = packer_sjf_ratio
 
