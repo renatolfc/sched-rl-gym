@@ -93,7 +93,10 @@ class Job(object):
         self.ignore_memory = ignore_memory
 
     def __str__(self):
-        return f'Job<{self.id}, {self.status.name}, start={self.start_time}, processors={self.requested_processors}>'
+        return f'Job<{self.id}, {self.status.name}, start={self.start_time}, processors={self.requested_processors}, ' \
+            f'memory={self.requested_memory}>'
+
+    __repr__ = __str__
 
     @property
     def proper(self):
