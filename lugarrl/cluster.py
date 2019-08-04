@@ -78,8 +78,8 @@ class Cluster(object):
     def get_job_state(self, job: Job, timesteps: int) -> Tuple[np.ndarray, np.ndarray]:
         processors = np.zeros((timesteps, self.processors.size))
         memory = np.zeros((timesteps, self.memory.size))
-        processors[:job.requested_time, job.requested_processors] = 1.0
-        memory[:job.requested_time, job.requested_processors] = 1.0
+        processors[:job.requested_time, :job.requested_processors] = 1.0
+        memory[:job.requested_time, :job.requested_memory] = 1.0
         return processors, memory
 
     def __bool__(self):
