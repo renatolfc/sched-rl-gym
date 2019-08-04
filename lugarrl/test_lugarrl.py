@@ -789,3 +789,43 @@ class TestSchedulers(unittest.TestCase):
         s.step(100)
         self.assertEqual(0, len(s.queue_admission))
         self.assertEqual(0, len(s.queue_waiting))
+
+    def test_scheduler_state(self):
+        total_memory = 2048
+        total_processors = 16
+
+        timesteps = 100
+        job_slots = 4
+        backlog_size = 20
+
+        s = scheduler.SjfScheduler(total_processors, total_memory)
+        self.submit_jobs(s, 20)
+        state, jobs, backlog = s.state(timesteps, job_slots, backlog_size)
+
+        self.assertEqual((timesteps, total_processors), state[0].shape)
+        self.assertEqual((timesteps, total_memory), state[1].shape)
+
+        self.assertEqual((job_slots, timesteps, total_processors), jobs[0].shape)
+        self.assertEqual((job_slots, timesteps, total_memory), jobs[1].shape)
+
+        self.assertEqual((backlog_size,), backlog.shape)
+
+        # state is empty because we haven't stepped the simulator
+        self.assertEqual(0, state[0].sum())
+        self.assertEqual(0, state[1].sum())
+
+        # There are no jobs in backlog nor in job slots because no scheduling was performed
+        self.assertEqual(0, jobs[0].sum())
+        self.assertEqual(0, jobs[1].sum())
+        self.assertEqual(0, backlog.sum())
+
+        for _ in range(5):
+            s.step()
+            state, jobs, backlog = s.state(timesteps, job_slots, backlog_size)
+
+            self.assertEqual(max(len(s.queue_waiting) - job_slots, 0), backlog.sum())
+            for i, j in enumerate(s.queue_waiting[:job_slots]):
+                p, m = j.resources.measure()
+                self.assertEqual(p * j.requested_time, jobs[0][i].sum())
+                self.assertEqual(m * j.requested_time, jobs[1][i].sum())
+
