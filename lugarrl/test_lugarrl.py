@@ -814,18 +814,15 @@ class TestSchedulers(unittest.TestCase):
         self.assertEqual(0, state[0].sum())
         self.assertEqual(0, state[1].sum())
 
-        # There are no jobs in backlog nor in job slots because no scheduling was performed
-        self.assertEqual(0, jobs[0].sum())
-        self.assertEqual(0, jobs[1].sum())
-        self.assertEqual(0, backlog.sum())
+        # Everything must be in the backlog + job slots
+        self.assertEqual(len(s.all_jobs) - job_slots, backlog.sum())
 
         for _ in range(5):
             s.step()
             state, jobs, backlog = s.state(timesteps, job_slots, backlog_size)
 
-            self.assertEqual(max(len(s.queue_waiting) - job_slots, 0), backlog.sum())
-            for i, j in enumerate(s.queue_waiting[:job_slots]):
-                p, m = j.resources.measure()
-                self.assertEqual(p * j.requested_time, jobs[0][i].sum())
-                self.assertEqual(m * j.requested_time, jobs[1][i].sum())
+            self.assertEqual(max(len(s.queue_admission) - job_slots, 0), backlog.sum())
+            for i, j in enumerate(s.queue_admission[:job_slots]):
+                self.assertEqual(j.requested_memory * j.requested_time, jobs[1][i].sum())
+                self.assertEqual(j.requested_processors * j.requested_time, jobs[0][i].sum())
 

@@ -174,14 +174,14 @@ class Scheduler(ABC):
 
         memory = np.zeros((job_slots, timesteps, self.total_memory))
         processors = np.zeros((job_slots, timesteps, self.number_of_processors))
-        for i, job in enumerate(self.queue_waiting):
+        for i, job in enumerate(self.queue_admission):
             if i == job_slots:
                 break
             processors[i, :, :], memory[i, :, :] = cluster.get_job_state(job, timesteps)
         jobs = (processors, memory)
 
         backlog = np.zeros((backlog_size,))
-        backlog[:min(max(len(self.queue_waiting) - job_slots, 0), backlog_size)] = 1.0
+        backlog[:min(max(len(self.queue_admission) - job_slots, 0), backlog_size)] = 1.0
 
         return state, jobs, backlog
 
