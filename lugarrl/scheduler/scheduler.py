@@ -89,15 +89,12 @@ class Scheduler(ABC):
         if offset < 0:
             raise AssertionError("Tried to move backwards in time")
 
-        if self.queue_admission:
-            self.schedule()
-
         for _ in range(offset):
+            if self.queue_admission:
+                self.schedule()
             present = self.job_events.step(1)
             self.cluster = self.play_events(present, self.cluster, update_queues=True)
             self.current_time += 1
-
-            self.schedule()
 
     def play_events(self, events: Iterable[JobEvent], cluster: Cluster,
                     update_queues: bool = False) -> Cluster:
