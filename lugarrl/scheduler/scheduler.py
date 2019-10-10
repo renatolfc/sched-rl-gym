@@ -3,7 +3,7 @@
 
 from collections import defaultdict
 from abc import ABC, abstractmethod
-from typing import List, Iterable, Tuple, Dict
+from typing import List, Iterable, Tuple, Dict, Any
 
 import numpy as np
 
@@ -85,7 +85,7 @@ class Scheduler(ABC):
     def free_resources(self) -> Tuple[int, int]:
         return self.number_of_processors - self.used_processors, self.total_memory - self.used_memory
 
-    def step(self, offset: int = 1) -> None:
+    def step(self, offset: int = 1) -> bool:
         if offset < 0:
             raise AssertionError("Tried to move backwards in time")
 
@@ -95,6 +95,7 @@ class Scheduler(ABC):
             present = self.job_events.step(1)
             self.cluster = self.play_events(present, self.cluster, update_queues=True)
             self.current_time += 1
+        return True
 
     def play_events(self, events: Iterable[JobEvent], cluster: Cluster,
                     update_queues: bool = False) -> Cluster:
@@ -191,5 +192,5 @@ class Scheduler(ABC):
         self.queue_waiting.append(job)
 
     @abstractmethod
-    def schedule(self) -> None:
+    def schedule(self) -> Any:
         "Schedules tasks."

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from typing import Callable, Any
+
+from typing import Callable, Any, Optional
 
 from lugarrl.job import Job
 from lugarrl.scheduler import Scheduler
@@ -20,7 +21,7 @@ class NullScheduler(Scheduler):
     and the scheduler simulator.
     """
     def __init__(self):
-        self.current_slot = None  # The job slot we wish to operate on
+        self.current_slot: Optional[int] = None  # The job slot we wish to operate on
 
     def step(self, slot: int) -> bool:
         "-1 (and, as a matter of fact, any negative number is a no-op.)"
@@ -28,10 +29,7 @@ class NullScheduler(Scheduler):
             raise AssertionError('current_slot invariant not true')
 
         self.current_slot = slot
-        if self.queue_admission and 0 <= slot <= len(self.queue_admission):
-            self.schedule()
-        else:
-            self.forward_time()
+        return self.schedule()
 
     def forward_time(self):
         present = self.job_events.step(1)
@@ -44,7 +42,7 @@ class NullScheduler(Scheduler):
         # We always support the null action
         return len(self.queue_admission) + 1
 
-    def schedule(self) -> None:
+    def schedule(self) -> bool:
         try:
             if self.current_slot is not None \
                and 0 <= self.current_slot <= len(self.queue_admission):
@@ -53,7 +51,12 @@ class NullScheduler(Scheduler):
                 if resources:
                     self.assign_schedule(job, resources, self.current_time)
                     self.queue_admission.pop(self.current_slot)
+                    return True
                 else:
                     self.forward_time()  # Any invalid index forwards time
+                    return False
+            else:
+                self.forward_time()
+                return False
         finally:
             self.current_slot = None
