@@ -23,12 +23,12 @@ class NullScheduler(Scheduler):
     def __init__(self):
         self.current_slot: Optional[int] = None  # The job slot we wish to operate on
 
-    def step(self, slot: int) -> bool:
+    def step(self, offset: int = None) -> bool:
         "-1 (and, as a matter of fact, any negative number is a no-op.)"
         if self.current_slot is not None:
             raise AssertionError('current_slot invariant not true')
 
-        self.current_slot = slot
+        self.current_slot = offset if offset is not None else -1
         return self.schedule()
 
     def forward_time(self):
