@@ -85,7 +85,9 @@ class Scheduler(ABC):
     def free_resources(self) -> Tuple[int, int]:
         return self.number_of_processors - self.used_processors, self.total_memory - self.used_memory
 
-    def step(self, offset: int = 1) -> bool:
+    def step(self, offset: int = None) -> bool:
+        if offset is None:
+            offset = 1
         if offset < 0:
             raise AssertionError("Tried to move backwards in time")
 
