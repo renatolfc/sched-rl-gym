@@ -42,7 +42,12 @@ class Scheduler(ABC):
 
     @property
     def all_jobs(self) -> List[Job]:
-        return self.queue_completed + self.queue_running + self.queue_waiting + self.queue_admission
+        return self.queue_completed + self.queue_running + self.queue_waiting \
+            + self.queue_admission
+
+    @property
+    def jobs_in_system(self) -> List[Job]:
+        return self.queue_running + self.queue_waiting + self.queue_admission
 
     @property
     def makespan(self) -> int:
@@ -69,7 +74,8 @@ class Scheduler(ABC):
     def add_job_events(self, job: Job, time: int) -> None:
         if not job.resources or not job.proper:
             raise AssertionError(
-                "Malformed job submitted either with no processors, or with insufficient number of "
+                "Malformed job submitted either with no processors, "
+                "or with insufficient number of "
                 "processors"
             )
         start = JobEvent(
