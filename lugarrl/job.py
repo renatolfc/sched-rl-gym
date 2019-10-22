@@ -136,8 +136,8 @@ class JobParameters(object):
         self.upper_mem_bound = upper_mem_bound
 
         self.resource_samplers = {
-            PrimaryResource.CPU: lambda: random.randint(self.lower_cpu_bound, self.upper_cpu_bound + 1),
-            PrimaryResource.MEMORY: lambda: random.randint(self.lower_mem_bound, self.upper_mem_bound + 1),
+            PrimaryResource.CPU: lambda: random.randint(self.lower_cpu_bound, self.upper_cpu_bound),
+            PrimaryResource.MEMORY: lambda: random.randint(self.lower_mem_bound, self.upper_mem_bound),
         }
 
         self.job_id = 1
@@ -149,7 +149,7 @@ class JobParameters(object):
         self.time_step += steps
 
     def sample(self, submission_time: int = 0) -> Job:
-        time_duration = random.randint(self.lower_time_bound, self.upper_time_bound + 1)
+        time_duration = random.randint(self.lower_time_bound, self.upper_time_bound)
 
         cpu = self.resource_samplers[PrimaryResource.CPU]()
         mem = self.resource_samplers[PrimaryResource.MEMORY]()
