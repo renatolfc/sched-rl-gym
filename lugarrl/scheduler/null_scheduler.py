@@ -3,13 +3,14 @@
 
 from typing import Callable, Any, Optional
 
-from lugarrl.job import Job
-from lugarrl.scheduler import Scheduler
+from ..job import Job
+from ..scheduler import Scheduler
 
 # The main issue here is that we have two kinds of steps:
 # 1. OpenAI Gym steps
 # 2. Scheduler steps
 # For OpenAI Gym steps, we need to pass an action. For Scheduler steps, we need to pass an offset.
+
 
 class NullScheduler(Scheduler):
     """An scheduler that receives scheduling commands from a client.
@@ -20,8 +21,9 @@ class NullScheduler(Scheduler):
     implements the interface between RL environments (such as OpenAI gym)
     and the scheduler simulator.
     """
-    def __init__(self):
-        self.current_slot: Optional[int] = None  # The job slot we wish to operate on
+    def __init__(self, number_of_processors, total_memory):
+        self.current_slot: Optional[int] = None
+        super().__init__(number_of_processors, total_memory)
 
     def step(self, offset: int = None) -> bool:
         "-1 (and, as a matter of fact, any negative number is a no-op.)"
@@ -33,7 +35,9 @@ class NullScheduler(Scheduler):
 
     def forward_time(self):
         present = self.job_events.step(1)
-        self.cluster = self.play_events(present, self.cluster, update_queues=True)
+        self.cluster = self.play_events(
+            present, self.cluster, update_queues=True
+        )
         self.current_time += 1
         self.schedule()
 
@@ -45,7 +49,8 @@ class NullScheduler(Scheduler):
     def schedule(self) -> bool:
         try:
             if self.current_slot is not None \
-               and 0 <= self.current_slot <= len(self.queue_admission):
+               and len(self.queue_admission) \
+               and 0 <= self.current_slot < len(self.queue_admission):
                 job: Job = self.queue_admission[self.current_slot]
                 resources = self.can_schedule_now(job)
                 if resources:
@@ -53,10 +58,8 @@ class NullScheduler(Scheduler):
                     self.queue_admission.pop(self.current_slot)
                     return True
                 else:
-                    self.forward_time()  # Any invalid index forwards time
                     return False
             else:
-                self.forward_time()
                 return False
         finally:
             self.current_slot = None
