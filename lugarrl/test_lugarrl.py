@@ -820,7 +820,7 @@ class TestSchedulers(unittest.TestCase):
 
         for _ in range(5):
             s.step()
-            state, jobs, backlog = s.state(timesteps, job_slots, backlog_size, max_colors)
+            state, jobs, backlog = s.state(timesteps, job_slots, backlog_size)
 
             self.assertEqual(max(len(s.queue_admission) - job_slots, 0), backlog.sum())
             for i, j in enumerate(s.queue_admission[:job_slots]):
