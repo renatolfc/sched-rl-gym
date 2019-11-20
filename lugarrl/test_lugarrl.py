@@ -797,7 +797,6 @@ class TestSchedulers(unittest.TestCase):
         timesteps = 100
         job_slots = 4
         backlog_size = 20
-        max_colors = 40
 
         s = scheduler.SjfScheduler(total_processors, total_memory)
         self.submit_jobs(s, 20)
