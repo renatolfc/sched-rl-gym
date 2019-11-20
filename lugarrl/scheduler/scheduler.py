@@ -170,7 +170,7 @@ class Scheduler(ABC):
         near_future: Dict[int, List[JobEvent]] = defaultdict(list)
         for e in (e for e in self.job_events
                   if e.time < self.current_time + timesteps + 1):
-            near_future[e.time].append(e)
+            near_future[e.time - self.current_time].append(e)
 
         memory = np.zeros((timesteps, self.total_memory))
         processors = np.zeros((timesteps, self.number_of_processors))
