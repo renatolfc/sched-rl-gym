@@ -127,7 +127,8 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
             mem[mem == job] = self.colormap[self.color_cache[job]]
         wait_procs[wait_procs != 0] = 1.0
         wait_mem[wait_procs != 0] = 1.0
-        return procs, mem, wait_procs, wait_mem, backlog
+        return procs, mem, wait_procs, wait_mem, \
+            backlog.reshape((self.time_horizon, -1))
 
 
     def step(self, action: int):
