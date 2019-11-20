@@ -15,6 +15,9 @@ RESOURCE_TYPE = Tuple[Iterable[pool.Interval], Iterable[pool.Interval]]
 
 
 class Cluster(object):
+    ignore_memory: bool
+    memory: pool.ResourcePool
+    processors: pool.ResourcePool
     def __init__(self, processors, memory, ignore_memory=False, used_processors=None, used_memory=None):
         self.ignore_memory = ignore_memory
         self.memory = pool.ResourcePool(pool.ResourceType.MEMORY, memory, used_memory)

@@ -797,10 +797,11 @@ class TestSchedulers(unittest.TestCase):
         timesteps = 100
         job_slots = 4
         backlog_size = 20
+        max_colors = 40
 
         s = scheduler.SjfScheduler(total_processors, total_memory)
         self.submit_jobs(s, 20)
-        state, jobs, backlog = s.state(timesteps, job_slots, backlog_size)
+        state, jobs, backlog = s.state(timesteps, job_slots, backlog_size, max_colors)
 
         self.assertEqual((timesteps, total_processors), state[0].shape)
         self.assertEqual((timesteps, total_memory), state[1].shape)
@@ -819,7 +820,7 @@ class TestSchedulers(unittest.TestCase):
 
         for _ in range(5):
             s.step()
-            state, jobs, backlog = s.state(timesteps, job_slots, backlog_size)
+            state, jobs, backlog = s.state(timesteps, job_slots, backlog_size, max_colors)
 
             self.assertEqual(max(len(s.queue_admission) - job_slots, 0), backlog.sum())
             for i, j in enumerate(s.queue_admission[:job_slots]):

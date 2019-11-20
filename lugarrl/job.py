@@ -40,7 +40,8 @@ class Resource(object):
     processors: IntervalTree = IntervalTree()
     memory: IntervalTree = IntervalTree()
 
-    def __init__(self, processors: IntervalTree = IntervalTree(), memory: IntervalTree = IntervalTree(),
+    def __init__(self, processors: IntervalTree = IntervalTree(),
+                 memory: IntervalTree = IntervalTree(),
                  ignore_memory: bool = False):
         self.ignore_memory = ignore_memory
         self.processors = copy.copy(processors)
@@ -52,7 +53,8 @@ class Resource(object):
         return processors, memory
 
     def __bool__(self) -> bool:
-        return bool(self.processors) and (self.ignore_memory or bool(self.memory))
+        return bool(self.processors) and \
+            (self.ignore_memory or bool(self.memory))
 
     def __repr__(self):
         return f'Resource({self.processors}, {self.memory})'

@@ -100,15 +100,35 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
     metadata = {'render.modes': 'human'}
 
     def __init__(self):
+        self.color_cache = {}
         self._configure_environment()
 
     @property
     def state(self):
         state, jobs, backlog = self.scheduler.state(
-            self.time_horizon, self.job_slots, self.backlog_size,
-#            self.job_num_cap
+            self.time_horizon, self.job_slots, self.backlog_size
         )
-        return state[0], state[1], jobs[0], jobs[1], backlog
+        return self._convert_state(
+            state[0], state[1], jobs[0], jobs[1], backlog
+        )
+
+    def _convert_state(self, procs, mem, wait_procs, wait_mem, backlog):
+        unique = set(np.unique(procs)) - set([0.0])
+        if len(unique) > self.job_num_cap:
+            raise AssertionError("Number of jobs > number of colors")
+        available_colors = list(set(self.color_index) - set(
+            [self.color_cache[j] for j in unique if j in self.color_cache]
+        ))
+        need_color = unique - set(self.color_cache.keys())
+        for i, j in enumerate(need_color):
+            self.color_cache[j] = available_colors[i]
+        for job in unique:
+            procs[procs == job] = self.colormap[self.color_cache[job]]
+            mem[mem == job] = self.colormap[self.color_cache[job]]
+        wait_procs[wait_procs != 0] = 1.0
+        wait_mem[wait_procs != 0] = 1.0
+        return procs, mem, wait_procs, wait_mem, backlog
+
 
     def step(self, action: int):
         time_passed = self.simulator.rl_step(action)
@@ -257,6 +277,12 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         self.small_job_chance = SMALL_JOB_CHANCE  # chance a new job is small
 
         self.job_slots = JOB_SLOTS  # Number of jobs to show
+
+        step = 1.0 / self.job_num_cap
+        # zero is already present is set to "no job there"
+        self.colormap = np.arange(start=step, stop=1, step=step)
+        np.random.shuffle(self.colormap)
+        self.color_index = list(range(len(self.colormap)))
 
         self.reset()
 

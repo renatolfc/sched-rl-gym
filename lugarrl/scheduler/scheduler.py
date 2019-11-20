@@ -168,7 +168,8 @@ class Scheduler(ABC):
 
     def state(self, timesteps: int, job_slots: int, backlog_size: int):
         near_future: Dict[int, List[JobEvent]] = defaultdict(list)
-        for e in (e for e in self.job_events if e.time < self.current_time + timesteps + 1):
+        for e in (e for e in self.job_events
+                  if e.time < self.current_time + timesteps + 1):
             near_future[e.time].append(e)
 
         memory = np.zeros((timesteps, self.total_memory))
