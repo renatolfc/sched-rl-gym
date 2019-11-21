@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import pygame
 import matplotlib
 import numpy as np
 matplotlib.use('Agg')
@@ -15,6 +14,7 @@ SUPPORTED_MODES = {
     'human': lambda: DeepRmHumanRenderer,
     'rgb_array': lambda: DeepRmRgbRenderer
 }
+pygame = None
 
 
 class DeepRmRgbRenderer(object):
@@ -72,6 +72,11 @@ class DeepRmRgbRenderer(object):
 class DeepRmHumanRenderer(DeepRmRgbRenderer):
     def __init__(self, resolution=RESOLUTION, dpi=DPI):
         super().__init__(resolution, dpi)
+
+        global pygame
+        if pygame is None:
+            import pygame
+
         pygame.init()
         self.screen = pygame.display.set_mode(resolution, pygame.DOUBLEBUF)
         pygame.display.set_caption('Scheduler State')
