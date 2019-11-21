@@ -16,6 +16,7 @@ from gym import utils
 from gym import error, spaces
 from gym.utils import seeding
 
+from .render import DeepRmRenderer
 from .. import job, workload, simulator
 from ..scheduler import null_scheduler as ns
 
@@ -97,9 +98,10 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
     observation_space: spaces.box.Box
     action_space: spaces.discrete.Discrete
 
-    metadata = {'render.modes': 'human'}
+    metadata = {'render.modes': ['human', 'rgb_array']}
 
     def __init__(self):
+        self.renderer = None
         self.color_cache = {}
         self._configure_environment()
 
@@ -193,7 +195,12 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         return self.state
 
     def render(self, mode='human'):
-        pass
+        if self.renderer is None:
+            self.renderer = DeepRmRenderer(mode)
+        rgb, size = self.renderer.render(self.state)
+        return np.frombuffer(rgb, dtype=np.uint8).reshape(
+            (size[0], size[1], 3)
+        )
 
     def _build_workload_generator(self):
         # Time-related job parameters {{{
