@@ -132,7 +132,6 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         return procs, mem, wait_procs, wait_mem, \
             backlog.reshape((self.time_horizon, -1))
 
-
     def step(self, action: int):
         time_passed = self.simulator.rl_step(action)
 
@@ -176,13 +175,13 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         )
         self.memory_slots_space = spaces.box.Box(
             low=0.0, high=1.0, shape=(
-                self.time_horizon, self.scheduler.total_memory * self.job_slots
+                self.job_slots, self.time_horizon, self.scheduler.total_memory
             )
         )
         self.processor_slots_space = spaces.box.Box(
             low=0.0, high=1.0, shape=(
-                self.time_horizon,
-                self.scheduler.number_of_processors * self.job_slots
+                self.job_slots, self.time_horizon,
+                self.scheduler.number_of_processors
             )
         )
 
