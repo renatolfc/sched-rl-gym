@@ -135,6 +135,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         wait_procs[wait_procs != 0] = 1.0
         wait_mem[wait_procs != 0] = 1.0
 
+        times = [self.simulator.current_time - t for t in times]
         if len(times) < self.time_horizon:
             times = [-1] * (self.time_horizon - len(times)) + times
 
