@@ -63,3 +63,19 @@ class NullScheduler(Scheduler):
                 return False
         finally:
             self.current_slot = None
+
+    def sjf_action(self) -> int:
+        "Returns the index of the job SJF would pick."
+
+        candidates = sorted(
+            enumerate(self.queue_admission),
+            key=lambda e: (e[1].requested_time, e[1].submission_time)
+        )
+        if not candidates:
+            return -1
+        for i, job in candidates:
+            resources = self.can_schedule_now(job)
+            if resources:
+                return i
+        # There are jobs, but no job fits the cluster
+        return -1
