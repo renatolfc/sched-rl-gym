@@ -6,7 +6,7 @@ from __future__ import annotations, division
 import random
 import itertools
 
-from typing import Optional
+from typing import Optional, List
 from collections import namedtuple
 
 import numpy as np
@@ -58,12 +58,15 @@ class WorkloadGenerator(workload.DistributionalWorkloadGenerator):
 
 
 class DeepRmSimulator(simulator.TimeBasedSimulator):
+    job_times: List[int]
+
     def __init__(self, workload_generator: workload.WorkloadGenerator,
                  scheduler: ns.NullScheduler):
         if not isinstance(workload_generator, WorkloadGenerator) \
                 or not isinstance(scheduler, ns.NullScheduler):
             raise AssertionError("Invalid arguments received.")
         super().__init__(workload_generator, scheduler)
+        self.job_times = []
 
     def step(self, submit=True):
         raise NotImplementedError('This simulator cannot follow the base API')
@@ -77,6 +80,7 @@ class DeepRmSimulator(simulator.TimeBasedSimulator):
             job = self.workload.sample(self.current_time)
             if job:
                 self.scheduler.submit(job)
+                self.job_times.append(self.current_time)
             self.scheduler.forward_time()
             return True
 
@@ -111,10 +115,11 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
             self.time_horizon, self.job_slots, self.backlog_size
         )
         return self._convert_state(
-            state[0], state[1], jobs[0], jobs[1], backlog
+            state[0], state[1], jobs[0], jobs[1], backlog,
+            self.simulator.job_times[-self.time_horizon:]
         )
 
-    def _convert_state(self, procs, mem, wait_procs, wait_mem, backlog):
+    def _convert_state(self, procs, mem, wait_procs, wait_mem, backlog, times):
         unique = set(np.unique(procs)) - set([0.0])
         if len(unique) > self.job_num_cap:
             raise AssertionError("Number of jobs > number of colors")
@@ -124,13 +129,18 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         need_color = unique - set(self.color_cache.keys())
         for i, j in enumerate(need_color):
             self.color_cache[j] = available_colors[i]
-        for job in unique:
+        for job in unique:  # noqa
             procs[procs == job] = self.colormap[self.color_cache[job]]
             mem[mem == job] = self.colormap[self.color_cache[job]]
         wait_procs[wait_procs != 0] = 1.0
         wait_mem[wait_procs != 0] = 1.0
+
+        if len(times) < self.time_horizon:
+            times = [-1] * (self.time_horizon - len(times)) + times
+
         return procs, mem, wait_procs, wait_mem, \
-            backlog.reshape((self.time_horizon, -1))
+            backlog.reshape((self.time_horizon, -1)), \
+            np.array(times).reshape((self.time_horizon, -1))
 
     def step(self, action: int):
         time_passed = self.simulator.rl_step(action)
@@ -156,7 +166,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
         self.backlog_width = self.backlog_size // self.time_horizon
 
-        self.action_space = spaces.discrete.Discrete(MAXIMUM_QUEUE_SIZE)
+        self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
 
         self.memory_space = spaces.box.Box(
             low=0.0, high=1.0, shape=(
@@ -184,11 +194,12 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
                 self.scheduler.number_of_processors
             )
         )
+        self.time_since_space = spaces.Discrete(self.time_horizon)
 
         self.observation_space = spaces.tuple.Tuple((
             self.processor_space, self.memory_space,
             self.processor_slots_space, self.memory_slots_space,
-            self.backlog_space
+            self.backlog_space, self.time_since_space
         ))
 
         return self.state
