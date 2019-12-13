@@ -21,6 +21,7 @@ class NullScheduler(Scheduler):
     implements the interface between RL environments (such as OpenAI gym)
     and the scheduler simulator.
     """
+
     def __init__(self, number_of_processors, total_memory):
         self.current_slot: Optional[int] = None
         super().__init__(number_of_processors, total_memory)
@@ -64,18 +65,19 @@ class NullScheduler(Scheduler):
         finally:
             self.current_slot = None
 
-    def sjf_action(self) -> int:
+    def sjf_lt(self, a, b):
+        return b is None or (a.requested_time < b.requested_time or
+                                  (a.requested_time == b.requested_time and
+                                   a.submission_time < b.submission_time))
+
+    def sjf_action(self, limit: int) -> int:
         "Returns the index of the job SJF would pick."
 
-        candidates = sorted(
-            enumerate(self.queue_admission),
-            key=lambda e: (e[1].requested_time, e[1].submission_time)
-        )
-        if not candidates:
-            return -1
-        for i, job in candidates:
-            resources = self.can_schedule_now(job)
-            if resources:
-                return i
-        # There are jobs, but no job fits the cluster
-        return -1
+        best = None
+        bestidx = -1
+        for i, job in enumerate(self.queue_admission[:limit]):
+            if self.sjf_lt(job, best):
+                if self.can_schedule_now(job):
+                    best = job
+                    bestidx = i
+        return bestidx
