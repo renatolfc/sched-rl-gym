@@ -53,6 +53,8 @@ class NullScheduler(Scheduler):
                and len(self.queue_admission) \
                and 0 <= self.current_slot < len(self.queue_admission):
                 job: Job = self.queue_admission[self.current_slot]
+                if not self.cluster.fits(job):
+                    return False
                 resources = self.can_schedule_now(job)
                 if resources:
                     self.assign_schedule(job, resources, self.current_time)
@@ -77,7 +79,7 @@ class NullScheduler(Scheduler):
         bestidx = -1
         for i, job in enumerate(self.queue_admission[:limit]):
             if self.sjf_lt(job, best):
-                if self.can_schedule_now(job):
+                if self.cluster.fits(job):
                     best = job
                     bestidx = i
         return bestidx
