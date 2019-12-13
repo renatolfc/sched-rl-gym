@@ -49,7 +49,7 @@ class DeepRmRgbRenderer(object):
         ax_backlog = plt.subplot2grid((2, 3), (0, 2), rowspan=2)
         # End of Axes }}}
 
-        procs, mem, wait_procs, wait_mem, backlog = state
+        procs, mem, wait_procs, wait_mem, backlog, _ = state
         self.plot_substate(ax_proc, 'Cluster Processors', procs)
         self.plot_substate(ax_mem, 'Cluster Memory', mem)
         self.plot_substate(ax_wait_proc, 'Waiting Processor Stack',
