@@ -36,6 +36,7 @@ AMOUNT_OF_MEMORY = 10
 NUMBER_OF_RESOURCES = 2
 NUMBER_OF_PROCESSORS = 10
 MAXIMUM_NUMBER_OF_ACTIVE_JOBS = 40  # Number of colors in image
+MAX_TIME_TRACKING_SINCE_LAST_JOB = 10
 
 NEW_JOB_RATE = 0.7
 SMALL_JOB_CHANCE = 0.8
@@ -58,7 +59,7 @@ class WorkloadGenerator(workload.DistributionalWorkloadGenerator):
 
 
 class DeepRmSimulator(simulator.TimeBasedSimulator):
-    job_times: List[int]
+    last_job_time: int
 
     def __init__(self, workload_generator: workload.WorkloadGenerator,
                  scheduler: ns.NullScheduler):
@@ -66,7 +67,7 @@ class DeepRmSimulator(simulator.TimeBasedSimulator):
                 or not isinstance(scheduler, ns.NullScheduler):
             raise AssertionError("Invalid arguments received.")
         super().__init__(workload_generator, scheduler)
-        self.job_times = []
+        self.last_job_time = 0
 
     def step(self, submit=True):
         raise NotImplementedError('This simulator cannot follow the base API')
@@ -80,7 +81,7 @@ class DeepRmSimulator(simulator.TimeBasedSimulator):
             job = self.workload.sample(self.current_time)
             if job:
                 self.scheduler.submit(job)
-                self.job_times.append(self.current_time)
+                self.last_job_time = self.current_time
             self.scheduler.forward_time()
             return True
 
@@ -116,10 +117,10 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         )
         return self._convert_state(
             state[0], state[1], jobs[0], jobs[1], backlog,
-            self.simulator.job_times[-self.time_horizon:]
+            self.simulator.last_job_time / MAX_TIME_TRACKING_SINCE_LAST_JOB
         )
 
-    def _convert_state(self, procs, mem, wait_procs, wait_mem, backlog, times):
+    def _convert_state(self, procs, mem, wait_procs, wait_mem, backlog, time):
         unique = set(np.unique(procs)) - set([0.0])
         if len(unique) > self.job_num_cap:
             raise AssertionError("Number of jobs > number of colors")
@@ -135,13 +136,9 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         wait_procs[wait_procs != 0] = 1.0
         wait_mem[wait_procs != 0] = 1.0
 
-        times = [self.simulator.current_time - t for t in times]
-        if len(times) < self.time_horizon:
-            times = [-1] * (self.time_horizon - len(times)) + times
-
         return procs, mem, wait_procs, wait_mem, \
             backlog.reshape((self.time_horizon, -1)), \
-            np.array(times).reshape((self.time_horizon, -1))
+            np.ones((self.time_horizon, 1)) * min(1.0, time)
 
     def step(self, action: int):
         time_passed = self.simulator.rl_step(action)
