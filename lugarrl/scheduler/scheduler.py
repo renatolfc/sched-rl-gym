@@ -181,11 +181,28 @@ class Scheduler(ABC):
             processors[t, :], memory[t, :] = cluster.state
         state = (processors, memory)
 
+        positions = {}
         memory = np.zeros((job_slots, timesteps, self.total_memory))
         processors = np.zeros((job_slots, timesteps, self.number_of_processors))
         for i, job in enumerate(self.queue_admission):
             if i == job_slots:
                 break
+            if job.slot_position is None:
+                if i in positions:
+                    empty = set(range(job_slots)) - set(list(positions.keys()))
+                    positions[list(empty)[0]] = job
+                else:
+                    positions[i] = job
+            else:
+                if job.slot_position in positions:
+                    empty = set(range(job_slots)) - set(list(positions.keys()))
+                    tmp = positions[job.slot_position]
+                    positions[job.slot_position] = job
+                    positions[list(empty)[0]] = tmp
+                else:
+                    positions[job.slot_position] = job
+        for i, job in positions.items():
+            job.slot_position = i
             processors[i, :, :], memory[i, :, :] = cluster.get_job_state(job, timesteps)
         jobs = (processors, memory)
 

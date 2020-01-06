@@ -93,6 +93,7 @@ class Job(object):
         self.start_time = None
         self.finish_time = None
         self.ignore_memory = ignore_memory
+        self.slot_position = None
 
     def __str__(self):
         return f'Job<{self.id}, {self.status.name}, start={self.start_time}, processors={self.requested_processors}, ' \
