@@ -117,7 +117,8 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         )
         return self._convert_state(
             state[0], state[1], jobs[0], jobs[1], backlog,
-            self.simulator.last_job_time / MAX_TIME_TRACKING_SINCE_LAST_JOB
+            ((self.simulator.current_time - self.simulator.last_job_time)
+                / MAX_TIME_TRACKING_SINCE_LAST_JOB)
         )
 
     def _convert_state(self, procs, mem, wait_procs, wait_mem, backlog, time):
