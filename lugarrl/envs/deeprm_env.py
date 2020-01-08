@@ -47,7 +47,7 @@ JobParameters = namedtuple('JobParameters', ['small', 'large'])
 class WorkloadGenerator(workload.DistributionalWorkloadGenerator):
     def __init__(self, *args: workload.BinomialWorkloadGenerator):
         self.generators = args
-        self.counter = itertools.count()
+        self.counter = itertools.count(1)
 
         for generator in self.generators:
             generator.counter = self.counter

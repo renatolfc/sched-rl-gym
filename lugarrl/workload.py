@@ -51,7 +51,7 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
     def __init__(self, new_job_rate, small_job_chance, small_job_parameters, large_job_parameters, length=0):
         super().__init__(length)
 
-        self.counter = itertools.count()
+        self.counter = itertools.count(1)
         self.new_job_rate = new_job_rate
         self.small_job_chance = small_job_chance
         self.small_job = small_job_parameters
