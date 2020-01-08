@@ -68,15 +68,13 @@ class NullScheduler(Scheduler):
             self.current_slot = None
 
     def sjf_lt(self, a, b):
-        return b is None or (a.requested_time < b.requested_time or
-                                  (a.requested_time == b.requested_time and
-                                   a.submission_time < b.submission_time))
+        return b is None or (a.requested_time < b.requested_time)
 
     def sjf_action(self, limit: int) -> int:
         "Returns the index of the job SJF would pick."
 
         best = None
-        bestidx = -1
+        bestidx = limit
         for i, job in enumerate(self.queue_admission[:limit]):
             if self.sjf_lt(job, best):
                 if self.cluster.fits(job):
