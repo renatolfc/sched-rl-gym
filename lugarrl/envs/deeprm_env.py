@@ -141,7 +141,15 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
             backlog.reshape((self.time_horizon, -1)), \
             np.ones((self.time_horizon, 1)) * min(1.0, time)
 
+    def find_slot_position(self, action):
+        for i, j in enumerate(self.scheduler.queue_admission):
+            if j.slot_position == action:
+                return i
+        raise RuntimeError(f"No job is in slot position {action}")
+
     def step(self, action: int):
+        if 0 <= action < self.action_space.n - 1:
+            action = self.find_slot_position(action)
         time_passed = self.simulator.rl_step(action)
 
         reward = 0
