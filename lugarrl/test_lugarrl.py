@@ -822,7 +822,13 @@ class TestSchedulers(unittest.TestCase):
             state, jobs, backlog = s.state(timesteps, job_slots, backlog_size)
 
             self.assertEqual(max(len(s.queue_admission) - job_slots, 0), backlog.sum())
-            for i, j in enumerate(s.queue_admission[:job_slots]):
-                self.assertEqual(j.requested_memory * j.requested_time, jobs[1][i].sum())
-                self.assertEqual(j.requested_processors * j.requested_time, jobs[0][i].sum())
+            for j in s.queue_admission[:job_slots]:
+                self.assertEqual(
+                    j.requested_memory * j.requested_time,
+                    jobs[1][j.slot_position].sum()
+                )
+                self.assertEqual(
+                    j.requested_processors * j.requested_time,
+                    jobs[0][j.slot_position].sum()
+                )
 
