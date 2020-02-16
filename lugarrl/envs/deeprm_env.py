@@ -109,6 +109,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
     def __init__(self):
         self.renderer = None
         self.color_cache = {}
+        self.time_limit = 200
         self.use_raw_state = False
 
         self._configure_environment()
@@ -170,7 +171,9 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
                 1 / j.execution_time for j in self.scheduler.jobs_in_system
             ])
 
-        return self.state, reward, False, {}
+        done = self.scheduler.current_time > self.time_limit
+
+        return self.state, reward, done, {}
 
     def reset(self):
         self.scheduler = ns.NullScheduler(
