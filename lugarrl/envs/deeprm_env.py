@@ -95,6 +95,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
     time_horizon: int
     max_job_size: int
     backlog_size: int
+    use_raw_sate: bool
     new_job_rate: float
     small_job_chance: float
     simulator: DeepRmSimulator
@@ -108,6 +109,8 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
     def __init__(self):
         self.renderer = None
         self.color_cache = {}
+        self.use_raw_state = False
+
         self._configure_environment()
 
     @property
@@ -115,11 +118,20 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         state, jobs, backlog = self.scheduler.state(
             self.time_horizon, self.job_slots, self.backlog_size
         )
-        return self._convert_state(
+        s = self._convert_state(
             state[0], state[1], jobs[0], jobs[1], backlog,
             ((self.simulator.current_time - self.simulator.last_job_time)
                 / MAX_TIME_TRACKING_SINCE_LAST_JOB)
         )
+        if self.use_raw_state:
+            return s
+        return self.pack_observation(s)
+
+    def pack_observation(self, ob):
+        ob = list(ob)
+        ob[2] = np.hstack(ob[2]).reshape((self.time_horizon, -1))
+        ob[3] = np.hstack(ob[3]).reshape((self.time_horizon, -1))
+        return np.hstack(ob)
 
     def _convert_state(self, procs, mem, wait_procs, wait_mem, backlog, time):
         unique = set(np.unique(procs)) - set([0.0])
@@ -145,7 +157,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         for i, j in enumerate(self.scheduler.queue_admission):
             if j.slot_position == action:
                 return i
-        raise RuntimeError(f"No job is in slot position {action}")
+        return self.action_space.n - 1
 
     def step(self, action: int):
         if 0 <= action < self.action_space.n - 1:
@@ -208,13 +220,22 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
             self.processor_slots_space, self.memory_slots_space,
             self.backlog_space, self.time_since_space
         ))
+        self.observation_space.n = np.sum([
+            np.prod(e.shape) if isinstance(e, spaces.box.Box) else e.n
+            for e in self.observation_space
+        ])
 
         return self.state
 
     def render(self, mode='human'):
         if self.renderer is None:
             self.renderer = DeepRmRenderer(mode)
-        rgb, size = self.renderer.render(self.state)
+        if self.use_raw_state:
+            rgb, size = self.renderer.render(self.state)
+        else:
+            self.use_raw_state = True
+            rgb, size = self.renderer.render(self.state)
+            self.use_raw_state = False
         return np.frombuffer(rgb, dtype=np.uint8).reshape(
             (size[0], size[1], 3)
         )
