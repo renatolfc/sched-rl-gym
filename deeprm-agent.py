@@ -129,6 +129,7 @@ def run_episode(env, model, max_episode_length, device='cpu'):
         total_reward += reward
         if done:
             break
+        state = next_state
     return trajectory
 
 
@@ -183,7 +184,7 @@ def train_one_epoch(rank, args, model, device, loss_queue) -> None:
             # policy_loss.append(e.log_prob * advantages[i, j])
             policy_loss.append(e.log_prob * advantages[i, j])
 
-    policy_loss = torch.cat(policy_loss).sum() / len(trajectories)
+    policy_loss = torch.cat(policy_loss).sum()# / len(trajectories)
     # (-policy_loss).backward()
     (-policy_loss).backward()
     optimizer.step()
