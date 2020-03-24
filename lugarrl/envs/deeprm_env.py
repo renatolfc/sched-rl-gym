@@ -113,6 +113,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         self.use_raw_state = False
 
         self._configure_environment()
+        utils.EzPickle.__init__(self)
 
     @property
     def state(self):
