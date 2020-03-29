@@ -252,17 +252,12 @@ def main():
         if args.debug:
             train_one_epoch(0, args, model, device, loss_queue)
         else:
-            workers = []
-            args.lr = args.lr
-            for rank in range(args.workers):
-                p = mp.Process(
-                    target=train_one_epoch,
-                    args=(rank, args, model, device, loss_queue)
-                )
-                p.start()
-                workers.append(p)
-            for w in workers:
-                w.join()
+            mp.spawn(
+                train_one_epoch,
+                (args, model, device, loss_queue),
+                nprocs=args.workers,
+                join=True
+            )
 
             for name, param in model.named_parameters():
                 writer.add_histogram(name, param.clone().cpu().data.numpy(), epoch)
