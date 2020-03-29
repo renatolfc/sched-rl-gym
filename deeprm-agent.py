@@ -193,11 +193,13 @@ def train_one_epoch(rank, args, model, device, loss_queue) -> None:
     (-policy_loss).backward()
     optimizer.step()
 
+    lengths = [len(t) for t in trajectories]
     loss_queue.put((
         rank, policy_loss.clone().cpu().data.numpy(),
         advantages.mean(), advantages.std(),
         rewards.mean(), rewards.std(),
-        discounted_returns.mean(), discounted_returns.std()
+        discounted_returns.mean(), discounted_returns.std(),
+        np.mean(lengths), np.std(lengths)
     ))
 
 
@@ -263,7 +265,7 @@ def main():
                 writer.add_histogram(name, param.clone().cpu().data.numpy(), epoch)
 
             losses, extras = [], defaultdict(list)
-            features = 'ard'
+            features = 'ardl'
             while not loss_queue.empty():
                 rank, loss, *extra = loss_queue.get()
                 print(
