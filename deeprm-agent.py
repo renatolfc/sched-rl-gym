@@ -71,12 +71,13 @@ class Callback(object):
 
 
 class ReduceLROnPlateau(Callback):
-    def __init__(self, patience, rate, args):
+    def __init__(self, patience, rate, args, minimum=None):
         self.patience = patience
         self.args = args
         self.rate = rate
         self.counter = 0
         self.best_score = None
+        self.minimum = minimum
 
     def __call__(self, score):
         if self.best_score is None:
@@ -89,7 +90,10 @@ class ReduceLROnPlateau(Callback):
                     f'Reducing learning rate from {self.args.lr} '
                     f'to {self.args.lr * self.rate}'
                 )
-                self.args.lr *= self.rate
+                tmp = self.args.lr * self.rate
+                if self.minimum and tmp < self.minimum:
+                    tmp = self.minimum
+                self.args.lr = tmp
         else:
             self.best_score = score
             self.counter = 0
