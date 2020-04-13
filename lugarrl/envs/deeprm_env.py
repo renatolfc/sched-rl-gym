@@ -106,14 +106,38 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
     metadata = {'render.modes': ['human', 'rgb_array']}
 
-    def __init__(self):
-        self.renderer = None
+    def __init__(self, **kwargs):
+        print(kwargs)
         self.color_cache = {}
-        self.time_limit = 200
-        self.use_raw_state = False
 
-        self._configure_environment()
-        utils.EzPickle.__init__(self)
+        self.renderer = kwargs.get('renderer', None)
+        self.time_limit = kwargs.get('time_limit', 200)
+        self.use_raw_state = kwargs.get('use_raw_state', False)
+
+        self.memory = kwargs.get('memory', AMOUNT_OF_MEMORY)
+        self.processors = kwargs.get('processors', NUMBER_OF_PROCESSORS)
+
+        self.n_resources = kwargs.get('n_resources', NUMBER_OF_RESOURCES)  # resources in the system
+        self.n_work = kwargs.get('n_work', MAXIMUM_QUEUE_SIZE)  # max amount of work in the queue
+        self.time_horizon = kwargs.get('time_horizon', TIME_HORIZON)  # number of time steps in the graph
+
+        self.max_job_len = kwargs.get('max_job_len', MAXIMUM_JOB_LENGTH)  # max duration of new jobs
+        self.max_job_size = kwargs.get('max_job_size', MAXIMUM_JOB_SIZE)
+
+        self.backlog_size = kwargs.get('backlog_size', BACKLOG_SIZE)  # backlog queue size
+        self.job_num_cap = kwargs.get('job_num_cap', MAXIMUM_NUMBER_OF_ACTIVE_JOBS)
+
+        self.new_job_rate = kwargs.get('new_job_rate', NEW_JOB_RATE)  # rate of job arrival
+        self.small_job_chance = kwargs.get('small_job_chance', SMALL_JOB_CHANCE)  # chance a new job is small
+
+        self.job_slots = kwargs.get('job_slots', JOB_SLOTS)  # Number of jobs to show
+
+        step = 1.0 / self.job_num_cap
+        # zero is already present is set to "no job there"
+        self.colormap = np.arange(start=step, stop=1, step=step)
+        self.color_index = list(range(len(self.colormap)))
+
+        utils.EzPickle.__init__(self, **kwargs)
 
     @property
     def state(self):
@@ -307,32 +331,3 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
                 mem_dominant_parameters.small, mem_dominant_parameters.large
             ),
         )
-
-    def _configure_environment(self) -> DeepRmEnv:
-        """Provides a chance for subclasses to specialize behavior."""
-        self.memory = AMOUNT_OF_MEMORY
-        self.processors = NUMBER_OF_PROCESSORS
-
-        self.n_resources = NUMBER_OF_RESOURCES  # resources in the system
-        self.n_work = MAXIMUM_QUEUE_SIZE  # max amount of work in the queue
-        self.time_horizon = TIME_HORIZON  # number of time steps in the graph
-
-        self.max_job_len = MAXIMUM_JOB_LENGTH  # max duration of new jobs
-        self.max_job_size = MAXIMUM_JOB_SIZE
-
-        self.backlog_size = BACKLOG_SIZE  # backlog queue size
-        self.job_num_cap = MAXIMUM_NUMBER_OF_ACTIVE_JOBS
-
-        self.new_job_rate = NEW_JOB_RATE  # rate of job arrival
-        self.small_job_chance = SMALL_JOB_CHANCE  # chance a new job is small
-
-        self.job_slots = JOB_SLOTS  # Number of jobs to show
-
-        step = 1.0 / self.job_num_cap
-        # zero is already present is set to "no job there"
-        self.colormap = np.arange(start=step, stop=1, step=step)
-        self.color_index = list(range(len(self.colormap)))
-
-        self.reset()
-
-        return self
