@@ -73,15 +73,18 @@ class Callback(object):
 
 
 class ReduceLROnPlateau(Callback):
-    def __init__(self, patience, rate, args, minimum=None):
+    def __init__(self, patience, rate, args, minimum=None, negate_score=True):
         self.patience = patience
         self.args = args
         self.rate = rate
         self.counter = 0
         self.best_score = None
         self.minimum = minimum
+        self.negate_score = negate_score
 
     def __call__(self, score):
+        if self.negate_score:
+            score = -score
         if self.best_score is None:
             self.best_score = score
         elif score <= self.best_score:
@@ -90,7 +93,8 @@ class ReduceLROnPlateau(Callback):
                 self.counter = 0
                 print(
                     f'Reducing learning rate from {self.args.lr} '
-                    f'to {self.args.lr * self.rate}'
+                    f'to {self.args.lr * self.rate} '
+                    f'(best score was {self.best_score})'
                 )
                 tmp = self.args.lr * self.rate
                 if self.minimum and tmp < self.minimum:
@@ -251,7 +255,7 @@ def main():
     writer = SummaryWriter()
     loss_queue = mp.Queue()
 
-    callbacks = [ReduceLROnPlateau(100, .5, args, 1e-5)]
+    callbacks = [ReduceLROnPlateau(100, .5, args, 1e-5, negate_score=True)]
     for epoch in range(args.epochs):
         print(f'Current epoch: {epoch}')
         losses = []
