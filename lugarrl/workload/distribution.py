@@ -1,27 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from abc import ABC, abstractmethod
-
 import random
 import itertools
-from typing import Optional, Iterator
+from abc import ABC
+from typing import Iterator, Optional
 
 from lugarrl.job import Job, JobParameters
-
-
-class WorkloadGenerator(ABC):
-    @abstractmethod
-    def __next__(self):
-        "Next element in iterator."
-
-    @abstractmethod
-    def __iter__(self):
-        "Iterator."
-
-    @abstractmethod
-    def sample(self, submission_time=0):
-        "Sample a job with submission time equal to :param submission_time:."
+from lugarrl.workload.base import WorkloadGenerator
 
 
 class DistributionalWorkloadGenerator(WorkloadGenerator, ABC):
