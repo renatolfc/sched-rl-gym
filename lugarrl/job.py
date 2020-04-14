@@ -6,11 +6,9 @@ import enum
 
 import random
 import warnings
-from typing import Iterable, NamedTuple, Tuple
+from typing import Tuple
 
-import numpy as np
-
-from .pool import Interval, IntervalTree, ResourcePool
+from .pool import IntervalTree
 
 
 class PrimaryResource(enum.IntEnum):
