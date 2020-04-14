@@ -7,6 +7,8 @@ import argparse
 
 import gym
 import numpy as np
+from typing import List
+
 import lugarrl.envs as deeprm
 
 from numpy.lib.stride_tricks import as_strided
@@ -111,14 +113,13 @@ def make_discount_array(gamma, timesteps):
 
 
 def setup_environment(envname) -> deeprm.DeepRmEnv:
-    env: deeprm.DeepRmEnv = gym.make(envname)
+    env: deeprm.DeepRmEnv = gym.make(
+        envname, job_slots=SLOTS, time_limit=TIME_LIMIT, backlog_size=BACKLOG,
+        time_horizon=TIME_HORIZON
+    )
+    env.reset()
 
-    env.job_slots = SLOTS
-    env.time_limit = TIME_LIMIT
-    env.backlog_size = BACKLOG
-    env.time_horizon = TIME_HORIZON
-
-    return env._configure_environment()
+    return env
 
 
 def run_episode(env, model, max_episode_length, device='cpu'):
@@ -145,6 +146,15 @@ def compute_baselines(trajectories):
     return returns, returns.mean(axis=0)
 
 
+def run_episodes(rank, args, model, device) -> List[List[Experience]]:
+    np.random.seed(args.seed + rank)
+    torch.manual_seed(args.seed + rank)
+    env = setup_environment(args.envname)
+
+    return [run_episode(env, model, args.max_episode_length, device)
+            for _ in range(args.trajectories_per_batch)]
+
+
 def train_one_epoch(rank, args, model, device, loss_queue) -> None:
     """Trains the model for one epoch.
 
@@ -162,17 +172,13 @@ def train_one_epoch(rank, args, model, device, loss_queue) -> None:
     In this function, we follow 1., but nothing prevents us from using 2 or 3.
     """
     # You might need to divide the learning rate by the number of workers
-    torch.manual_seed(args.seed + rank)
-    np.random.seed(args.seed + rank)
 
-    env = setup_environment(args.envname)
     optimizer = optim.RMSprop(
         model.parameters(), lr=args.lr, momentum=args.momentum
     )
 
     optimizer.zero_grad()
-    trajectories = [run_episode(env, model, args.max_episode_length, device)
-                    for _ in range(args.trajectories_per_batch)]
+    trajectories = run_episodes(rank, args, model, device)
 
     rewards, baselines = compute_baselines(trajectories)
     baselines_mat = np.array([baselines
@@ -185,11 +191,9 @@ def train_one_epoch(rank, args, model, device, loss_queue) -> None:
     policy_loss = []
     for i, t in enumerate(trajectories):
         for j, e in enumerate(t):
-            # policy_loss.append(e.log_prob * advantages[i, j])
             policy_loss.append(e.log_prob * advantages[i, j])
 
-    policy_loss = torch.cat(policy_loss).sum()# / len(trajectories)
-    # (-policy_loss).backward()
+    policy_loss = torch.cat(policy_loss).sum()
     (-policy_loss).backward()
     optimizer.step()
 
@@ -247,7 +251,7 @@ def main():
     writer = SummaryWriter()
     loss_queue = mp.Queue()
 
-    callbacks = [ReduceLROnPlateau(50, .5, args)]
+    callbacks = [ReduceLROnPlateau(100, .5, args, 1e-5)]
     for epoch in range(args.epochs):
         print(f'Current epoch: {epoch}')
         losses = []
