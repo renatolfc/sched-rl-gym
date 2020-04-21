@@ -1,12 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
+import gzip
 import random
+import tempfile
 import unittest
+import urllib.request
+
+import pytest
 
 from . import lugarrl, simulator, job, workload, pool, event, heap, scheduler
 from lugarrl.scheduler import fifo_scheduler
 from . import cluster as clstr
+from .workload import swf_parser
 
 
 class MockLugarRL(object):
@@ -832,3 +839,62 @@ class TestSchedulers(unittest.TestCase):
                     jobs[0][j.slot_position].sum()
                 )
 
+
+class TestTraceBasedGenerator(unittest.TestCase):
+    TOTAL_JOBS = 122052
+
+    def setUp(self) -> None:
+        self.tempfile = tempfile.NamedTemporaryFile(mode='wb', delete=False)
+        data = urllib.request.urlopen(
+            "http://www.cs.huji.ac.il/labs/parallel/workload/l_lanl_cm5/LANL-CM5-1994-4.1-cln.swf.gz",
+        )
+        self.tempfile.write(gzip.decompress(data.read()))
+        self.tempfile.close()
+
+    def load(self, offset=0, length=None):
+        return workload.TraceGenerator(
+            self.tempfile.name,
+            1024,
+            length=length,
+            offset=offset,
+        )
+
+    def test_parsing(self):
+        jobs = list(swf_parser.parse(self.tempfile.name, 1024))
+        self.assertEqual(self.TOTAL_JOBS, len(jobs))
+
+    def test_workload_length(self):
+        wl = self.load()
+        self.assertEqual(self.TOTAL_JOBS, len(list(wl)))
+
+    def test_sampling(self):
+        wl = self.load()
+        jobs = wl.sample(0)
+        self.assertEqual(1, len(jobs))
+        jobs = wl.sample(466)
+        self.assertEqual(1, len(jobs))
+        jobs = wl.sample(4000)
+        self.assertEqual(2, len(jobs))
+
+    def test_internals(self):
+        wl = self.load()
+        wl.sample(0)
+        self.assertEqual(1, wl.current_element)
+
+    def test_get_all(self):
+        wl = self.load()
+        wl.sample(int(1e9))
+        self.assertEqual(self.TOTAL_JOBS, wl.current_element)
+        jobs = wl.sample(int(1e9 + 1))
+        self.assertFalse(jobs)
+
+    def test_fixed_length(self):
+        wl = self.load(length=10)
+        self.assertEqual(10, len(list(wl)))
+
+    def test_offset_length(self):
+        wl = self.load(offset=1, length=10)
+        self.assertEqual(10, len(list(wl)))
+
+    def tearDown(self) -> None:
+        os.unlink(self.tempfile.name)
