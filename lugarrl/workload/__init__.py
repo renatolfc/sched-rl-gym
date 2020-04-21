@@ -3,3 +3,5 @@
 
 from .base import WorkloadGenerator
 from .distribution import DistributionalWorkloadGenerator, BinomialWorkloadGenerator
+from .trace import TraceGenerator
+
