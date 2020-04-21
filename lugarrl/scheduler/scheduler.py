@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from collections import defaultdict
 from abc import ABC, abstractmethod
-from typing import List, Iterable, Tuple, Dict, Any
+from collections import defaultdict
+from typing import List, Iterable, Tuple, Dict, Any, Sequence, Union
 
+import collections
 import numpy as np
 
 from lugarrl.cluster import Cluster
@@ -157,7 +158,14 @@ class Scheduler(ABC):
 
         raise AssertionError('Failed to find time for job, even in the far future.')
 
-    def submit(self, job: Job) -> None:
+    def submit(self, job: Union[Job, Sequence[Job]]) -> None:
+        if isinstance(job, collections.Iterable):
+            for j in job:
+                self._submit(j)
+        else:
+            self._submit(job)
+
+    def _submit(self, job: Job) -> None:
         if job.requested_processors > self.number_of_processors:
             raise RuntimeError(
                 'Impossible to allocate resources for job bigger than cluster.'
