@@ -107,7 +107,6 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
     def __init__(self, **kwargs):
-        print(kwargs)
         self.color_cache = {}
 
         self.renderer = kwargs.get('renderer', None)
