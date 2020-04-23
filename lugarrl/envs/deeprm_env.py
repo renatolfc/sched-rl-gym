@@ -6,19 +6,17 @@ from __future__ import annotations, division
 import random
 import itertools
 
-from typing import Optional, List
+from typing import Optional
 from collections import namedtuple
 
 import numpy as np
 
 import gym
-from gym import utils
-from gym import error, spaces
-from gym.utils import seeding
+from gym import utils, spaces
 
 from .render import DeepRmRenderer
-from .. import job, workload, simulator
 from ..scheduler import null_scheduler as ns
+from .. import job, workload as wl, simulator
 
 import logging
 logger = logging.getLogger(__name__)
@@ -44,8 +42,8 @@ SMALL_JOB_CHANCE = 0.8
 JobParameters = namedtuple('JobParameters', ['small', 'large'])
 
 
-class WorkloadGenerator(workload.DistributionalWorkloadGenerator):
-    def __init__(self, *args: workload.BinomialWorkloadGenerator):
+class WorkloadGenerator(wl.DistributionalWorkloadGenerator):
+    def __init__(self, *args: wl.BinomialWorkloadGenerator):
         self.generators = args
         self.counter = itertools.count(1)
 
@@ -61,7 +59,7 @@ class WorkloadGenerator(workload.DistributionalWorkloadGenerator):
 class DeepRmSimulator(simulator.TimeBasedSimulator):
     last_job_time: int
 
-    def __init__(self, workload_generator: workload.WorkloadGenerator,
+    def __init__(self, workload_generator: wl.WorkloadGenerator,
                  scheduler: ns.NullScheduler):
         if not isinstance(workload_generator, WorkloadGenerator) \
                 or not isinstance(scheduler, ns.NullScheduler):
@@ -321,11 +319,11 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         )  # }}}
 
         return WorkloadGenerator(
-            workload.BinomialWorkloadGenerator(
+            wl.BinomialWorkloadGenerator(
                 self.new_job_rate, self.small_job_chance,
                 cpu_dominant_parameters.small, cpu_dominant_parameters.large
             ),
-            workload.BinomialWorkloadGenerator(
+            wl.BinomialWorkloadGenerator(
                 self.new_job_rate, self.small_job_chance,
                 mem_dominant_parameters.small, mem_dominant_parameters.large
             ),
