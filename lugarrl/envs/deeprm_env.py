@@ -129,6 +129,51 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
         self.job_slots = kwargs.get('job_slots', JOB_SLOTS)  # Number of jobs to show
 
+        if self.backlog_size % self.time_horizon:
+            raise AssertionError('Backlog must be a multiple of time horizon')
+
+        self.backlog_width = self.backlog_size // self.time_horizon
+
+        self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
+
+        self.memory_space = spaces.box.Box(
+            low=0.0, high=1.0, shape=(
+                self.time_horizon, self.scheduler.total_memory
+            )
+        )
+        self.processor_space = spaces.box.Box(
+            low=0.0, high=1.0, shape=(
+                self.time_horizon, self.scheduler.number_of_processors
+            )
+        )
+        self.backlog_space = spaces.box.Box(
+            low=0.0, high=1.0, shape=(
+                self.time_horizon, self.backlog_width
+            )
+        )
+        self.memory_slots_space = spaces.box.Box(
+            low=0.0, high=1.0, shape=(
+                self.job_slots, self.time_horizon, self.scheduler.total_memory
+            )
+        )
+        self.processor_slots_space = spaces.box.Box(
+            low=0.0, high=1.0, shape=(
+                self.job_slots, self.time_horizon,
+                self.scheduler.number_of_processors
+            )
+        )
+        self.time_since_space = spaces.Discrete(self.time_horizon)
+
+        self.observation_space = spaces.tuple.Tuple((
+            self.processor_space, self.memory_space,
+            self.processor_slots_space, self.memory_slots_space,
+            self.backlog_space, self.time_since_space
+        ))
+        self.observation_space.n = np.sum([
+            np.prod(e.shape) if isinstance(e, spaces.box.Box) else e.n
+            for e in self.observation_space
+        ])
+
         step = 1.0 / self.job_num_cap
         # zero is already present is set to "no job there"
         self.colormap = np.arange(start=step, stop=1, step=step)
@@ -204,51 +249,6 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         workload = self._build_workload_generator()
 
         self.simulator = DeepRmSimulator(workload, self.scheduler)
-
-        if self.backlog_size % self.time_horizon:
-            raise AssertionError('Backlog must be a multiple of time horizon')
-
-        self.backlog_width = self.backlog_size // self.time_horizon
-
-        self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
-
-        self.memory_space = spaces.box.Box(
-            low=0.0, high=1.0, shape=(
-                self.time_horizon, self.scheduler.total_memory
-            )
-        )
-        self.processor_space = spaces.box.Box(
-            low=0.0, high=1.0, shape=(
-                self.time_horizon, self.scheduler.number_of_processors
-            )
-        )
-        self.backlog_space = spaces.box.Box(
-            low=0.0, high=1.0, shape=(
-                self.time_horizon, self.backlog_width
-            )
-        )
-        self.memory_slots_space = spaces.box.Box(
-            low=0.0, high=1.0, shape=(
-                self.job_slots, self.time_horizon, self.scheduler.total_memory
-            )
-        )
-        self.processor_slots_space = spaces.box.Box(
-            low=0.0, high=1.0, shape=(
-                self.job_slots, self.time_horizon,
-                self.scheduler.number_of_processors
-            )
-        )
-        self.time_since_space = spaces.Discrete(self.time_horizon)
-
-        self.observation_space = spaces.tuple.Tuple((
-            self.processor_space, self.memory_space,
-            self.processor_slots_space, self.memory_slots_space,
-            self.backlog_space, self.time_since_space
-        ))
-        self.observation_space.n = np.sum([
-            np.prod(e.shape) if isinstance(e, spaces.box.Box) else e.n
-            for e in self.observation_space
-        ])
 
         return self.state
 
