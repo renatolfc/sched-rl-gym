@@ -5,8 +5,8 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import List, Iterable, Tuple, Dict, Any, Sequence, Union
 
-import collections
 import numpy as np
+import collections.abc
 
 from lugarrl.cluster import Cluster
 from lugarrl.job import Job, JobStatus, Resource
@@ -159,7 +159,7 @@ class Scheduler(ABC):
         raise AssertionError('Failed to find time for job, even in the far future.')
 
     def submit(self, job: Union[Job, Sequence[Job]]) -> None:
-        if isinstance(job, collections.Iterable):
+        if isinstance(job, collections.abc.Iterable):
             for j in job:
                 self._submit(j)
         else:
