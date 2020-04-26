@@ -186,7 +186,7 @@ def train_one_epoch(rank, args, model, device, loss_queue) -> None:
 
     rewards, baselines = compute_baselines(trajectories)
     baselines_mat = np.array([baselines
-                              for i in range(args.trajectories_per_batch)])
+                              for _ in range(args.trajectories_per_batch)])
     baselines_mat = baselines_mat * (rewards != 0)
     discounts = make_discount_array(args.gamma, rewards.shape[1])
     discounted_returns = (discounts @ rewards.T).T
