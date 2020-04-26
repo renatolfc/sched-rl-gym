@@ -136,6 +136,10 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
         self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
 
+        self.scheduler = ns.NullScheduler(
+            self.processors, self.memory
+        )
+
         self.memory_space = spaces.box.Box(
             low=0.0, high=1.0, shape=(
                 self.time_horizon, self.scheduler.total_memory
