@@ -259,7 +259,7 @@ def main():
     writer = SummaryWriter()
     loss_queue = mp.Queue()
 
-    callbacks = [ReduceLROnPlateau(100, .5, args, 1e-5, negate_score=True)]
+    callbacks = [ReduceLROnPlateau(500, .5, args, 1e-5, negate_score=True)]
     for epoch in range(args.epochs):
         print(f'Current epoch: {epoch}')
         losses = []
