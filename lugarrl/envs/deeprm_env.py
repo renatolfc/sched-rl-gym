@@ -99,7 +99,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
     simulator: DeepRmSimulator
     scheduler: ns.NullScheduler
     workload: WorkloadGenerator
-    observation_space: spaces.box.Box
+    observation_space: spaces.box.Tuple
     action_space: spaces.discrete.Discrete
 
     metadata = {'render.modes': ['human', 'rgb_array']}
@@ -175,7 +175,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         ])
 
         step = 1.0 / self.job_num_cap
-        # zero is already present is set to "no job there"
+        # zero is already present and set to "no job there"
         self.colormap = np.arange(start=step, stop=1, step=step)
         self.color_index = list(range(len(self.colormap)))
 
