@@ -28,6 +28,10 @@ TIME_LIMIT: int = 50
 TIME_HORIZON: int = 20
 PARALLEL_WORKERS: int = 20
 TRAINING_ITERATIONS: int = 6
+OPTIMIZERS = {
+    'adam': lambda model, args: optim.Adam(model.parameters(), lr=args.lr),
+    'rmsprop': lambda model, args: optim.RMSprop(model.parameters(), lr=args.lr, momentum=args.momentum),
+}
 
 Experience = namedtuple(
     'Experience',
@@ -68,7 +72,7 @@ class PGNet(nn.Module):
 
 
 class Callback(object):
-    def __call__(self, score):
+    def __call__(self, score) -> None:
         raise NotImplementedError
 
 
@@ -177,9 +181,7 @@ def train_one_epoch(rank, args, model, device, loss_queue) -> None:
     """
     # You might need to divide the learning rate by the number of workers
 
-    optimizer = optim.RMSprop(
-        model.parameters(), lr=args.lr, momentum=args.momentum
-    )
+    optimizer = OPTIMIZERS[args.optimizer.lower()](model, args)
 
     optimizer.zero_grad()
     trajectories = run_episodes(rank, args, model, device)
@@ -236,6 +238,8 @@ def build_argument_parser():
     parser.add_argument('--debug', action='store_true', default=False)
     parser.add_argument('--load', type=str, default=None, metavar='PATH',
                         help='Loads a previously-trained model')
+    parser.add_argument('--optimizer', type=str, default='adam',
+                        help='optimizer to use')
     return parser
 
 
