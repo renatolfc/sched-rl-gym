@@ -39,16 +39,22 @@ def pack_observation(ob, time_horizon):
     ob[3] = np.hstack(ob[3]).reshape((time_horizon, -1))
     return np.hstack(ob)
 
-env: deeprm.DeepRmEnv = gym.make('DeepRM-v0')
-time_horizon = env.observation_space[0].shape[0]
-for episode in range(EPISODES):
-    ob = env.reset()
-    action = sjf_action(ob)
-    for _ in range(200):
-        ob, reward, done, _ = env.step(action)
+
+def main():
+    env: deeprm.DeepRmEnv = gym.make('DeepRM-v0')
+    env.use_raw_state = True
+    time_horizon = env.observation_space[0].shape[0]
+    for episode in range(EPISODES):
+        ob = env.reset()
         action = sjf_action(ob)
-        ob = pack_observation(ob, env.observation_space[0].shape[0])
-        env.render()
-        if done:
-            break
-env.close()
+        for _ in range(200):
+            ob, reward, done, _ = env.step(action)
+            action = sjf_action(ob)
+            ob = pack_observation(ob, time_horizon)
+            env.render()
+            if done:
+                break
+    env.close()
+
+if __name__ == '__main__':
+    main()
