@@ -35,7 +35,7 @@ OPTIMIZERS = {
 
 Experience = namedtuple(
     'Experience',
-    field_names='state action reward next_state done log_prob'.split()
+    field_names='state reward log_prob value'.split()
 )
 
 
@@ -56,19 +56,20 @@ class PGNet(nn.Module):
 
         self.hidden = nn.Linear(self.input_height * self.input_width, 20)
         self.out = nn.Linear(20, self.output_size)
+        self.critic = nn.Linear(20, 1)
 
     def forward(self, x):
         x = x.view(-1, self.input_height * self.input_width)
         x = F.relu(self.hidden(x))
-        scores = self.out(x)
-        return F.softmax(scores, dim=1)
+        scores, value = self.out(x), self.critic(x)
+        return F.softmax(scores, dim=1), value
 
     def select_action(self, state, device='cpu'):
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
-        probs = self(state)
+        probs, value = self(state)
         mass = Categorical(probs)
         action = mass.sample()
-        return action.item(), mass.log_prob(action)
+        return action.item(), mass.log_prob(action), value
 
 
 class Callback(object):
@@ -135,9 +136,9 @@ def run_episode(env, model, max_episode_length, device='cpu'):
     total_reward = 0
     state = env.reset()
     for i in range(max_episode_length):
-        action, log_prob = model.select_action(state, device)
+        action, log_prob, value = model.select_action(state, device)
         next_state, reward, done, _ = env.step(action)
-        exp = Experience(state, action, reward, next_state, done, log_prob)
+        exp = Experience(state, reward, log_prob, value)
         trajectory.append(exp)
         total_reward += reward
         if done:
@@ -147,7 +148,7 @@ def run_episode(env, model, max_episode_length, device='cpu'):
 
 
 def compute_baselines(trajectories):
-    returns = np.zeros((len(trajectories), max((len(traj) for traj in trajectories))))
+    returns = np.zeros((len(trajectories), max((len(t) for t in trajectories))))
     for i in range(len(trajectories)):
         tmp = np.array([e.reward for e in trajectories[i]])
         returns[i, :len(tmp)] = tmp
@@ -186,18 +187,20 @@ def train_one_epoch(rank, args, model, device, loss_queue) -> None:
     optimizer.zero_grad()
     trajectories = run_episodes(rank, args, model, device)
 
-    rewards, baselines = compute_baselines(trajectories)
-    baselines_mat = np.array([baselines
-                              for _ in range(args.trajectories_per_batch)])
-    baselines_mat = baselines_mat * (rewards != 0)
-    discounts = make_discount_array(args.gamma, rewards.shape[1])
-    discounted_returns = (discounts @ rewards.T).T
-    advantages = discounted_returns - baselines_mat
-
     policy_loss = []
-    for i, t in enumerate(trajectories):
-        for j, e in enumerate(t):
-            policy_loss.append(e.log_prob * advantages[i, j])
+    extra = defaultdict(list)
+    for trajectory in trajectories:
+        rewards = np.array([e.reward for e in trajectory]).reshape((1, -1))
+        baselines = torch.cat([e.value for e in trajectory]).view(1, -1)
+        discounts = make_discount_array(args.gamma, rewards.shape[1])
+        discounted_returns = torch.from_numpy((discounts @ rewards.T).T).to(device)
+        advantages = discounted_returns - baselines
+        log_probs = torch.cat([e.log_prob for e in trajectory]).view(1, -1)
+        policy_loss.append((log_probs * advantages).sum().view(1, 1))
+
+        extra['returns'].append(rewards.mean())
+        extra['advantages'].append(advantages.mean().detach().cpu().data.numpy())
+        extra['discounted_returns'].append(discounted_returns.mean().detach().cpu().data.numpy())
 
     policy_loss = torch.cat(policy_loss).sum()
     (-policy_loss).backward()
@@ -205,10 +208,10 @@ def train_one_epoch(rank, args, model, device, loss_queue) -> None:
 
     lengths = [len(t) for t in trajectories]
     loss_queue.put((
-        rank, policy_loss.clone().cpu().data.numpy(),
-        advantages.mean(), advantages.std(),
-        rewards.mean(), rewards.std(),
-        discounted_returns.mean(), discounted_returns.std(),
+        rank, policy_loss.detach().cpu().data.numpy(),
+        np.mean(extra['advantages']), np.std(extra['advantages']),
+        np.mean(extra['returns']), np.std(extra['returns']),
+        np.mean(extra['discounted_returns']), np.std(extra['discounted_returns']),
         np.mean(lengths), np.std(lengths)
     ))
 
