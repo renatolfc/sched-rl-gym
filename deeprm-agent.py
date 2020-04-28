@@ -29,8 +29,8 @@ TIME_HORIZON: int = 20
 PARALLEL_WORKERS: int = 20
 TRAINING_ITERATIONS: int = 6
 OPTIMIZERS = {
-    'adam': lambda model, args: optim.Adam(model.parameters(), lr=args.lr),
-    'rmsprop': lambda model, args: optim.RMSprop(model.parameters(), lr=args.lr, momentum=args.momentum),
+    'adam': lambda params, args: optim.Adam(params, lr=args.lr),
+    'rmsprop': lambda params, args: optim.RMSprop(params, lr=args.lr, momentum=args.momentum),
 }
 
 Experience = namedtuple(
@@ -54,15 +54,25 @@ class PGNet(nn.Module):
             backlog.shape[1] + 1 if len(time.shape) < 2 else time.shape[-1]
         self.output_size = action_space
 
-        self.hidden = nn.Linear(self.input_height * self.input_width, 20)
-        self.out = nn.Linear(20, self.output_size)
-        self.critic = nn.Linear(20, 1)
+        self.actor = nn.Sequential(
+            nn.Linear(self.input_height * self.input_width, 20),
+            nn.ReLU(),
+            nn.Linear(20, self.output_size),
+            nn.Softmax(dim=1)
+        )
+
+        self.critic = nn.Sequential(
+            nn.Linear(self.input_height * self.input_width, 20),
+            nn.ReLU(),
+            nn.Linear(20, 1),
+            nn.Softmax(dim=1)
+        )
 
     def forward(self, x):
         x = x.view(-1, self.input_height * self.input_width)
-        x = F.relu(self.hidden(x))
-        scores, value = self.out(x), self.critic(x)
-        return F.softmax(scores, dim=1), value
+        probs = self.actor(x)
+        value = self.critic(x)
+        return probs, value
 
     def select_action(self, state, device='cpu'):
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
@@ -111,7 +121,7 @@ class ReduceLROnPlateau(Callback):
 
 
 def make_discount_array(gamma, timesteps):
-    vals = np.zeros(2 * timesteps - 1)
+    vals = np.zeros(2 * timesteps - 1, dtype=np.float32)
     vals[timesteps - 1:] = gamma ** np.arange(timesteps)
     return as_strided(
         vals[timesteps - 1:],
@@ -182,29 +192,36 @@ def train_one_epoch(rank, args, model, device, loss_queue) -> None:
     """
     # You might need to divide the learning rate by the number of workers
 
-    optimizer = OPTIMIZERS[args.optimizer.lower()](model, args)
+    actor_optimizer = OPTIMIZERS[args.optimizer.lower()](model.actor.parameters(), args)
+    critic_optimizer = OPTIMIZERS[args.optimizer.lower()](model.critic.parameters(), args)
 
-    optimizer.zero_grad()
+    actor_optimizer.zero_grad()
+    critic_optimizer.zero_grad()
     trajectories = run_episodes(rank, args, model, device)
 
-    policy_loss = []
     extra = defaultdict(list)
+    policy_loss, critic_loss = [], []
     for trajectory in trajectories:
-        rewards = np.array([e.reward for e in trajectory]).reshape((1, -1))
+        rewards = np.array([e.reward for e in trajectory], dtype=np.float32).reshape((1, -1))
         baselines = torch.cat([e.value for e in trajectory]).view(1, -1)
         discounts = make_discount_array(args.gamma, rewards.shape[1])
         discounted_returns = torch.from_numpy((discounts @ rewards.T).T).to(device)
         advantages = discounted_returns - baselines
         log_probs = torch.cat([e.log_prob for e in trajectory]).view(1, -1)
         policy_loss.append((log_probs * advantages).sum().view(1, 1))
+        critic_loss.append(F.mse_loss(baselines, discounted_returns).sum().view(1, 1))
 
         extra['returns'].append(rewards.mean())
         extra['advantages'].append(advantages.mean().detach().cpu().data.numpy())
         extra['discounted_returns'].append(discounted_returns.mean().detach().cpu().data.numpy())
 
     policy_loss = torch.cat(policy_loss).sum()
-    (-policy_loss).backward()
-    optimizer.step()
+    (-policy_loss).backward(retain_graph=True)
+    actor_optimizer.step()
+
+    critic_loss = torch.cat(critic_loss).sum()
+    critic_loss.backward(retain_graph=False)
+    critic_optimizer.step()
 
     lengths = [len(t) for t in trajectories]
     loss_queue.put((
