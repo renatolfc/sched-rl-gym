@@ -260,6 +260,13 @@ def main():
     loss_queue = mp.Queue()
 
     callbacks = [ReduceLROnPlateau(500, .5, args, 1e-5, negate_score=True)]
+    train_synchronous_parallel(args, callbacks, device, loss_queue, model, writer)
+
+    writer.close()
+    torch.save(model.state_dict(), 'policy.pth')
+
+
+def train_synchronous_parallel(args, callbacks, device, loss_queue, model, writer):
     for epoch in range(args.epochs):
         print(f'Current epoch: {epoch}')
         losses = []
@@ -302,9 +309,6 @@ def main():
 
         writer.flush()
         torch.save(model.state_dict(), f'checkpoint/policy-{epoch}.pth')
-
-    writer.close()
-    torch.save(model.state_dict(), 'policy.pth')
 
 
 if __name__ == '__main__':
