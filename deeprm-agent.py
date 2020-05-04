@@ -206,7 +206,7 @@ def train_one_epoch(rank, args, model, device, loss_queue) -> None:
         baselines = torch.cat([e.value for e in trajectory]).view(1, -1)
         discounts = make_discount_array(args.gamma, rewards.shape[1])
         discounted_returns = torch.from_numpy((discounts @ rewards.T).T).to(device)
-        advantages = discounted_returns - baselines
+        advantages = discounted_returns - baselines.detach()
         log_probs = torch.cat([e.log_prob for e in trajectory]).view(1, -1)
         policy_loss.append((log_probs * advantages).sum().view(1, 1))
         critic_loss.append(F.mse_loss(baselines, discounted_returns).sum().view(1, 1))
@@ -216,11 +216,11 @@ def train_one_epoch(rank, args, model, device, loss_queue) -> None:
         extra['discounted_returns'].append(discounted_returns.mean().detach().cpu().data.numpy())
 
     policy_loss = torch.cat(policy_loss).sum()
-    (-policy_loss).backward(retain_graph=True)
+    (-policy_loss).backward()
     actor_optimizer.step()
 
     critic_loss = torch.cat(critic_loss).sum()
-    critic_loss.backward(retain_graph=False)
+    critic_loss.backward()
     critic_optimizer.step()
 
     lengths = [len(t) for t in trajectories]
