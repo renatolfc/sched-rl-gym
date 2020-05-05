@@ -58,6 +58,7 @@ class WorkloadGenerator(wl.DistributionalWorkloadGenerator):
 
 class DeepRmSimulator(simulator.TimeBasedSimulator):
     last_job_time: int
+    scheduler: ns.NullScheduler
 
     def __init__(self, workload_generator: wl.WorkloadGenerator,
                  scheduler: ns.NullScheduler):
@@ -76,9 +77,9 @@ class DeepRmSimulator(simulator.TimeBasedSimulator):
             return False
         else:
             self.current_time += 1
-            job = self.workload.sample(self.current_time)
-            if job:
-                self.scheduler.submit(job)
+            j = self.workload.sample(self.current_time)
+            if j:
+                self.scheduler.submit(j)
                 self.last_job_time = self.current_time
             self.scheduler.forward_time()
             return True
