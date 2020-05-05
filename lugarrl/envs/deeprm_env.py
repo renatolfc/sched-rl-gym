@@ -15,7 +15,7 @@ import gym
 from gym import utils, spaces
 
 from .render import DeepRmRenderer
-from ..scheduler import null_scheduler as ns
+from ..scheduler.null_scheduler import NullScheduler
 from .. import job, workload as wl, simulator
 
 import logging
@@ -126,12 +126,12 @@ class WorkloadGenerator(wl.DistributionalWorkloadGenerator):
 
 class DeepRmSimulator(simulator.TimeBasedSimulator):
     last_job_time: int
-    scheduler: ns.NullScheduler
+    scheduler: NullScheduler
 
     def __init__(self, workload_generator: wl.WorkloadGenerator,
-                 scheduler: ns.NullScheduler):
+                 scheduler: NullScheduler):
         if not isinstance(workload_generator, WorkloadGenerator) \
-                or not isinstance(scheduler, ns.NullScheduler):
+                or not isinstance(scheduler, NullScheduler):
             raise AssertionError("Invalid arguments received.")
         super().__init__(workload_generator, scheduler)
         self.last_job_time = 0
@@ -166,7 +166,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
     new_job_rate: float
     small_job_chance: float
     simulator: DeepRmSimulator
-    scheduler: ns.NullScheduler
+    scheduler: NullScheduler
     workload: WorkloadGenerator
     observation_space: spaces.tuple.Tuple
     action_space: spaces.discrete.Discrete
@@ -205,7 +205,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
         self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
 
-        self.scheduler = ns.NullScheduler(
+        self.scheduler = NullScheduler(
             self.processors, self.memory
         )
 
@@ -316,7 +316,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         return self.state, reward, done, {}
 
     def reset(self):
-        self.scheduler = ns.NullScheduler(
+        self.scheduler = NullScheduler(
             self.processors, self.memory
         )
         workload = WorkloadGenerator.build(
