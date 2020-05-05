@@ -42,6 +42,8 @@ class Simulator(ABC):
 
 
 class TimeBasedSimulator(Simulator):
+    scheduler: sched.Scheduler
+
     def __init__(self, workload_generator: workload.WorkloadGenerator,
                  scheduler: sched.Scheduler):
         super().__init__(workload_generator, scheduler)
