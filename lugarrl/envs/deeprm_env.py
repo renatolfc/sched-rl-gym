@@ -99,7 +99,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
     simulator: DeepRmSimulator
     scheduler: ns.NullScheduler
     workload: WorkloadGenerator
-    observation_space: spaces.box.Tuple
+    observation_space: spaces.tuple.Tuple
     action_space: spaces.discrete.Discrete
 
     metadata = {'render.modes': ['human', 'rgb_array']}
