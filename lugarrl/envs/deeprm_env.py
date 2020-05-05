@@ -3,10 +3,6 @@
 
 from __future__ import annotations, division
 
-import random
-import itertools
-
-from typing import Optional
 from collections import namedtuple
 
 import numpy as np
@@ -14,9 +10,10 @@ import numpy as np
 import gym
 from gym import utils, spaces
 
+from .. import simulator
 from .render import DeepRmRenderer
+from .workload import WorkloadGenerator
 from ..scheduler.null_scheduler import NullScheduler
-from .. import job, workload as wl, simulator
 
 import logging
 logger = logging.getLogger(__name__)
@@ -39,96 +36,12 @@ MAX_TIME_TRACKING_SINCE_LAST_JOB = 10
 NEW_JOB_RATE = 0.7
 SMALL_JOB_CHANCE = 0.8
 
-JobParameters = namedtuple('JobParameters', ['small', 'large'])
-
-
-class WorkloadGenerator(wl.DistributionalWorkloadGenerator):
-    def __init__(self, *args: wl.BinomialWorkloadGenerator):
-        super().__init__(max([w.length for w in args]))
-
-        self.generators = args
-        self.counter = itertools.count(1)
-
-        for generator in self.generators:
-            generator.counter = self.counter
-
-    def sample(self, submission_time=0) -> Optional[job.Job]:
-        return self.generators[
-            random.randint(0, len(self.generators) - 1)
-        ].sample(submission_time)
-
-    @staticmethod
-    def build(new_job_rate, small_job_chance,
-              max_job_len, max_job_size):
-        # Time-related job parameters {{{
-        small_job_time_lower = 1
-        small_job_time_upper = max(max_job_len // 5, 1)
-        large_job_time_lower = int(max_job_len * (2 / 3))
-        large_job_time_upper = max_job_len
-        # }}}
-
-        # Resource-related job parameters {{{
-        dominant_resource_lower = max_job_size // 2
-        dominant_resource_upper = max_job_size
-        other_resource_lower = 1
-        other_resource_upper = max_job_size // 5
-        # }}}
-
-        cpu_dominant_parameters = JobParameters(  # {{{
-            job.JobParameters(
-                small_job_time_lower,
-                small_job_time_upper,
-                dominant_resource_lower,
-                dominant_resource_upper,
-                other_resource_lower,
-                other_resource_upper
-            ),
-            job.JobParameters(
-                large_job_time_lower,
-                large_job_time_upper,
-                dominant_resource_lower,
-                dominant_resource_upper,
-                other_resource_lower,
-                other_resource_upper
-            ),
-        )  # }}}
-
-        mem_dominant_parameters = JobParameters(  # {{{
-            job.JobParameters(
-                small_job_time_lower,
-                small_job_time_upper,
-                other_resource_lower,
-                other_resource_upper,
-                dominant_resource_lower,
-                dominant_resource_upper,
-            ),
-            job.JobParameters(
-                large_job_time_lower,
-                large_job_time_upper,
-                other_resource_lower,
-                other_resource_upper,
-                dominant_resource_lower,
-                dominant_resource_upper,
-            ),
-        )  # }}}
-
-        return WorkloadGenerator(
-            wl.BinomialWorkloadGenerator(
-                new_job_rate, small_job_chance,
-                cpu_dominant_parameters.small, cpu_dominant_parameters.large
-            ),
-            wl.BinomialWorkloadGenerator(
-                new_job_rate, small_job_chance,
-                mem_dominant_parameters.small, mem_dominant_parameters.large
-            ),
-        )
-
 
 class DeepRmSimulator(simulator.TimeBasedSimulator):
     last_job_time: int
     scheduler: NullScheduler
 
-    def __init__(self, workload_generator: wl.WorkloadGenerator,
+    def __init__(self, workload_generator: WorkloadGenerator,
                  scheduler: NullScheduler):
         if not isinstance(workload_generator, WorkloadGenerator) \
                 or not isinstance(scheduler, NullScheduler):
