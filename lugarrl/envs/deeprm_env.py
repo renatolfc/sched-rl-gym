@@ -207,7 +207,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         return np.hstack(ob)
 
     def _convert_state(self, procs, mem, wait_procs, wait_mem, backlog, time):
-        unique = set(np.unique(procs)) - set([0.0])
+        unique = set(np.unique(procs)) - {0.0}
         if len(unique) > self.job_num_cap:
             raise AssertionError("Number of jobs > number of colors")
         available_colors = list(set(self.color_index) - set(
@@ -216,9 +216,9 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         need_color = unique - set(self.color_cache.keys())
         for i, j in enumerate(need_color):
             self.color_cache[j] = available_colors[i]
-        for job in unique:  # noqa
-            procs[procs == job] = self.colormap[self.color_cache[job]]
-            mem[mem == job] = self.colormap[self.color_cache[job]]
+        for j in unique:  # noqa
+            procs[procs == j] = self.colormap[self.color_cache[j]]
+            mem[mem == j] = self.colormap[self.color_cache[j]]
         wait_procs[wait_procs != 0] = 1.0
         wait_mem[wait_procs != 0] = 1.0
 
