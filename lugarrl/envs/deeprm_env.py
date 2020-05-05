@@ -12,8 +12,8 @@ from gym import utils, spaces
 
 from .. import simulator
 from .render import DeepRmRenderer
-from .workload import DeepRmWorkloadGenerator
 from ..scheduler.null_scheduler import NullScheduler
+from .workload import build as build_workload, DeepRmWorkloadGenerator
 
 import logging
 logger = logging.getLogger(__name__)
@@ -35,6 +35,14 @@ MAX_TIME_TRACKING_SINCE_LAST_JOB = 10
 
 NEW_JOB_RATE = 0.7
 SMALL_JOB_CHANCE = 0.8
+
+DEFAULT_WORKLOAD = {
+    'type': 'deeprm',
+    'new_job_rate': NEW_JOB_RATE,
+    'max_job_size': MAXIMUM_JOB_SIZE,
+    'max_job_len': MAXIMUM_JOB_LENGTH,
+    'small_job_chance': SMALL_JOB_CHANCE,
+}
 
 
 class DeepRmSimulator(simulator.TimeBasedSimulator):
@@ -70,14 +78,10 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
     n_work: int
     job_slots: int
     n_resources: int
-    max_job_len: int
     job_num_cap: int
     time_horizon: int
-    max_job_size: int
     backlog_size: int
     use_raw_sate: bool
-    new_job_rate: float
-    small_job_chance: float
     simulator: DeepRmSimulator
     scheduler: NullScheduler
     workload: DeepRmWorkloadGenerator
@@ -100,14 +104,10 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         self.n_work = kwargs.get('n_work', MAXIMUM_QUEUE_SIZE)  # max amount of work in the queue
         self.time_horizon = kwargs.get('time_horizon', TIME_HORIZON)  # number of time steps in the graph
 
-        self.max_job_len = kwargs.get('max_job_len', MAXIMUM_JOB_LENGTH)  # max duration of new jobs
-        self.max_job_size = kwargs.get('max_job_size', MAXIMUM_JOB_SIZE)
-
         self.backlog_size = kwargs.get('backlog_size', BACKLOG_SIZE)  # backlog queue size
         self.job_num_cap = kwargs.get('job_num_cap', MAXIMUM_NUMBER_OF_ACTIVE_JOBS)
 
-        self.new_job_rate = kwargs.get('new_job_rate', NEW_JOB_RATE)  # rate of job arrival
-        self.small_job_chance = kwargs.get('small_job_chance', SMALL_JOB_CHANCE)  # chance a new job is small
+        self.workload_config = kwargs.get('workload', DEFAULT_WORKLOAD)
 
         self.job_slots = kwargs.get('job_slots', JOB_SLOTS)  # Number of jobs to show
 
@@ -232,12 +232,11 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         self.scheduler = NullScheduler(
             self.processors, self.memory
         )
-        workload = DeepRmWorkloadGenerator.build(
-            self.new_job_rate, self.small_job_chance,
-            self.max_job_len, self.max_job_size
+        wl = build_workload(
+            self.workload_config
         )
 
-        self.simulator = DeepRmSimulator(workload, self.scheduler)
+        self.simulator = DeepRmSimulator(wl, self.scheduler)
 
         return self.state
 

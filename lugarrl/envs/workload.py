@@ -91,3 +91,12 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
                 mem_dominant_parameters.small, mem_dominant_parameters.large
             ),
         )
+
+
+def build(workload_config: dict):
+    type = workload_config['type']
+    kwargs = {
+        k: v for k, v in workload_config.items() if k != 'type'
+    }
+    if type == 'deeprm':
+        return DeepRmWorkloadGenerator.build(**kwargs)
