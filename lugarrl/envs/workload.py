@@ -11,7 +11,7 @@ from lugarrl import workload as wl, job
 JobParameters = namedtuple('JobParameters', ['small', 'large'])
 
 
-class WorkloadGenerator(wl.DistributionalWorkloadGenerator):
+class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
     def __init__(self, *args: wl.BinomialWorkloadGenerator):
         super().__init__(max([w.length for w in args]))
 
@@ -81,7 +81,7 @@ class WorkloadGenerator(wl.DistributionalWorkloadGenerator):
             ),
         )  # }}}
 
-        return WorkloadGenerator(
+        return DeepRmWorkloadGenerator(
             wl.BinomialWorkloadGenerator(
                 new_job_rate, small_job_chance,
                 cpu_dominant_parameters.small, cpu_dominant_parameters.large

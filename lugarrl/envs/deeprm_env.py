@@ -12,7 +12,7 @@ from gym import utils, spaces
 
 from .. import simulator
 from .render import DeepRmRenderer
-from .workload import WorkloadGenerator
+from .workload import DeepRmWorkloadGenerator
 from ..scheduler.null_scheduler import NullScheduler
 
 import logging
@@ -41,9 +41,9 @@ class DeepRmSimulator(simulator.TimeBasedSimulator):
     last_job_time: int
     scheduler: NullScheduler
 
-    def __init__(self, workload_generator: WorkloadGenerator,
+    def __init__(self, workload_generator: DeepRmWorkloadGenerator,
                  scheduler: NullScheduler):
-        if not isinstance(workload_generator, WorkloadGenerator) \
+        if not isinstance(workload_generator, DeepRmWorkloadGenerator) \
                 or not isinstance(scheduler, NullScheduler):
             raise AssertionError("Invalid arguments received.")
         super().__init__(workload_generator, scheduler)
@@ -80,7 +80,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
     small_job_chance: float
     simulator: DeepRmSimulator
     scheduler: NullScheduler
-    workload: WorkloadGenerator
+    workload: DeepRmWorkloadGenerator
     observation_space: spaces.tuple.Tuple
     action_space: spaces.discrete.Discrete
 
@@ -232,7 +232,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         self.scheduler = NullScheduler(
             self.processors, self.memory
         )
-        workload = WorkloadGenerator.build(
+        workload = DeepRmWorkloadGenerator.build(
             self.new_job_rate, self.small_job_chance,
             self.max_job_len, self.max_job_size
         )
