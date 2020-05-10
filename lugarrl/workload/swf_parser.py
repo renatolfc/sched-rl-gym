@@ -42,7 +42,7 @@ CONVERTERS = {key: int if key != SwfFields.AVG_CPU_USAGE else float
               for key in SwfFields}
 
 
-def parse(filename, processors):
+def parse(filename, processors, memory):
     with open(filename, 'r') as fp:
         for line in fp:
             if ';' in line:
@@ -88,10 +88,13 @@ def parse(filename, processors):
             if job.requested_processors > processors:
                 job.requested_processors = processors
 
+            if job.requested_memory > memory:
+                job.requested_memory = memory
+
             yield job
 
 
 if __name__ == '__main__':
     import sys
-    for j in parse(sys.argv[1], 1024):
+    for j in parse(sys.argv[1], 1024, 1024):
         print(j)

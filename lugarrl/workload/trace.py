@@ -28,10 +28,11 @@ class TraceGenerator(WorkloadGenerator):
         else:
             return []
 
-    def __init__(self, tracefile, processors, offset=0, length=None, restart=False):
+    def __init__(self, tracefile, processors, memory,
+                 offset=0, length=None, restart=False):
         self.restart = restart
         self.tracefile = tracefile
-        self.trace = [j for j in parse_swf(tracefile, processors)]
+        self.trace = [j for j in parse_swf(tracefile, processors, memory)]
 
         if length is None:
             length = len(self.trace)
