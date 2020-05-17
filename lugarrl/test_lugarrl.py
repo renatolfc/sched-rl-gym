@@ -855,12 +855,13 @@ class TestTraceBasedGenerator(unittest.TestCase):
         return workload.TraceGenerator(
             self.tempfile.name,
             1024,
+            1024,
             length=length,
             offset=offset,
         )
 
     def test_parsing(self):
-        jobs = list(swf_parser.parse(self.tempfile.name, 1024))
+        jobs = list(swf_parser.parse(self.tempfile.name, 1024, 1024))
         self.assertEqual(self.TOTAL_JOBS, len(jobs))
 
     def test_workload_length(self):
