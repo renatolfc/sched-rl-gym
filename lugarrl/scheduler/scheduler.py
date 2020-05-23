@@ -189,7 +189,7 @@ class Scheduler(ABC):
             processors[t, :], memory[t, :] = cluster.state
         state = (processors, memory)
 
-        positions = {}
+        positions: Dict[int, Job] = {}
         memory = np.zeros((job_slots, timesteps, self.total_memory))
         processors = np.zeros((job_slots, timesteps, self.number_of_processors))
         for i, job in enumerate(self.queue_admission):
