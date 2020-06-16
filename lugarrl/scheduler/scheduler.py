@@ -47,6 +47,13 @@ class Scheduler(ABC):
             + self.queue_admission
 
     @property
+    def slowdown(self) -> List[int]:
+        return [
+            (j.finish_time - j.submission_time) / j.execution_time
+            for j in self.queue_completed
+        ]
+
+    @property
     def jobs_in_system(self) -> List[Job]:
         return self.queue_running + self.queue_waiting + self.queue_admission
 
