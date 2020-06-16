@@ -656,12 +656,12 @@ class TestJob(unittest.TestCase):
         j = self.make_job(0, 1, 2)
         j.finish_time = None
         with self.assertWarns(UserWarning):
-            self.assertEqual(-1, j.slowdown())
+            self.assertEqual(-1, j.slowdown)
 
     def test_slowdown_of_atomic_idealized_job(self):
         j = self.make_job(0, 1, 2)
         j.finish_time = 1
-        self.assertEqual(1, j.slowdown())
+        self.assertEqual(1, j.slowdown)
 
 
 class TestCluster(unittest.TestCase):
