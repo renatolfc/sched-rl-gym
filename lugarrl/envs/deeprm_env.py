@@ -332,3 +332,8 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
                 mem_dominant_parameters.small, mem_dominant_parameters.large
             ),
         )
+
+    @property
+    def slowdown(self):
+        return self.scheduler.slowdown
+
