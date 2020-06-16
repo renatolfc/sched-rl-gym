@@ -104,6 +104,7 @@ class Job(object):
         processors, memory = self.resources.measure()
         return processors == self.requested_processors and (self.ignore_memory or memory == self.requested_memory)
 
+    @property
     def slowdown(self):
         try:
             return (self.finish_time - self.submission_time) / self.execution_time
