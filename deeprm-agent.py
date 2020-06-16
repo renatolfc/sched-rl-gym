@@ -5,9 +5,12 @@ from collections import namedtuple, defaultdict
 
 import argparse
 
+import os
 import gym
+import pickle
 import numpy as np
 from typing import List
+from pathlib import Path
 
 import lugarrl.envs as deeprm
 
@@ -17,6 +20,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+import torch.utils.data as data
 import torch.multiprocessing as mp
 from torch.distributions import Categorical
 
@@ -33,9 +37,10 @@ OPTIMIZERS = {
     'rmsprop': lambda model, args: optim.RMSprop(model.parameters(), lr=args.lr, momentum=args.momentum),
 }
 
+TMPDIR = Path(f'/run/user/{os.getuid()}')
 Experience = namedtuple(
     'Experience',
-    field_names='state action reward next_state done log_prob'.split()
+    field_names='state action reward'.split()
 )
 
 
@@ -68,8 +73,14 @@ class PGNet(nn.Module):
         probs = self(state)
         mass = Categorical(probs)
         action = mass.sample()
-        return action.item(), mass.log_prob(action)
+        return action.item()
 
+    def log_prob(self, state, action, device='cpu'):
+        state = state.float()
+        action = action.float()
+        probs = self(state).view((action.shape[0], action.shape[1], -1))
+        mass = Categorical(probs)
+        return mass.log_prob(action)
 
 class Callback(object):
     def __call__(self, score) -> None:
@@ -134,10 +145,10 @@ def run_episode(env, model, max_episode_length, device='cpu'):
     trajectory = []
     total_reward = 0
     state = env.reset()
-    for i in range(max_episode_length):
-        action, log_prob = model.select_action(state, device)
+    for _ in range(max_episode_length):
+        action = model.select_action(state, device)
         next_state, reward, done, _ = env.step(action)
-        exp = Experience(state, action, reward, next_state, done, log_prob)
+        exp = Experience(state, action, reward)
         trajectory.append(exp)
         total_reward += reward
         if done:
@@ -161,6 +172,12 @@ def run_episodes(rank, args, model, device) -> List[List[Experience]]:
 
     return [run_episode(env, model, args.max_episode_length, device)
             for _ in range(args.trajectories_per_batch)]
+
+
+def run_episodes_pickle(rank, args, model, device):
+    trajectories = run_episodes(rank, args, model, device)
+    with open(TMPDIR / f'{rank}.pkl', 'wb') as fp:
+        pickle.dump(trajectories, fp, pickle.HIGHEST_PROTOCOL)
 
 
 def train_one_epoch(rank, args, model, device, loss_queue) -> None:
@@ -273,37 +290,94 @@ def train_synchronous_parallel(args, callbacks, device, loss_queue, model, write
         if args.debug:
             train_one_epoch(0, args, model, device, loss_queue)
         else:
-            mp.spawn(
-                train_one_epoch,
-                (args, model, device, loss_queue),
-                nprocs=args.workers,
-                join=True
-            )
+            with mp.Pool(processes=args.workers) as pool:
+                pool.starmap_async(
+                    run_episodes_pickle,
+                    [(i, args, model, device) for i in range(args.workers)],
+                    1
+                ).get()
 
-            for name, param in model.named_parameters():
-                writer.add_histogram(name, param.clone().cpu().data.numpy(), epoch)
+                fps = [open(TMPDIR / f'{i}.pkl', 'rb') for i in range(args.workers)]
+                ret = [pickle.load(fp) for fp in fps]
+                [fp.close() for fp in fps]
 
-            losses, extras = [], defaultdict(list)
-            features = 'ardl'
-            while not loss_queue.empty():
-                rank, loss, *extra = loss_queue.get()
-                print(
-                    f'Loss for worker {rank} on epoch {epoch}: {loss}'
+                optimizer = OPTIMIZERS[args.optimizer.lower()](model, args)
+                optimizer.zero_grad()
+
+                trajectories = [e for l in ret for e in l]
+                rewards, baselines = compute_baselines(trajectories)
+                baselines_mat = np.array([baselines
+                                          for _ in range(len(trajectories))])
+                baselines_mat = baselines_mat * (rewards != 0)
+                discounts = make_discount_array(args.gamma, rewards.shape[1])
+                discounted_returns = (discounts @ rewards.T).T
+                advantages = discounted_returns - baselines_mat
+
+                states = [[e.state for e in t] for t in trajectories]
+                actions = [[e.action for e in t] for t in trajectories]
+                maxlen = max((len(s) for s in states))
+                for s, a in zip(states, actions):
+                    s += [np.zeros_like(s[0])] * (maxlen - len(s))
+                    a += [np.zeros_like(a[0])] * (maxlen - len(a))
+
+                def compute_loss(model, states, actions, advantages, device):
+                    states, actions, advantages = [torch.from_numpy(t) for t in (states, actions, advantages)]
+                    dataset = data.TensorDataset(
+                        states, actions, advantages
+                    )
+                    loader = data.DataLoader(
+                        dataset, batch_size=64, shuffle=False
+                    )
+                    loss = 0
+                    for state, action, advantage in loader:
+                        loss += (model.log_prob(
+                            state.to(device), action.to(device), device
+                        ) * advantage.to(device)).sum()
+                    return loss
+
+                policy_loss = compute_loss(
+                    model,
+                    np.array(states),
+                    np.array(actions),
+                    np.array(advantages),
+                    device
                 )
-                losses.append(loss)
+                (-policy_loss).backward()
+                optimizer.step()
+
+                lengths = [len(t) for t in trajectories]
+                loss_queue.put((
+                    0, policy_loss.clone().cpu().data.numpy(),
+                    advantages.mean(), advantages.std(),
+                    rewards.mean(), rewards.std(),
+                    discounted_returns.mean(), discounted_returns.std(),
+                    np.mean(lengths), np.std(lengths)
+                ))
+
+                for name, param in model.named_parameters():
+                    writer.add_histogram(name, param.clone().cpu().data.numpy(), epoch)
+
+                losses, extras = [], defaultdict(list)
+                features = 'ardl'
+                while not loss_queue.empty():
+                    rank, loss, *extra = loss_queue.get()
+                    print(
+                        f'Loss for worker {rank} on epoch {epoch}: {loss}'
+                    )
+                    losses.append(loss)
+                    for i, feature in enumerate(features):
+                        extras[f'{feature}μ'].append(extra[i * 2])
+                        extras[f'{feature}σ'].append(extra[i * 2 + 1])
+                        writer.add_scalar(f'{feature}μ/{rank}', extra[i * 2], epoch)
+                        writer.add_scalar(f'{feature}σ/{rank}', extra[i * 2 + 1], epoch)
+                print(
+                    'Loss for epoch {}: {}±{}'.format(epoch, np.mean(losses), np.std(losses))
+                )
+                writer.add_scalar('loss', np.mean(losses), epoch)
                 for i, feature in enumerate(features):
-                    extras[f'{feature}μ'].append(extra[i * 2])
-                    extras[f'{feature}σ'].append(extra[i * 2 + 1])
-                    writer.add_scalar(f'{feature}μ/{rank}', extra[i * 2], epoch)
-                    writer.add_scalar(f'{feature}σ/{rank}', extra[i * 2 + 1], epoch)
-            print(
-                'Loss for epoch {}: {}±{}'.format(epoch, np.mean(losses), np.std(losses))
-            )
-            writer.add_scalar('loss', np.mean(losses), epoch)
-            for i, feature in enumerate(features):
-                writer.add_scalar(f'{feature}μ', np.mean(extras[f'{feature}μ']), epoch)
-                writer.add_scalar(f'{feature}σ', np.mean(extras[f'{feature}σ']), epoch)
-            writer.add_scalar('α', args.lr, epoch)
+                    writer.add_scalar(f'{feature}μ', np.mean(extras[f'{feature}μ']), epoch)
+                    writer.add_scalar(f'{feature}σ', np.mean(extras[f'{feature}σ']), epoch)
+                writer.add_scalar('α', args.lr, epoch)
         for callback in callbacks:
             callback(np.mean(losses))
 
