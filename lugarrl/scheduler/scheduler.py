@@ -49,8 +49,7 @@ class Scheduler(ABC):
     @property
     def slowdown(self) -> List[int]:
         return [
-            (j.finish_time - j.submission_time) / j.execution_time
-            for j in self.queue_completed
+            j.slowdown for j in self.queue_completed
         ]
 
     @property
