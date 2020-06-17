@@ -8,6 +8,8 @@ import tempfile
 import unittest
 import urllib.request
 
+from pathlib import Path
+
 import pytest
 
 from . import lugarrl, simulator, job, workload, pool, event, heap, scheduler
@@ -842,18 +844,31 @@ class TestSchedulers(unittest.TestCase):
 
 class TestTraceBasedGenerator(unittest.TestCase):
     TOTAL_JOBS = 122052
+    TEST_DIR = 'test'
+    TRACE_FILE = 'LANL-CM5-1994-4.1-cln.swf.gz'
 
     def setUp(self) -> None:
-        self.tempfile = tempfile.NamedTemporaryFile(mode='wb', delete=False)
-        data = urllib.request.urlopen(
-            "http://www.cs.huji.ac.il/labs/parallel/workload/l_lanl_cm5/LANL-CM5-1994-4.1-cln.swf.gz",
-        )
-        self.tempfile.write(gzip.decompress(data.read()))
-        self.tempfile.close()
+        self.tracefile = Path(self.TEST_DIR) / self.TRACE_FILE
+        try:
+            open(self.tracefile).close()
+        except FileNotFoundError:
+            Path(self.TEST_DIR).mkdir(exist_ok=True)
+            tmp = tempfile.NamedTemporaryFile(
+                dir=self.TEST_DIR,
+                mode='wb',
+                delete=False
+            )
+            data = urllib.request.urlopen(
+                "http://www.cs.huji.ac.il/labs/parallel/workload/l_lanl_cm5/"
+                f"{self.TRACE_FILE}",
+            )
+            tmp.write(gzip.decompress(data.read()))
+            tmp.close()
+            os.rename(tmp.name, self.tracefile)  # atomic in same fs
 
     def load(self, offset=0, length=None):
         return workload.TraceGenerator(
-            self.tempfile.name,
+            self.tracefile,
             1024,
             1024,
             length=length,
@@ -861,7 +876,7 @@ class TestTraceBasedGenerator(unittest.TestCase):
         )
 
     def test_parsing(self):
-        jobs = list(swf_parser.parse(self.tempfile.name, 1024, 1024))
+        jobs = list(swf_parser.parse(self.tracefile, 1024, 1024))
         self.assertEqual(self.TOTAL_JOBS, len(jobs))
 
     def test_workload_length(self):
@@ -896,6 +911,3 @@ class TestTraceBasedGenerator(unittest.TestCase):
     def test_offset_length(self):
         wl = self.load(offset=1, length=10)
         self.assertEqual(10, len(list(wl)))
-
-    def tearDown(self) -> None:
-        os.unlink(self.tempfile.name)
