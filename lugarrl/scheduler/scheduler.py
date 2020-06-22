@@ -14,7 +14,7 @@ from lugarrl.event import JobEvent, EventType, EventQueue
 
 Stats = namedtuple(
     'Stats',
-    field_names='utilization offered_load slowdown makespan'.split()
+    field_names='utilization offered_load slowdown makespan bsld'.split()
 )
 
 
@@ -78,6 +78,13 @@ class Scheduler(ABC):
     def utilization(self) -> float:
         "Instant processor utilization."
         return self.used_processors / self.number_of_processors
+
+    @property
+    def bounded_slowdown(self) -> List[int]:
+        "Computes the bounded slowdown for all completed jobs"
+        return [
+            j.bounded_slowdown for j in self.queue_completed
+        ]
 
     def start_running(self, j: Job) -> None:
         self.queue_waiting.remove(j)
@@ -260,5 +267,9 @@ class Scheduler(ABC):
 
     def update_stats(self) -> None:
         self.stats[self.current_time] = Stats(
-            self.utilization, self.offered_load, sum(self.slowdown), self.makespan
+            self.utilization,
+            self.offered_load,
+            np.mean(self.slowdown) if self.queue_completed else 0.0,
+            self.makespan,
+            np.mean(self.bounded_slowdown) if self.queue_completed else 0.
         )
