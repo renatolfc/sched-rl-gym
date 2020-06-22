@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from abc import ABC, abstractmethod
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from typing import List, Iterable, Tuple, Dict, Any, Sequence, Union
 
 import numpy as np
@@ -11,6 +11,11 @@ import collections.abc
 from lugarrl.cluster import Cluster
 from lugarrl.job import Job, JobStatus, Resource
 from lugarrl.event import JobEvent, EventType, EventQueue
+
+Stats = namedtuple(
+    'Stats',
+    field_names='utilization offered_load slowdown makespan'.split()
+)
 
 
 class Scheduler(ABC):
@@ -25,6 +30,7 @@ class Scheduler(ABC):
     queue_completed: List[Job]
     cluster: Cluster
     job_events: EventQueue[JobEvent]
+    stats: Dict[int, Stats]
 
     def __init__(self, number_of_processors, total_memory):
         self.number_of_processors = number_of_processors
@@ -35,6 +41,7 @@ class Scheduler(ABC):
         self.queue_completed = []
         self.queue_admission = []
 
+        self.stats = {}
         self.used_memory = 0
         self.current_time = 0
         self.used_processors = 0
@@ -58,7 +65,19 @@ class Scheduler(ABC):
 
     @property
     def makespan(self) -> int:
-        return max([j.finish_time for j in self.queue_completed])
+        return max([0] + [j.finish_time for j in self.queue_completed])
+
+    @property
+    def offered_load(self) -> float:
+        requested_processors = sum(
+            [j.requested_processors for j in self.jobs_in_system]
+        )
+        return requested_processors / self.number_of_processors
+
+    @property
+    def utilization(self) -> float:
+        "Instant processor utilization."
+        return self.used_processors / self.number_of_processors
 
     def start_running(self, j: Job) -> None:
         self.queue_waiting.remove(j)
@@ -121,10 +140,12 @@ class Scheduler(ABC):
                 cluster.allocate(event.job)
                 if update_queues:
                     self.start_running(event.job)
+                    self.update_stats()
             elif event.type == EventType.JOB_FINISH:
                 cluster.free(event.job)
                 if update_queues:
                     self.complete_job(event.job)
+                    self.update_stats()
             else:
                 raise RuntimeError("Unexpected event type found")
         return cluster
@@ -236,3 +257,8 @@ class Scheduler(ABC):
     @abstractmethod
     def schedule(self) -> Any:
         "Schedules tasks."
+
+    def update_stats(self) -> None:
+        self.stats[self.current_time] = Stats(
+            self.utilization, self.offered_load, sum(self.slowdown), self.makespan
+        )
