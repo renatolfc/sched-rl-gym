@@ -112,6 +112,42 @@ class Job(object):
             warnings.warn(f"Failed to obtain slowdown for job {self}. It may not have finished yet.")
             return -1
 
+    @property
+    def bounded_slowdown(self):
+        "Gives the bounded slowdown of a job"
+        try:
+            return max(
+                1,
+                (self.finish_time - self.submission_time) /
+                max(10, self.execution_time)
+            )
+        except TypeError:
+            warnings.warn(
+                f"Failed to obtain avg bounded slowdown for job {self}."
+                "It may not have finished yet."
+            )
+            return -1
+
+    @property
+    def swf(self):
+        "Returns an SWF representation of this job"
+        return (
+            f'{self.id} {self.submission_time} {self.wait_time} '
+            f'{self.execution_time} {self.processors_allocated} '
+            f'{self.average_cpu_use} {self.average_cpu_use} '
+            f'{self.memory_use} {self.requested_processors} '
+            f'{self.requested_time} {self.requested_memory} '
+            f'{self.swfstatus} {self.user_id} {self.group_id} '
+            f'{self.executable} {self.queue_number} '
+            f'{self.partition_number} {self.preceding_job_id} '
+            f'{self.think_time}'
+        )
+
+    @property
+    def swfstatus(self):
+        if self.status == JobStatus.COMPLETED:
+            return SwfJobStatus.COMPLETED
+        return SwfJobStatus.MEANINGLESS
 
 class JobParameters(object):
     lower_time_bound: int
