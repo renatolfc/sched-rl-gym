@@ -60,6 +60,9 @@ class JobEvent(Event):
     def __str__(self):
         return f'JobEvent<{self.time}, {self.type.name}, {self.job}>'
 
+    def __repr__(self):
+        return str(self)
+
 
 class EventQueue(Generic[T]):
     time: int
@@ -107,4 +110,7 @@ class EventQueue(Generic[T]):
         return self.future.heapsort()
 
     def __str__(self) -> str:
-        return f'{self.future.heapsort()}'
+        return f'{[e for e in self.future.heapsort()]}'
+
+    def __repr__(self):
+        return str(self)

@@ -32,7 +32,8 @@ class Scheduler(ABC):
     job_events: EventQueue[JobEvent]
     stats: Dict[int, Stats]
 
-    def __init__(self, number_of_processors, total_memory):
+    def __init__(self, number_of_processors, total_memory,
+                 ignore_memory=False):
         self.number_of_processors = number_of_processors
         self.total_memory = total_memory
 
@@ -45,8 +46,10 @@ class Scheduler(ABC):
         self.used_memory = 0
         self.current_time = 0
         self.used_processors = 0
+        self.ignore_memory = ignore_memory
         self.job_events = EventQueue(self.current_time - 1)
-        self.cluster = Cluster(number_of_processors, total_memory)
+        self.cluster = Cluster(number_of_processors, total_memory,
+                               ignore_memory)
 
     @property
     def all_jobs(self) -> List[Job]:
@@ -257,6 +260,7 @@ class Scheduler(ABC):
         job.status = JobStatus.WAITING
         job.resources.memory = resources.memory
         job.resources.processors = resources.processors
+        job.resources.ignore_memory = resources.ignore_memory
         job.start_time = time
         self.add_job_events(job, time)
         self.queue_waiting.append(job)
