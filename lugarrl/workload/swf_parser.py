@@ -42,7 +42,7 @@ CONVERTERS = {key: int if key != SwfFields.AVG_CPU_USAGE else float
               for key in SwfFields}
 
 
-def parse(filename, processors, memory, memory_placeholder=1):
+def parse(filename, processors, memory, ignore_memory=False):
     with open(filename, 'r') as fp:
         for line in fp:
             if ';' in line:
@@ -77,11 +77,12 @@ def parse(filename, processors, memory, memory_placeholder=1):
             if job.requested_processors < 0 < job.processors_allocated:
                 job.requested_processors = job.processors_allocated
 
-            if job.requested_memory < 0 and memory_placeholder:
-                job.requested_memory = memory_placeholder
+            if job.requested_memory < 0 and ignore_memory:
+                job.requested_memory = 0
 
-            if (job.requested_processors < 1 or job.requested_memory < 1
-                    or job.execution_time < 1 or job.submission_time < 0):
+            if (job.requested_processors < 1 or
+                    (job.requested_memory < 1 and not ignore_memory) or
+                    job.execution_time < 1 or job.submission_time < 0):
                 logger.warning(f'Ignoring malformed job {job.id}')
                 continue
 

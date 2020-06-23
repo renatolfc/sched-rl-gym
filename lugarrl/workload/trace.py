@@ -12,6 +12,7 @@ from .swf_parser import parse as parse_swf
 class TraceGenerator(WorkloadGenerator):
     restart: bool
     tracefile: str
+    ignore_memory: bool
     trace: Sequence[Job]
 
     def sample(self, submission_time=-1):
@@ -29,10 +30,13 @@ class TraceGenerator(WorkloadGenerator):
             return []
 
     def __init__(self, tracefile, processors, memory,
-                 offset=0, length=None, restart=False):
+                 offset=0, length=None, restart=False,
+                 ignore_memory=False):
         self.restart = restart
         self.tracefile = tracefile
-        self.trace = [j for j in parse_swf(tracefile, processors, memory)]
+        self.trace = list(
+            parse_swf(tracefile, processors, memory, ignore_memory)
+        )
 
         if length is None:
             length = len(self.trace)

@@ -95,7 +95,8 @@ class Job(object):
 
     def __str__(self):
         return f'Job<{self.id}, {self.status.name}, start={self.start_time}, processors={self.requested_processors}, ' \
-            f'memory={self.requested_memory}>'
+            f'memory={self.requested_memory} ' \
+            f'duration={self.execution_time}>'
 
     __repr__ = __str__
 
