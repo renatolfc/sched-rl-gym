@@ -47,13 +47,14 @@ def main():
     for episode in range(EPISODES):
         ob = env.reset()
         action = sjf_action(ob)
-        for _ in range(200):
+        for _ in range(50):
             ob, reward, done, _ = env.step(action)
             action = sjf_action(ob)
             ob = pack_observation(ob, time_horizon)
             env.render()
             if done:
                 break
+    import pdb; pdb.set_trace()
     env.close()
 
 if __name__ == '__main__':
