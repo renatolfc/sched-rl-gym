@@ -56,7 +56,7 @@ class Cluster(object):
 
     def find_resources_at_time(self, time: int, job: Job, events: Iterable[JobEvent]) -> Resource:
         used = Resource(self.processors.used_pool, self.memory.used_pool)
-        for event in (e for e in events if (time + 1 <= e.time < job.execution_time + time and
+        for event in (e for e in events if (time + 1 <= e.time < job.requested_time + time and
                                             e.type == EventType.JOB_START)):
             for i in event.processors:
                 used.processors.add(i)

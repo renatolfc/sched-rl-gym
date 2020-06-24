@@ -16,6 +16,7 @@ def simulate(trace, size):
         size,
         1024 * 1024 * 1024,
         ignore_memory=True,
+        length=2000,
     )
 
     scheduler = backfilling_scheduler.BackfillingScheduler(
@@ -39,10 +40,12 @@ def simulate(trace, size):
 
 
 def main():
-    traces = [('CTC-SP2-1996-3.1-cln.swf', 338), ('SDSC-SP2-1998-4.2-cln.swf', 128)]
+    traces = [('SDSC-SP2-1998-4.2-cln.swf', 128), ('CTC-SP2-1996-3.1-cln.swf', 338),]
 
-#    for args in traces:
-#        simulate(*args)
+    for args in traces:
+        simulate(*args)
+        break
+    raise SystemExit
 
     processes = [Process(target=simulate, args=trace) for trace in traces]
     for process in processes:

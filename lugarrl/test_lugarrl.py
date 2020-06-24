@@ -374,7 +374,7 @@ class TestFifoScheduler(unittest.TestCase):
         j1 = self.make_job(0, 2, 2)
         j2 = self.make_job(1, 2, 1)
         j3 = self.make_job(1, 3, 1)
-        j4 = self.make_job(1, 1, 1)
+        j4 = self.make_job(2, 1, 1)
         j5 = self.make_job(1, 4, 2)
         j6 = self.make_job(1, 4, 1)
         j7 = self.make_job(1, 2, 2)
@@ -387,11 +387,13 @@ class TestFifoScheduler(unittest.TestCase):
 
         s.submit(j2)
         s.submit(j3)
-        s.submit(j4)
         s.submit(j5)
         s.submit(j6)
         s.submit(j7)
 
+        import pdb; pdb.set_trace()
+        s.schedule()
+        s.submit(j4)
         s.schedule()
 
         self.assertEqual(0, j1.start_time)
