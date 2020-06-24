@@ -135,7 +135,7 @@ class Job(object):
         return (
             f'{self.id} {self.submission_time} {self.wait_time} '
             f'{self.execution_time} {self.processors_allocated} '
-            f'{self.average_cpu_use} {self.average_cpu_use} '
+            f'{self.average_cpu_use} '
             f'{self.memory_use} {self.requested_processors} '
             f'{self.requested_time} {self.requested_memory} '
             f'{self.swfstatus} {self.user_id} {self.group_id} '
