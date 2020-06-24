@@ -116,12 +116,38 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
         self.backlog_width = self.backlog_size // self.time_horizon
 
-        self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
+        self.setup_spaces()
 
+        step = 1.0 / self.job_num_cap
+        # zero is already present and set to "no job there"
+        self.colormap = np.arange(start=step, stop=1, step=step)
+        self.color_index = list(range(len(self.colormap)))
+
+        utils.EzPickle.__init__(self, **kwargs)
+
+    def setup_spaces(self):
         self.scheduler = NullScheduler(
             self.processors, self.memory
         )
 
+        self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
+        if self.use_raw_state:
+            self.setup_raw_spaces()
+        else:
+            self.setup_image_spaces()
+
+    def setup_image_spaces(self):
+        self.observation_space = spaces.box.Box(
+            low=0.0, high=1.0, shape=(
+                self.time_horizon,
+                (self.job_slots + 1) * self.scheduler.total_memory +
+                (self.job_slots + 1) * self.scheduler.number_of_processors +
+                self.backlog_width +
+                1
+            )
+        )
+
+    def setup_raw_spaces(self):
         self.memory_space = spaces.box.Box(
             low=0.0, high=1.0, shape=(
                 self.time_horizon, self.scheduler.total_memory
@@ -160,12 +186,6 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
             for e in self.observation_space
         ])
 
-        step = 1.0 / self.job_num_cap
-        # zero is already present and set to "no job there"
-        self.colormap = np.arange(start=step, stop=1, step=step)
-        self.color_index = list(range(len(self.colormap)))
-
-        utils.EzPickle.__init__(self, **kwargs)
 
     @property
     def state(self):
