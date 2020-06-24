@@ -23,6 +23,7 @@ class Scheduler(ABC):
     current_time: int
     total_memory: int
     used_processors: int
+    need_schedule_call: bool
     number_of_processors: int
     queue_waiting: List[Job]
     queue_running: List[Job]
@@ -50,6 +51,7 @@ class Scheduler(ABC):
         self.job_events = EventQueue(self.current_time - 1)
         self.cluster = Cluster(number_of_processors, total_memory,
                                ignore_memory)
+        self.need_schedule_call = False
 
     @property
     def all_jobs(self) -> List[Job]:
@@ -107,7 +109,7 @@ class Scheduler(ABC):
         self.used_memory -= j.memory_use
         self.used_processors -= j.processors_allocated
 
-    def add_job_events(self, job: Job, time: int) -> None:
+    def add_job_events(self, job: Job, time: int) -> Tuple[JobEvent, JobEvent]:
         if not job.resources or not job.proper:
             raise AssertionError(
                 "Malformed job submitted either with no processors, "
@@ -123,6 +125,8 @@ class Scheduler(ABC):
         self.job_events.add(start)
         self.job_events.add(finish)
 
+        return start, finish
+
     @property
     def free_resources(self) -> Tuple[int, int]:
         return self.number_of_processors - self.used_processors, self.total_memory - self.used_memory
@@ -135,7 +139,10 @@ class Scheduler(ABC):
 
         scheduled = False
         for _ in range(offset):
-            if self.queue_admission:
+            if self.need_schedule_call or (self.queue_admission
+                and self.job_events.first
+                and self.job_events.first.time == self.current_time):
+                self.need_schedule_call = False
                 scheduled = True
                 self.schedule()
             present = self.job_events.step(1)
@@ -201,6 +208,7 @@ class Scheduler(ABC):
                 self._submit(j)
         else:
             self._submit(job)
+        self.need_schedule_call = True
 
     def _submit(self, job: Job) -> None:
         if job.requested_processors > self.number_of_processors:
@@ -256,14 +264,14 @@ class Scheduler(ABC):
 
         return state, jobs, backlog
 
-    def assign_schedule(self, job, resources, time):
+    def assign_schedule(self, job, resources, time) -> Tuple[JobEvent, JobEvent]:
         job.status = JobStatus.WAITING
         job.resources.memory = resources.memory
         job.resources.processors = resources.processors
         job.resources.ignore_memory = resources.ignore_memory
         job.start_time = time
-        self.add_job_events(job, time)
         self.queue_waiting.append(job)
+        return self.add_job_events(job, time)
 
     @abstractmethod
     def schedule(self) -> Any:
