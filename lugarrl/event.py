@@ -96,6 +96,15 @@ class EventQueue(Generic[T]):
             first = self.future.first
         return present
 
+    def remove(self, event: Event) -> None:
+        if event not in self.future:
+            raise ValueError("Tried to remove non-existant value")
+        self.future.remove(event)
+
+    @property
+    def first(self) -> Optional[T]:
+        return self.future.first
+
     @property
     def next(self) -> Optional[T]:
         if len(self.future) == 0:
