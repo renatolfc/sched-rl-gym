@@ -24,7 +24,9 @@ class DeepRmRgbRenderer(object):
 
     @staticmethod
     def plot_substate(ax, title, state, colorbar=False):
-        im = ax.imshow(state, cmap='rainbow', vmin=0, vmax=1)
+        cmap = matplotlib.cm.get_cmap('rainbow')
+        cmap.set_under('w')
+        im = ax.imshow(state, cmap=cmap, vmin=0.001, vmax=1)
         if colorbar:
             ax.figure.colorbar(im, ax=ax)
         ax.set_xticks(np.arange(-.5, state.shape[1], 1))
