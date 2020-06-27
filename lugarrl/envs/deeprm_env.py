@@ -275,7 +275,12 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
     @property
     def slowdown(self):
-        return self.scheduler.slowdown
+        slowdown = self.scheduler.slowdown
+        if slowdown:
+            return slowdown
+        # no job has finished yet, return maximum slowdown possible
+        exec_time = MAXIMUM_JOB_LENGTH
+        return [(exec_time + self.time_limit) / exec_time]
 
     @property
     def stats(self):
