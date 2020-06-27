@@ -41,7 +41,7 @@ def pack_observation(ob, time_horizon):
 
 
 def main():
-    env: deeprm.DeepRmEnv = gym.make('DeepRM-v0')
+    env: deeprm.DeepRmEnv = gym.make('DeepRM-v0', use_raw_state=True)
     env.use_raw_state = True
     time_horizon = env.observation_space[0].shape[0]
     for episode in range(EPISODES):
