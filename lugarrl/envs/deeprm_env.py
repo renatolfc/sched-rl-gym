@@ -11,7 +11,6 @@ import gym
 from gym import utils, spaces
 
 from .. import simulator
-from .render import DeepRmRenderer
 from ..scheduler.null_scheduler import NullScheduler
 from .workload import build as build_workload, DeepRmWorkloadGenerator
 
@@ -262,6 +261,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
     def render(self, mode='human'):
         if self.renderer is None:
+            from .render import DeepRmRenderer
             self.renderer = DeepRmRenderer(mode)
         if self.use_raw_state:
             rgb, size = self.renderer.render(self.state)
