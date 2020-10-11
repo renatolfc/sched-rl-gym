@@ -32,7 +32,8 @@ jobs:
       run: |
         pip install pytest pytest-cov
         pytest --cov=lugarrl
-    - name: Coveralls GitHub Action
-      uses: coverallsapp/github-action@v1.1.2
+
+    - name: Coveralls Python GitHub Action
+      uses: AndreMiras/coveralls-python-action@develop
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
