@@ -1,8 +1,6 @@
 .. figure:: https://github.com/renatolfc/sched-rl-gym/workflows/sched-rl-gym/badge.svg
    :alt: sched-rl-gym
 
-   sched-rl-gym
-
 sched-rl-gym: Gym environment for HPC job scheduling problems
 =============================================================
 
