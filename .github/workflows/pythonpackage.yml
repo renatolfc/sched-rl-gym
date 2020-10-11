@@ -31,8 +31,8 @@ jobs:
     - name: Test with pytest & coverage
       run: |
         pip install pytest pytest-cov
-        pytest --cov=lugarrl
-
+        coverage run --source lugarrl -m pytest lugarrl
+        coverage report -m
     - name: Coveralls Python GitHub Action
       uses: AndreMiras/coveralls-python-action@develop
       with:
