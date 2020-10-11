@@ -37,3 +37,4 @@ jobs:
       uses: AndreMiras/coveralls-python-action@develop
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
+        debug: true
