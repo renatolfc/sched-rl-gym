@@ -30,11 +30,9 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest & coverage
       run: |
-        pip install pytest pytest-cov
+        pip install pytest pytest-cov coveralls
         coverage run --source lugarrl -m pytest lugarrl
         coverage report -m
-    - name: Coveralls Python GitHub Action
-      uses: AndreMiras/coveralls-python-action@develop
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        debug: true
+    - name: Push results to coveralls
+      run: |
+        COVERALLS_REPO_TOKEN=${{ secrets.GITHUB_TOKEN }} coveralls
