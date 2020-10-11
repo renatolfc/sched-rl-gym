@@ -1,5 +1,5 @@
 numpy>=1.16.3
 intervaltree==3.0.2
 pytest==4.6.3
-coverage==4.5.3
+coverage==5.3
 pytest-cov
