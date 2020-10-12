@@ -56,14 +56,6 @@ lugarrl.job module
    :undoc-members:
    :show-inheritance:
 
-lugarrl.lugarrl module
-----------------------
-
-.. automodule:: lugarrl.lugarrl
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 lugarrl.pool module
 -------------------
 
