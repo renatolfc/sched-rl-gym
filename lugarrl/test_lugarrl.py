@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from . import lugarrl, simulator, job, workload, pool, event, heap, scheduler
+from . import simulator, job, workload, pool, event, heap, scheduler
 from lugarrl.scheduler import fifo_scheduler
 from . import cluster as clstr
 from .workload import swf_parser
@@ -92,24 +92,6 @@ class TestSimulator(unittest.TestCase):
                 self.workload,
                 self.scheduler
             )
-
-
-class TestTimeBaseLugarRL(TestLugarRL):
-    def setUp(self):
-        self.lugar = lugarrl.LugarRL()
-
-    def test_time_based_simulator_instance(self):
-        self.assertTrue(isinstance(self.lugar.simulator, simulator.TimeBasedSimulator))
-
-    def test_step(self):
-        self.assertEqual(self.lugar.simulator.current_time, 0)
-        self.lugar.step()
-        self.assertEqual(self.lugar.simulator.current_time, 1)
-
-    def test_simulation_runs_fine(self):
-        for i in range(1000):
-            self.lugar.step()
-        self.assertEqual(self.lugar.simulator.current_time, 1000)
 
 
 class TestJobParameters(unittest.TestCase):
