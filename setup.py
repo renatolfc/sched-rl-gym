@@ -26,6 +26,10 @@ extras = {
         'pytest',
         'coverage',
     ],
+    'docs': [
+        'Sphinx',
+        'docutils',
+    ]
 }
 
 extras['all'] = [item for group in extras.values() for item in group]
