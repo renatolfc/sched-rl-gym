@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+"base - base module for all workload generators"
+
 from abc import ABC, abstractmethod
 
 
 class WorkloadGenerator(ABC):
+    "An abstract workload generator"
     @abstractmethod
     def __next__(self):
         "Next element in iterator."

@@ -4,8 +4,8 @@
 """
 swf_parser - Parser for the Standard Workload Format (SWF)
 
-A full description of the format, with meanings for each field is available on the web at
-http://www.cs.huji.ac.il/labs/parallel/workload/swf.html.
+A full description of the format, with meanings for each field is available on
+the web at http://www.cs.huji.ac.il/labs/parallel/workload/swf.html.
 """
 
 from enum import IntEnum
@@ -14,10 +14,11 @@ import logging
 
 from ..job import Job, SwfJobStatus
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # pylint: disable=C
 
 
 class SwfFields(IntEnum):
+    "Fields of the Standard Workload Format."
     JOB_ID = 0
     SUBMITTED = 1
     WAIT_TIME = 2
@@ -43,12 +44,23 @@ CONVERTERS = {key: int if key != SwfFields.AVG_CPU_USAGE else float
 
 
 def parse(filename, processors, memory, ignore_memory=False):
-    with open(filename, 'r') as fp:
+    """Parser for SWF job files.
+
+    The SWF is a simple format with commented lines starting with the ';'
+    character and other lines separated by spaces.
+
+    Parsing, therefore, involves splitting the lines and associating each
+    column of the file with a field.
+    """
+
+    with open(filename, 'r') as fp:  # pylint: disable=C
         for line in fp:
             if ';' in line:
                 continue
             fields = line.strip().split()
-            fields = [CONVERTERS[SwfFields(i)](f) for i, f in enumerate(fields)]
+            fields = [  # Converts all fields according to our rules
+                CONVERTERS[SwfFields(i)](f) for i, f in enumerate(fields)
+            ]
 
             job = Job(
                 fields[SwfFields.JOB_ID],
@@ -96,9 +108,3 @@ def parse(filename, processors, memory, ignore_memory=False):
                 job.requested_memory = memory
 
             yield job
-
-
-if __name__ == '__main__':
-    import sys
-    for j in parse(sys.argv[1], 1024, 1024):
-        print(j)
