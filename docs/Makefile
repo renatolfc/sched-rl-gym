@@ -15,8 +15,8 @@ help:
 .PHONY: help Makefile
 
 docs:
-	mkdir -p docs/_static
-	cp _static/gym.gif docs/_static/
+	mkdir -p docs/img
+	cp img/gym.gif docs/img/
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
