@@ -14,6 +14,14 @@ Subpackages
 Submodules
 ----------
 
+lugarrl.resource module
+-----------------------
+
+.. automodule:: lugarrl.resource
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 lugarrl.cluster module
 ----------------------
 
@@ -32,6 +40,8 @@ lugarrl.event module
 
 lugarrl.heap module
 -------------------
+
+.. inheritance-diagram:: lugarrl.heap.Heap
 
 .. automodule:: lugarrl.heap
    :members:
@@ -66,14 +76,6 @@ lugarrl.simulator module
 ------------------------
 
 .. automodule:: lugarrl.simulator
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-lugarrl.test\_lugarrl module
-----------------------------
-
-.. automodule:: lugarrl.test_lugarrl
    :members:
    :undoc-members:
    :show-inheritance:
