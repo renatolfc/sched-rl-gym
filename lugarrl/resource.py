@@ -28,6 +28,9 @@ class Resource(object):
     This groups IntervalTrees into as many resources that can are supported in
     the system.
 
+    This is referenced by a :class:`lugarrl.job.Job` to represent *which
+    specific resources* are being used by that job.
+
     Parameters
     ----------
         processors : IntervalTree
