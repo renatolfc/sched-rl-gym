@@ -39,7 +39,7 @@ following code will implement a random agent:
 
 With the following rendering:
 
-.. figure:: ./docs/_static/gym.gif
+.. figure:: ./docs/img/gym.gif
    :alt: OpenAI Gym Environment rendering
 
    OpenAI Gym Environment rendering
