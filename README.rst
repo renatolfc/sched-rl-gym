@@ -1,5 +1,8 @@
-.. figure:: https://github.com/renatolfc/sched-rl-gym/workflows/sched-rl-gym/badge.svg
+.. image:: https://github.com/renatolfc/sched-rl-gym/workflows/sched-rl-gym/badge.svg
    :alt: sched-rl-gym
+.. image:: https://coveralls.io/repos/github/renatolfc/sched-rl-gym/badge.svg?branch=master
+   :target: https://coveralls.io/github/renatolfc/sched-rl-gym?branch=master
+
 
 sched-rl-gym: Gym environment for HPC job scheduling problems
 =============================================================
