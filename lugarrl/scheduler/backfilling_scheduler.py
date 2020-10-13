@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+"""backfilling_scheduler - A scheduler that uses easy backfilling.
+"""
+
 from typing import List, Tuple, Optional
 
 from lugarrl.job import Job, JobStatus
@@ -9,14 +12,23 @@ from lugarrl.event import JobEvent
 
 
 class BackfillingScheduler(Scheduler):
-    "EASY backfilling scheduler"
+    """EASY backfilling scheduler.
+
+    This is a backfilling scheduling that uses the EASY strategy. Upon
+    encountering a single job that cannot be scheduled, it makes a reservation
+    for that job on which would be the first time it should start on.
+
+    Smaller jobs than the one currenly with a reservation may start, provided
+    they do not delay the one with a reservation.
+    """
 
     reservation: Optional[Tuple[JobEvent, JobEvent]]
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.reservation = None
 
-    def handle_reservation(self) -> None:
+    def _handle_reservation(self) -> None:
         if not self.reservation:
             return
 
@@ -42,7 +54,7 @@ class BackfillingScheduler(Scheduler):
     def schedule(self) -> None:
         ignored_jobs: List[Job] = []
 
-        self.handle_reservation()
+        self._handle_reservation()
         for job in self.queue_admission:
             resources = self.can_schedule_now(job)
             if resources:

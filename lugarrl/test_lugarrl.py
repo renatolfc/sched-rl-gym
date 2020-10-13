@@ -240,7 +240,7 @@ class TestScheduler(unittest.TestCase):
     def test_should_fail_to_add_malformed_job(self):
         j = self.new_job(1, 0)
         with self.assertRaises(AssertionError):
-            self.scheduler.add_job_events(j, 0)
+            self.scheduler._add_job_events(j, 0)
 
     def test_should_fail_to_play_unsupported_type(self):
         j = self.jp.sample()
