@@ -10,6 +10,7 @@ from .null_scheduler import NullScheduler
 from .packer_scheduler import PackerScheduler
 from .random_scheduler import RandomScheduler
 from .tetris_scheduler import TetrisScheduler
+from .easy_scheduler import EasyScheduler
 
 __all__ = [
     'Scheduler',
@@ -19,4 +20,5 @@ __all__ = [
     'PackerScheduler',
     'RandomScheduler',
     'TetrisScheduler',
+    'EasyScheduler',
 ]

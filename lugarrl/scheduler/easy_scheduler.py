@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""backfilling_scheduler - A scheduler that uses easy backfilling.
+"""easy_scheduler - A scheduler that uses easy backfilling.
 """
 
 from typing import List, Tuple, Optional
@@ -11,7 +11,7 @@ from lugarrl.scheduler import Scheduler
 from lugarrl.event import JobEvent
 
 
-class BackfillingScheduler(Scheduler):
+class EasyScheduler(Scheduler):
     """EASY backfilling scheduler.
 
     This is a backfilling scheduling that uses the EASY strategy. Upon
