@@ -37,7 +37,7 @@ class TestSimulator(unittest.TestCase):
         self.workload = workload.BinomialWorkloadGenerator(
             0.7, 0.8, self.small_job_parameters, self.large_job_parameters, length=1
         )
-        self.scheduler = scheduler.BackfillingScheduler(16, 2048)
+        self.scheduler = scheduler.FifoScheduler(16, 2048)
 
     def test_time_based_simulator(self):
         sim = simulator.Simulator.make(simulator.SimulationType.TIME_BASED,
@@ -273,9 +273,9 @@ class TestScheduler(unittest.TestCase):
         self.assertEqual(0, backlog[1].sum())
 
 
-class TestBackfillingScheduler(unittest.TestCase):
+class TestFifoScheduler(unittest.TestCase):
     def setUp(self):
-        self.scheduler = scheduler.BackfillingScheduler(16, 2048)
+        self.scheduler = scheduler.FifoScheduler(16, 2048)
         self.small_job_parameters = job.JobParameters(1, 3, 1, 2, 2, 16)
         self.large_job_parameters = job.JobParameters(10, 15, 4, 8, 32, 64)
         self.workload = workload.BinomialWorkloadGenerator(
@@ -351,7 +351,7 @@ class TestBackfillingScheduler(unittest.TestCase):
         j = self.small_job_parameters.sample(1)
         self.assertNotEqual(self.scheduler.current_time, self.scheduler.find_first_time_for(j))
 
-    def test_submitting_seven_jobs(self):
+    def test_backfilling_submitting_seven_jobs(self):
         j1 = self.make_job(0, 2, 2)
         j2 = self.make_job(1, 2, 1)
         j3 = self.make_job(1, 3, 1)
