@@ -13,7 +13,6 @@ from pathlib import Path
 import pytest
 
 from . import simulator, job, workload, pool, event, heap, scheduler
-from lugarrl.scheduler import fifo_scheduler
 from . import cluster as clstr
 from .workload import swf_parser
 
@@ -38,7 +37,7 @@ class TestSimulator(unittest.TestCase):
         self.workload = workload.BinomialWorkloadGenerator(
             0.7, 0.8, self.small_job_parameters, self.large_job_parameters, length=1
         )
-        self.scheduler = fifo_scheduler.FifoScheduler(16, 2048)
+        self.scheduler = scheduler.BackfillingScheduler(16, 2048)
 
     def test_time_based_simulator(self):
         sim = simulator.Simulator.make(simulator.SimulationType.TIME_BASED,
@@ -274,9 +273,9 @@ class TestScheduler(unittest.TestCase):
         self.assertEqual(0, backlog[1].sum())
 
 
-class TestFifoScheduler(unittest.TestCase):
+class TestBackfillingScheduler(unittest.TestCase):
     def setUp(self):
-        self.scheduler = fifo_scheduler.FifoScheduler(16, 2048)
+        self.scheduler = scheduler.BackfillingScheduler(16, 2048)
         self.small_job_parameters = job.JobParameters(1, 3, 1, 2, 2, 16)
         self.large_job_parameters = job.JobParameters(10, 15, 4, 8, 32, 64)
         self.workload = workload.BinomialWorkloadGenerator(
@@ -361,7 +360,7 @@ class TestFifoScheduler(unittest.TestCase):
         j6 = self.make_job(1, 4, 1)
         j7 = self.make_job(1, 2, 2)
 
-        s = fifo_scheduler.FifoScheduler(3, 999999)
+        s = scheduler.BackfillingScheduler(3, 999999)
 
         s.submit(j1)
         s.schedule()

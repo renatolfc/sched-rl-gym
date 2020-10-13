@@ -5,7 +5,7 @@
 
 from .scheduler import Scheduler
 from .sjf_scheduler import SjfScheduler
-from .fifo_scheduler import FifoScheduler
+from .backfilling_scheduler import BackfillingScheduler
 from .null_scheduler import NullScheduler
 from .packer_scheduler import PackerScheduler
 from .random_scheduler import RandomScheduler
@@ -15,7 +15,7 @@ from .easy_scheduler import EasyScheduler
 __all__ = [
     'Scheduler',
     'SjfScheduler',
-    'FifoScheduler',
+    'BackfillingScheduler',
     'NullScheduler',
     'PackerScheduler',
     'RandomScheduler',

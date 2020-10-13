@@ -1,21 +1,29 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"fifo_scheduler - Module for a First-In-First-Out scheduler"
+"fifo_scheduler - First-In First-Out module"
 
+from typing import List
+
+from lugarrl.job import Job
 from lugarrl.scheduler import Scheduler
 
 
 class FifoScheduler(Scheduler):
-    """Implements a FIFO scheduler, honoring strictly submission order.
-
-    Submission order is honored even if it creates fragmentation.
-    """
+    "A FIFO scheduler."
     def schedule(self) -> None:
-        "Schedules a job according to the FIFO strategy"
+        """Schedules jobs according to submission time.
+
+        This implements a *string* FIFO strategy, meaning it will always obey
+        submission order, even when it creates fragmentation.
+        """
+        scheduled_jobs: List[Job] = []
         for job in self.queue_admission:
-            time, resources = self.find_first_time_for(job)
-            if not resources:
-                raise AssertionError("Something is terribly wrong")
-            self.assign_schedule(job, resources, time)
-        self.queue_admission.clear()
+            resources = self.can_schedule_now(job)
+            if resources:
+                self.assign_schedule(job, resources, self.current_time)
+                scheduled_jobs.append(job)
+            else:
+                break
+        for job in scheduled_jobs:
+            self.queue_admission.remove(job)
