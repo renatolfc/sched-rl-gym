@@ -10,10 +10,9 @@ import urllib.request
 
 from pathlib import Path
 
-import pytest
-
 from . import simulator, job, workload, pool, event, heap, scheduler
 from . import cluster as clstr
+from .envs import workload as env_workload
 from .workload import swf_parser
 
 
@@ -987,3 +986,17 @@ class TestTraceBasedGenerator(unittest.TestCase):
     def test_offset_length(self):
         wl = self.load(offset=1, length=10)
         self.assertEqual(10, len(list(wl)))
+
+
+class TestEnvWorkload(unittest.TestCase):
+    def test_distribution_factory(self):
+        config = {
+            'type': 'deeprm',
+            'new_job_rate': 1.0,
+            'small_job_chance': .0,
+            'max_job_len': 10,
+            'max_job_size': 10
+        }
+        wl = env_workload.build(config)
+        j = wl.sample()
+        self.assertLessEqual(j.requested_time, 10)
