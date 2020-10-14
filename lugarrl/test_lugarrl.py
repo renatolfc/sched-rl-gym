@@ -351,11 +351,14 @@ class TestFifoBasedSchedulers(unittest.TestCase):
         j = self.small_job_parameters.sample(1)
         self.assertNotEqual(self.scheduler.current_time, self.scheduler.find_first_time_for(j))
 
-    def test_easy_submitting_four_jobs(self):
+
+    def test_easy_submitting_six_jobs(self):
         j1 = self.make_job(0, 2, 2)
         j2 = self.make_job(1, 2, 1)
         j3 = self.make_job(1, 2, 3)
         j4 = self.make_job(1, 1, 2)
+        j5 = self.make_job(1, 1, 2)
+        j6 = self.make_job(3, 1, 2)
 
         s = scheduler.EasyScheduler(3, 999999)
 
@@ -366,12 +369,17 @@ class TestFifoBasedSchedulers(unittest.TestCase):
         s.submit(j3)
         s.step()
         s.submit(j4)
-        s.schedule()
+        s.submit(j5)
+        s.step(2)
+        s.submit(j6)
+        s.step(2)
 
         self.assertEqual(0, j1.start_time)
         self.assertEqual(1, j2.start_time)
         self.assertEqual(3, j3.start_time)
         self.assertEqual(2, j4.start_time)
+        self.assertEqual(5, j5.start_time)
+        self.assertEqual(6, j6.start_time)
 
         for j in [j1, j2, j3, j4]:
             for i in j.resources.processors:
@@ -380,7 +388,7 @@ class TestFifoBasedSchedulers(unittest.TestCase):
                 self.assertEqual(j.id, i.data)
 
         s.step(5)
-        self.assertEqual(5, s.makespan)
+        self.assertEqual(7, s.makespan)
 
     def test_fifo_submitting_four_jobs(self):
         j1 = self.make_job(0, 2, 2)
