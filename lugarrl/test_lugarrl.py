@@ -372,7 +372,6 @@ class TestFifoBasedSchedulers(unittest.TestCase):
         s.submit(j5)
         s.step(2)
         s.submit(j6)
-        s.step(2)
 
         self.assertEqual(0, j1.start_time)
         self.assertEqual(1, j2.start_time)
@@ -802,6 +801,29 @@ class TestSchedulers(unittest.TestCase):
         )
         s.schedule()
         self.assertEqual(top, s.queue_waiting[0])
+
+    def test_null_scheduler_invariant(self):
+        s = scheduler.NullScheduler(16, 2048)
+        self.submit_jobs(s, 10)
+        s.current_slot = -1
+        with self.assertRaises(AssertionError):
+            s.step()
+
+    def test_null_scheduler(self):
+        s = scheduler.NullScheduler(16, 2048)
+        self.assertEqual(s.action_space, 1)
+        self.submit_jobs(s, 10)
+        self.assertEqual(s.sjf_action(1), 0)
+
+        # Tests whether it finds the job with smallest time
+        jobs = [(j.requested_time, i) for i, j in enumerate(s.all_jobs)]
+        jobs.sort()
+        self.assertEqual(s.sjf_action(-1), jobs[0][-1])
+
+        s.step(0)
+        self.assertEqual(s.all_jobs[0].status, job.JobStatus.WAITING)
+        s.forward_time()
+        self.assertEqual(s.all_jobs[0].status, job.JobStatus.RUNNING)
 
     def test_sjf_scheduler(self):
         s = scheduler.SjfScheduler(16, 2048)
