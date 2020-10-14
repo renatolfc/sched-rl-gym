@@ -372,6 +372,7 @@ class TestFifoBasedSchedulers(unittest.TestCase):
         s.submit(j5)
         s.step(2)
         s.submit(j6)
+        s.step(2)
 
         self.assertEqual(0, j1.start_time)
         self.assertEqual(1, j2.start_time)
