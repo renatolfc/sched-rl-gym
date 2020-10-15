@@ -20,7 +20,7 @@ long_description = (here / 'README.rst').read_text(encoding='utf-8')
 extras = {
     'render': [
         'matplotlib',
-        'pygame',
+        'pyglet',
     ],
     'test': [
         'pytest',

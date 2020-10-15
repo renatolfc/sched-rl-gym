@@ -3,18 +3,21 @@
 
 import matplotlib
 import numpy as np
-matplotlib.use('Agg')
 
+import pyglet
 from matplotlib import pylab as plt
 import matplotlib.backends.backend_agg as agg
 
 DPI = 96
-RESOLUTION = 800, 600
+WIDTH = 800
+HEIGHT = 600
+RESOLUTION = (WIDTH, HEIGHT)
+
 SUPPORTED_MODES = {
     'human': lambda: DeepRmHumanRenderer,
     'rgb_array': lambda: DeepRmRgbRenderer
 }
-pygame = None
+
 
 
 class DeepRmRgbRenderer(object):
@@ -71,30 +74,42 @@ class DeepRmRgbRenderer(object):
         return raw_data, size
 
 
-class DeepRmHumanRenderer(DeepRmRgbRenderer):
+class DeepRmHumanRenderer(DeepRmRgbRenderer, pyglet.window.Window):
     def __init__(self, resolution=RESOLUTION, dpi=DPI):
         super().__init__(resolution, dpi)
 
-        global pygame
-        if pygame is None:
-            import pygame
+        self.rendering = None
+        width, height = resolution
+        self.window = pyglet.window.Window(width, height, visible=False)
+        self.window.set_caption('Scheduler State')
+        self.window.set_visible()
+        self.window.on_draw = self.on_draw
 
-        pygame.init()
-        self.screen = pygame.display.set_mode(resolution, pygame.DOUBLEBUF)
-        pygame.display.set_caption('Scheduler State')
+    def on_draw(self):
+        self.window.clear()
+        if self.rendering is not None:
+            (width, height), data = self.rendering
+            img = pyglet.image.ImageData(width, height, 'RGB', data)
+            # "Fix" projection between OpenGL and matplotlib {{{
+            pyglet.gl.glMatrixMode(pyglet.gl.GL_PROJECTION)
+            pyglet.gl.glLoadIdentity()
+            pyglet.gl.glOrtho(0.0, width, height, 0.0, -1.0, 1.0)
+            pyglet.gl.glMatrixMode(pyglet.gl.GL_MODELVIEW)
+            pyglet.gl.glLoadIdentity()
+            # }}}
+
+            img.blit(0, 0)
+
 
     def render(self, state):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.display.quit()
-                pygame.quit()
-                raise SystemExit
-
         rgb, size = super().render(state)
-        surface = pygame.image.fromstring(rgb, size, "RGB")
-        surface_position = surface.get_rect()
-        self.screen.blit(surface, surface_position)
-        pygame.display.update()
+        self.rendering = size, rgb
+
+        pyglet.clock.tick()
+        self.window.switch_to()
+        self.window.dispatch_events()
+        self.window.dispatch_event('on_draw')
+        self.window.flip()
 
         return rgb, size
 
