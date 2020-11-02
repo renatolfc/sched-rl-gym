@@ -2,6 +2,9 @@
    :alt: sched-rl-gym
 .. image:: https://coveralls.io/repos/github/renatolfc/sched-rl-gym/badge.svg?branch=master
    :target: https://coveralls.io/github/renatolfc/sched-rl-gym?branch=master
+.. image:: https://readthedocs.org/projects/sched-rl-gym/badge/?version=latest
+   :target: https://sched-rl-gym.readthedocs.io/en/latest/?badge=latest
+   :alt: Documentation Status
 
 
 sched-rl-gym: Gym environment for HPC job scheduling problems
