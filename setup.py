@@ -29,6 +29,7 @@ extras = {
     'docs': [
         'Sphinx',
         'docutils',
+        'nbsphinx',
     ]
 }
 
