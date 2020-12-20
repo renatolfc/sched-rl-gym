@@ -86,7 +86,8 @@ setup(
     install_requires=[
         'gym',
         'numpy',
-        'intervaltree>=3.0'
+        'intervaltree>=3.0',
+        'parallelworkloads',
     ],
 
     extras_require=extras,
