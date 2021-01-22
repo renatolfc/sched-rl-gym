@@ -73,7 +73,7 @@ class TestSimulator(unittest.TestCase):
         for i in range(100):
             sim.step()
         self.assertNotEqual(len(self.scheduler.queue_completed), len(self.scheduler.all_jobs))
-        for i in range(1000):
+        for i in range(100):
             sim.step(False)
         self.assertEqual(len(self.scheduler.queue_completed), len(self.scheduler.all_jobs))
 
@@ -297,9 +297,9 @@ class TestFifoBasedSchedulers(unittest.TestCase):
     def test_all_jobs_completed(self):
         for i in range(100):
             self.scheduler.step()
-            j = self.workload.sample(i)
-            if j:
-                self.scheduler.submit(j)
+            for j in self.workload.step():
+                if j:
+                    self.scheduler.submit(j)
         for i in range(max([j.submission_time for j in self.scheduler.all_jobs]) + 1000):
             self.scheduler.step()
         self.scheduler.step()
@@ -343,9 +343,9 @@ class TestFifoBasedSchedulers(unittest.TestCase):
 
     def test_should_find_time_in_future_when_cluster_busy(self):
         for i in range(100):
-            j = self.workload.sample(i)
-            if j:
-                self.scheduler.submit(j)
+            for j in self.workload.step():
+                if j:
+                    self.scheduler.submit(j)
         self.scheduler.step()
         j = self.small_job_parameters.sample(1)
         self.assertNotEqual(self.scheduler.current_time, self.scheduler.find_first_time_for(j))
@@ -477,18 +477,11 @@ class TestBinomialWorkloadGenerator(unittest.TestCase):
         self.small_job_parameters = job.JobParameters(1, 3, 1, 2, 2, 16)
         self.large_job_parameters = job.JobParameters(10, 15, 4, 8, 32, 64)
 
-    def test_that_sampling_stops(self):
+    def test_that_sampling_generates_empty_sequences(self):
         w = workload.BinomialWorkloadGenerator(
-            0.7, 0.8, self.small_job_parameters, self.large_job_parameters, length=1
+            0.0, 0.8, self.small_job_parameters, self.large_job_parameters, length=100
         )
-        self.assertEqual(1, len([j for j in w]))
-
-    def test_that_sampling_generates_nones(self):
-        w = workload.BinomialWorkloadGenerator(
-            0.7, 0.8, self.small_job_parameters, self.large_job_parameters, length=100
-        )
-        jobs = [j for j in w]
-        self.assertTrue(None in jobs)
+        self.assertEqual(0, len(w.step()))
 
 
 class TestResourcePool(unittest.TestCase):
@@ -558,7 +551,7 @@ class TestResourcePool(unittest.TestCase):
             self.resource_pool.allocate(t)
         self.assertEqual(len(intervals), len(self.resource_pool.intervals))
 
-    def test_should_revert_state_to_original_after_cleaning_intervals(self):
+    def add_and_remove_intervals(self):
         intervals = []
         for i in range(0, self.max_size, 2):
             t = self.resource_pool.find(1)
@@ -566,17 +559,15 @@ class TestResourcePool(unittest.TestCase):
             self.resource_pool.allocate(t)
         for i in intervals:
             self.resource_pool.free(i)
+        return intervals
+
+    def test_should_revert_state_to_original_after_cleaning_intervals(self):
+        self.add_and_remove_intervals()
         self.assertEqual(0, self.resource_pool.used_resources)
         self.assertEqual(self.max_size, self.resource_pool.free_resources)
 
     def test_should_fail_to_remove_missing_resource(self):
-        intervals = []
-        for i in range(0, self.max_size, 2):
-            t = self.resource_pool.find(1)
-            intervals.append(t)
-            self.resource_pool.allocate(t)
-        for i in intervals:
-            self.resource_pool.free(i)
+        intervals = self.add_and_remove_intervals()
         with self.assertRaises(AssertionError):
             self.resource_pool.free(intervals[0])
 
@@ -788,7 +779,7 @@ class TestSchedulers(unittest.TestCase):
 
     def submit_jobs(self, s: scheduler.Scheduler, n: int):
         for i in range(n):
-            j = self.workload.sample(i)
+            j = self.workload.step()
             if j:
                 s.submit(j)
 
@@ -958,25 +949,26 @@ class TestTraceBasedGenerator(unittest.TestCase):
         wl = self.load()
         self.assertEqual(self.TOTAL_JOBS, len(list(wl)))
 
-    def test_sampling(self):
+    def test_stepping(self):
         wl = self.load()
-        jobs = wl.sample(0)
+        initial = wl.trace[0].submission_time + 1
+        jobs = wl.step(initial)
         self.assertEqual(1, len(jobs))
-        jobs = wl.sample(466)
-        self.assertEqual(1, len(jobs))
-        jobs = wl.sample(4000)
+        jobs = wl.step()
+        self.assertEqual(0, len(jobs))
+        jobs = wl.step(wl.trace[2].submission_time - initial + 1)
         self.assertEqual(2, len(jobs))
 
     def test_internals(self):
         wl = self.load()
-        wl.sample(0)
+        wl.step()
         self.assertEqual(1, wl.current_element)
 
     def test_get_all(self):
         wl = self.load()
-        wl.sample(int(1e9))
+        wl.step(int(1e9))
         self.assertEqual(self.TOTAL_JOBS, wl.current_element)
-        jobs = wl.sample(int(1e9 + 1))
+        jobs = wl.step()
         self.assertFalse(jobs)
 
     def test_fixed_length(self):
@@ -998,5 +990,5 @@ class TestEnvWorkload(unittest.TestCase):
             'max_job_size': 10
         }
         wl = env_workload.build(config)
-        j = wl.sample()
+        j = wl.step()[0]
         self.assertLessEqual(j.requested_time, 10)
