@@ -4,18 +4,24 @@
 "base - base module for all workload generators"
 
 from abc import ABC, abstractmethod
+from typing import Optional, List
+
+from lugarrl.job import Job
 
 
 class WorkloadGenerator(ABC):
     "An abstract workload generator"
-    @abstractmethod
-    def __next__(self):
-        "Next element in iterator."
+    current_time: int
 
     @abstractmethod
-    def __iter__(self):
-        "Iterator."
+    def step(self, offset: int = 1) -> List[Optional[Job]]:
+        """Steps the workload generator by :param offset:.
 
-    @abstractmethod
-    def sample(self, submission_time=0):
-        "Sample a job with submission time equal to :param submission_time:."
+        This may, or may not, return new jobs, depending on the internal
+        probability distributions of the workload generator.
+
+        Parameters
+        ----------
+            offset : int
+                The number of time steps to advance the workload generator.
+         """

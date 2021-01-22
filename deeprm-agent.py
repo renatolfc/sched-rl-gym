@@ -147,7 +147,7 @@ def run_episode(env, model, max_episode_length, device='cpu'):
     state = env.reset()
     for i in range(max_episode_length):
         action, log_prob, value = model.select_action(state, device)
-        next_state, reward, done, _ = env.step(action)
+        next_state, reward, done, _ = env.step()
         exp = Experience(state, reward, log_prob, value)
         trajectory.append(exp)
         total_reward += reward

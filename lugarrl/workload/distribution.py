@@ -6,7 +6,7 @@
 import random
 import itertools
 from abc import ABC, abstractmethod
-from typing import Iterator, Optional
+from typing import List, Optional
 
 from lugarrl.job import Job, JobParameters
 from lugarrl.workload.base import WorkloadGenerator
@@ -28,18 +28,18 @@ class DistributionalWorkloadGenerator(WorkloadGenerator, ABC):
         self.length = length
         self.current_element = 0
 
-    def __next__(self) -> Job:
-        if self.length and self.current_element >= self.length:
-            raise StopIteration()
-        self.current_element += 1
-        return self.sample()
-
-    def __iter__(self) -> Iterator[Optional[Job]]:
-        return self
-
     @abstractmethod
-    def sample(self, submission_time=0):
-        "Sample a job with submission time equal to :param submission_time:."
+    def step(self, offset=1) -> List[Optional[Job]]:
+        """Steps the workload generator by :param offset:.
+
+        This may, or may not, return new jobs, depending on the internal
+        probability distributions of the workload generator.
+
+        Parameters
+        ----------
+            offset : int
+                The number of time steps to advance the workload generator.
+         """
 
 
 class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
@@ -53,7 +53,7 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
             The probability a sampled job will be "small"
         small_job_parameters : JobParameters
             The characteristics of "small" jobs
-        large_job_parameters : float
+        large_job_parameters : JobParameters
             The characteristics of "large" jobs
         length : int
             The size of the sequence of jobs generated when iterating over this
@@ -68,18 +68,20 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
                  large_job_parameters, length=0):
         super().__init__(length)
 
+        self.current_time = 0
         self.counter = itertools.count(1)
         self.new_job_rate = new_job_rate
         self.small_job_chance = small_job_chance
         self.small_job = small_job_parameters
         self.large_job = large_job_parameters
 
-    def sample(self, submission_time=0) -> Optional[Job]:
+    def step(self, offset=1) -> List[Optional[Job]]:
+        self.current_time += 1
         if random.random() > self.new_job_rate:
-            return None
+            return []
         if random.random() < self.small_job_chance:
-            j = self.small_job.sample(submission_time)
+            j = self.small_job.sample(self.current_time)
         else:
-            j = self.large_job.sample(submission_time)
+            j = self.large_job.sample(self.current_time)
         j.id = next(self.counter)
-        return j
+        return [j]

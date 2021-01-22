@@ -65,7 +65,7 @@ class DeepRmSimulator(simulator.TimeBasedSimulator):
             return False
         else:
             self.current_time += 1
-            j = self.workload.sample(self.current_time)
+            j = self.workload.step()
             if j:
                 self.scheduler.submit(j)
                 self.last_job_time = self.current_time

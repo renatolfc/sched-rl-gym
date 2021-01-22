@@ -74,6 +74,8 @@ class TimeBasedSimulator(Simulator):
     def step(self, submit=True):
         self.current_time += 1
         self.scheduler.step()
-        job = self.workload.sample(self.current_time) if submit else None
-        if job:
-            self.scheduler.submit(job)
+        jobs = self.workload.step()
+        if submit and jobs:
+            for job in jobs:
+                if job is not None:
+                    self.scheduler.submit(job)

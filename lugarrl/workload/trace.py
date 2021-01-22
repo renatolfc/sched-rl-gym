@@ -45,6 +45,7 @@ class TraceGenerator(WorkloadGenerator):
     def __init__(self, tracefile, processors, memory,
                  offset=0, length=None, restart=False,
                  ignore_memory=False):
+        self.current_time = 0
         self.restart = restart
         self.tracefile = tracefile
         self.trace = list(
@@ -60,26 +61,24 @@ class TraceGenerator(WorkloadGenerator):
 
         self.current_element = 0
 
-    def sample(self, submission_time=-1):
+    def step(self, offset=1):
         """"Samples" jobs from the trace file.
 
         Parameters
         ----------
-            submission_time : int
-                The time at which to use to submit the job
+            offset : int
+                The amount to offset the current time step
         """
-        if submission_time < 0:
-            raise ValueError('Submission time must not be negative')
-        if submission_time < self.last_event_time:
-            raise ValueError(
-                'Submission time cannot be smaller than previous time'
-            )
+        if offset <= 0:
+            raise ValueError('Submission time must be positive')
+        submission_time = self.current_time + offset
         jobs = takewhile(
             lambda j: j[1].submission_time <= submission_time,
             enumerate(
                 self.trace[self.current_element:], self.current_element
             )
         )
+        self.current_time = submission_time
         jobs = list(jobs)
         if jobs:
             self.current_element = jobs[-1][0] + 1

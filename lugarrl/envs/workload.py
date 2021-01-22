@@ -21,10 +21,10 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
         for generator in self.generators:
             generator.counter = self.counter
 
-    def sample(self, submission_time=0) -> Optional[job.Job]:
+    def step(self, offset=1) -> Optional[job.Job]:
         return self.generators[
             random.randint(0, len(self.generators) - 1)
-        ].sample(submission_time)
+        ].step()
 
     @staticmethod
     def build(new_job_rate, small_job_chance,
