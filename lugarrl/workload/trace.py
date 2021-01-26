@@ -16,50 +16,18 @@ from .swf_parser import parse as parse_swf
 
 
 class TraceGenerator(WorkloadGenerator):
-    """A trace-based (workload log) generator.
-
-    Supports starting the parsing after an offset, and also supports reading a
-    pre-specified number of jobs.
-
-    Parameters
-    ----------
-        tracefile : str
-            The path to the filed to be parsed and used as input for workload
-            generation.
-        processors : int
-            The number of processors in this trace
-        memory : int
-            The amount of memory in this trace
-        restart : bool
-            Whether to restart from the beginning of the file when we reach
-            its end (or, in the case we're using an offset and a length, to
-            restart from the offset up to the length)
-        ignore_memory : bool
-            Whether to ignore (or not) memory usage
-    """
     restart: bool
-    tracefile: str
-    ignore_memory: bool
     trace: Sequence[Job]
 
-    def __init__(self, tracefile, processors, memory,
-                 offset=0, length=None, restart=False,
-                 ignore_memory=False):
+    def __init__(self, restart=False, trace=None):
         self.current_time = 0
         self.restart = restart
-        self.tracefile = tracefile
-        self.trace = list(
-            parse_swf(tracefile, processors, memory, ignore_memory)
-        )
-
-        if length is None:
-            length = len(self.trace)
-        else:
-            length = length if length <= len(self.trace) else len(self.trace)
-
-        self.trace = self.trace[offset:offset+length]
-
         self.current_element = 0
+
+        if trace is not None:
+            self.trace = trace
+        else:
+            self.trace = []
 
     def step(self, offset=1):
         """"Samples" jobs from the trace file.
@@ -99,6 +67,8 @@ class TraceGenerator(WorkloadGenerator):
         if self.current_element >= len(self.trace):
             if self.restart:
                 self.current_element = 0
+                if hasattr(self, 'refresh_jobs'):
+                    self.refresh_jobs()
             else:
                 raise StopIteration()
         job = self.trace[self.current_element]
@@ -107,3 +77,49 @@ class TraceGenerator(WorkloadGenerator):
 
     def __iter__(self) -> Iterator[Optional[Job]]:
         return iter(self.trace)
+
+
+class SwfGenerator(TraceGenerator):
+    """A trace-based (workload log) generator.
+
+    Supports starting the parsing after an offset, and also supports reading a
+    pre-specified number of jobs.
+
+    Parameters
+    ----------
+        tracefile : str
+            The path to the filed to be parsed and used as input for workload
+            generation.
+        processors : int
+            The number of processors in this trace
+        memory : int
+            The amount of memory in this trace
+        restart : bool
+            Whether to restart from the beginning of the file when we reach
+            its end (or, in the case we're using an offset and a length, to
+            restart from the offset up to the length)
+        ignore_memory : bool
+            Whether to ignore (or not) memory usage
+    """
+
+    tracefile: str
+    ignore_memory: bool
+
+    def __init__(self, tracefile, processors, memory,
+                 offset=0, length=None, restart=False,
+                 ignore_memory=False):
+
+        super().__init__(
+            restart,
+            list(parse_swf(tracefile, processors, memory, ignore_memory))
+        )
+        self.tracefile = tracefile
+
+        if length is None:
+            length = len(self.trace)
+        else:
+            length = length if length <= len(self.trace) else len(self.trace)
+
+        self.trace = self.trace[offset:offset+length]
+
+        self.current_element = 0
