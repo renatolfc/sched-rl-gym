@@ -908,7 +908,7 @@ class TestSchedulers(unittest.TestCase):
                 )
 
 
-class TestTraceBasedGenerator(unittest.TestCase):
+class TestSwfGenerator(unittest.TestCase):
     TOTAL_JOBS = 122052
     TEST_DIR = 'test'
     TRACE_FILE = 'LANL-CM5-1994-4.1-cln.swf.gz'
@@ -933,7 +933,7 @@ class TestTraceBasedGenerator(unittest.TestCase):
             os.rename(tmp.name, self.tracefile)  # atomic in same fs
 
     def load(self, offset=0, length=None):
-        return workload.TraceGenerator(
+        return workload.SwfGenerator(
             self.tracefile,
             1024,
             1024,
