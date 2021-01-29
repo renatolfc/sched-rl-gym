@@ -55,11 +55,33 @@ class Job:
     """
     resources: Resource
 
-    def __init__(self, job_id, submission_time, execution_time,
-                 processors_allocated, average_cpu_use, memory_use,
-                 requested_processors, requested_time, requested_memory,
-                 status, user_id, group_id, executable, queue_number,
-                 partition_number, preceding_job_id, think_time, wait_time,
+    SWF_JOB_MAP = {
+        'jobId': 'job_id',
+        'submissionTime': 'submission_time',
+        'waitTime': 'wait_time',
+        'runTime': 'execution_time',
+        'allocProcs': 'processors_allocated',
+        'avgCpuUsage': 'average_cpu_use',
+        'usedMem': 'memory_use',
+        'reqProcs': 'requested_processors',
+        'reqTime': 'requested_time',
+        'reqMem': 'requested_memory',
+        'status': 'status',
+        'userId': 'user_id',
+        'groupId': 'group_id',
+        'executable': 'executable',
+        'queueNum': 'queue_number',
+        'partNum': 'partition_number',
+        'precedingJob': 'preceding_job_id',
+        'thinkTime': 'think_time'
+    }
+
+    def __init__(self, job_id=-1, submission_time=-1, execution_time=-1,
+                 processors_allocated=-1, average_cpu_use=-1, memory_use=-1,
+                 requested_processors=-1, requested_time=-1,
+                 requested_memory=-1, status=-1, user_id=-1, group_id=-1,
+                 executable=-1, queue_number=-1, partition_number=-1,
+                 preceding_job_id=-1, think_time=-1, wait_time=-1,
                  ignore_memory=True):
         self.id = job_id
         self.submission_time = submission_time
@@ -156,6 +178,14 @@ class Job:
         if self.status == JobStatus.COMPLETED:
             return SwfJobStatus.COMPLETED
         return SwfJobStatus.MEANINGLESS
+
+    @staticmethod
+    def from_swf_job(swf_job):
+        """Converts an SWF job to our internal job format."""
+        new_job = Job()
+        for key, value in Job.SWF_JOB_MAP.items():
+            setattr(new_job, value, getattr(swf_job, key))
+        return new_job
 
 
 class JobParameters:

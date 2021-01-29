@@ -3,8 +3,10 @@
 
 import random
 import itertools
+from math import log2
 from typing import Optional
 from collections import namedtuple
+from parallelworkloads.lublin99 import Lublin99
 
 from lugarrl import workload as wl, job
 
@@ -93,6 +95,36 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
         )
 
 
+class SyntheticWorkloadGenerator(wl.TraceGenerator):
+    def __init__(self, length, nodes, start_time=8, random_seed=0, restart=False):
+        """Synthetic workload generator based on Lublin's work.
+
+        Parameters
+        ----------
+            length : number of jobs to generate
+            nodes : number of compute nodes in the system
+            start_time : hour of day in which to start simulation
+            random_seed : random seed to use to generate jobs
+        """
+        self.lublin = Lublin99(True, random_seed)#, length)
+        self.lublin.start = start_time
+
+        uLow = .8
+        uProb = .7
+        uHi = log2(nodes)
+        uMed = ((uHi - 1.5) + (uHi - 3.5)) / 2
+
+        self.lublin.setParallelJobProbabilities(
+            False, uLow, uMed, uHi, uProb
+        )
+        trace = self.refresh_jobs()
+        super().__init__(restart, trace)
+
+    def refresh_jobs(self):
+        self.trace = [job.Job.from_swf_job(j) for j in self.lublin.generate()]
+        return self.trace
+
+
 def build(workload_config: dict):
     type = workload_config['type']
     kwargs = {
@@ -100,3 +132,5 @@ def build(workload_config: dict):
     }
     if type == 'deeprm':
         return DeepRmWorkloadGenerator.build(**kwargs)
+    elif type == 'lublin':
+        return SyntheticWorkloadGenerator(**kwargs)
