@@ -13,6 +13,7 @@ from gym import utils, spaces
 from .. import simulator
 from ..scheduler.null_scheduler import NullScheduler
 from .workload import build as build_workload, DeepRmWorkloadGenerator
+from .workload import SyntheticWorkloadGenerator
 
 import logging
 logger = logging.getLogger(__name__)
@@ -50,7 +51,8 @@ class DeepRmSimulator(simulator.TimeBasedSimulator):
 
     def __init__(self, workload_generator: DeepRmWorkloadGenerator,
                  scheduler: NullScheduler):
-        if not isinstance(workload_generator, DeepRmWorkloadGenerator) \
+        if (not isinstance(workload_generator, DeepRmWorkloadGenerator) \
+                and not isinstance(workload_generator, SyntheticWorkloadGenerator)) \
                 or not isinstance(scheduler, NullScheduler):
             raise AssertionError("Invalid arguments received.")
         super().__init__(workload_generator, scheduler)
