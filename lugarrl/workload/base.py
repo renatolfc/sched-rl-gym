@@ -25,3 +25,11 @@ class WorkloadGenerator(ABC):
             offset : int
                 The number of time steps to advance the workload generator.
          """
+
+    @abstractmethod
+    def __len__(self):
+        """Returns the length of the workload. Zero if unbounded."""
+
+    @abstractmethod
+    def peek(self):
+        """Peeks what would be the next job"""
