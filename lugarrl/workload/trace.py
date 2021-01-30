@@ -78,6 +78,12 @@ class TraceGenerator(WorkloadGenerator):
     def __iter__(self) -> Iterator[Optional[Job]]:
         return iter(self.trace)
 
+    def peek(self) -> Job:
+        job = next(self)
+        if self.current_element > 0:
+            self.current_element -= 1
+        return job
+
 
 class SwfGenerator(TraceGenerator):
     """A trace-based (workload log) generator.
