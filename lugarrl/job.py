@@ -56,7 +56,7 @@ class Job:
     resources: Resource
 
     SWF_JOB_MAP = {
-        'jobId': 'job_id',
+        'jobId': 'id',
         'submissionTime': 'submission_time',
         'waitTime': 'wait_time',
         'runTime': 'execution_time',
@@ -184,7 +184,14 @@ class Job:
         """Converts an SWF job to our internal job format."""
         new_job = Job()
         for key, value in Job.SWF_JOB_MAP.items():
-            setattr(new_job, value, getattr(swf_job, key))
+            tmp = getattr(swf_job, key)
+            setattr(new_job, value, int(tmp) if 'time' in value else tmp)
+
+        new_job.status = JobStatus.SUBMITTED
+        new_job.requested_processors = new_job.processors_allocated
+        if new_job.requested_time == -1:
+            new_job.requested_time = new_job.execution_time
+
         return new_job
 
 
