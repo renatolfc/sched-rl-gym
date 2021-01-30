@@ -76,7 +76,7 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
         self.large_job = large_job_parameters
 
     def step(self, offset=1) -> List[Optional[Job]]:
-        self.current_time += 1
+        self.current_time += offset
         if random.random() > self.new_job_rate:
             return []
         if random.random() < self.small_job_chance:
@@ -85,3 +85,9 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
             j = self.large_job.sample(self.current_time)
         j.id = next(self.counter)
         return [j]
+
+    def __len__(self):
+        return self.length
+
+    def peek(self):
+        return self.step(0)
