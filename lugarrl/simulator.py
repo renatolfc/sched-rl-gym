@@ -79,3 +79,31 @@ class TimeBasedSimulator(Simulator):
             for job in jobs:
                 if job is not None:
                     self.scheduler.submit(job)
+
+
+class EventBasedSimulator(Simulator):
+    """An event-based simulator."""
+    scheduler: sched.Scheduler
+
+    def __init__(self, workload_generator: workload.WorkloadGenerator,
+                 scheduler: sched.Scheduler):
+        super().__init__(workload_generator, scheduler)
+        self.current_time = 0
+
+    def step(self, submit=True):
+        next_job = self.workload.peek()
+        first_event = self.scheduler.job_events.first
+        if first_event:
+            next_time = min(next_job.submission_time, first_event.time)
+        else:
+            next_time = next_job.submission_time
+        offset = next_time - self.current_time
+
+        self.current_time += offset
+        self.scheduler.step(offset)
+        jobs = self.workload.step(offset)
+
+        if submit and jobs:
+            for job in jobs:
+                if job is not None:
+                    self.scheduler.submit(job)
