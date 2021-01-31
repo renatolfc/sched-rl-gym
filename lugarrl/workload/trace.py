@@ -37,7 +37,7 @@ class TraceGenerator(WorkloadGenerator):
             offset : int
                 The amount to offset the current time step
         """
-        if offset <= 0:
+        if offset < 0:
             raise ValueError('Submission time must be positive')
         submission_time = self.current_time + offset
         jobs = takewhile(
