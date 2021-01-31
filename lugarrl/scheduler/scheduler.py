@@ -421,8 +421,11 @@ class Scheduler(ABC):
         for t in range(timesteps):
             if t in near_future:
                 cluster = self.play_events(near_future[t], cluster)
-            processors[t, :], memory[t, :] = cluster.state
-        state = (processors, memory)
+            if self.ignore_memory:
+                processors[t, :] = cluster.state[0]
+            else:
+                processors[t, :], memory[t, :] = cluster.state
+        state = (processors,) if self.ignore_memory else (processors, memory)
         # }}}
 
         # Gets the representation of jobs in `job_slots` {{{
@@ -450,8 +453,11 @@ class Scheduler(ABC):
                     positions[job.slot_position] = job
         for i, job in positions.items():
             job.slot_position = i
-            processors[i, :, :], memory[i, :, :] = cluster.get_job_state(job, timesteps)
-        jobs = (processors, memory)
+            if self.ignore_memory:
+                processors[i, :, :] = cluster.get_job_state(job, timesteps)[0]
+            else:
+                processors[i, :, :], memory[i, :, :] = cluster.get_job_state(job, timesteps)
+        jobs = (processors, memory) if not self.ignore_memory else (processors,)
         # }}}
 
         # Gets the backlog {{{

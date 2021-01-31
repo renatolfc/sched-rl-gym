@@ -185,7 +185,7 @@ class Cluster:
         ).find(job)
 
     @property
-    def state(self) -> Tuple[np.ndarray, np.ndarray]:
+    def state(self) -> Tuple[np.ndarray, ...]:
         """Gets the current state of the cluster as numpy arrays.
 
         Returns:
@@ -195,13 +195,14 @@ class Cluster:
         processors = np.zeros(self.processors.size)
         for i in self.processors.used_pool:
             processors[i.begin:i.end] = i.data
+        if self.ignore_memory:
+            return (processors,)
         memory = np.zeros(self.memory.size)
         for i in self.memory.used_pool:
             memory[i.begin:i.end] = i.data
         return processors, memory
 
-    def get_job_state(self, job: Job, timesteps: int) -> Tuple[np.ndarray,
-                                                               np.ndarray]:
+    def get_job_state(self, job: Job, timesteps: int) -> Tuple[np.ndarray, ...]:
         """Gets the stat of a job given a time horizon.
 
         Parameters
@@ -213,6 +214,8 @@ class Cluster:
         processors = np.zeros((timesteps, self.processors.size))
         memory = np.zeros((timesteps, self.memory.size))
         processors[:job.requested_time, :job.requested_processors] = 1.0
+        if self.ignore_memory:
+            return (processors,)
         memory[:job.requested_time, :job.requested_memory] = 1.0
         return processors, memory
 
