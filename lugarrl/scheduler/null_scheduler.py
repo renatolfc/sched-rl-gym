@@ -41,9 +41,10 @@ class NullScheduler(Scheduler):
 
     current_slot: Optional[int]
 
-    def __init__(self, number_of_processors, total_memory):
+    def __init__(self, number_of_processors, total_memory, ignore_memory=False):
         self.current_slot: Optional[int] = None
-        super().__init__(number_of_processors, total_memory)
+        super().__init__(number_of_processors, total_memory,
+                         ignore_memory=ignore_memory)
 
     def step(self, offset: int = None) -> bool:
         """Steps the scheduler by setting which job to choose.
