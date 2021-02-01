@@ -28,6 +28,12 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
             random.randint(0, len(self.generators) - 1)
         ].step()
 
+    def __len__(self):
+        return self.generators[0].length
+
+    def peek(self):
+        return self.step()
+
     @staticmethod
     def build(new_job_rate, small_job_chance,
               max_job_len, max_job_size):
@@ -116,6 +122,9 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
 
         self.lublin.setParallelJobProbabilities(
             False, uLow, uMed, uHi, uProb
+        )
+        self.lublin.setParallelJobProbabilities(
+            True, uLow, uMed, uHi, uProb
         )
         trace = self.refresh_jobs()
         super().__init__(restart, trace)
