@@ -7,6 +7,7 @@ from math import log2
 from typing import Optional
 from collections import namedtuple
 from parallelworkloads.lublin99 import Lublin99
+from parallelworkloads.tsafrir05 import Tsafrir05
 
 from lugarrl import workload as wl, job
 
@@ -102,7 +103,8 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
 
 
 class SyntheticWorkloadGenerator(wl.TraceGenerator):
-    def __init__(self, length, nodes, start_time=8, random_seed=0, restart=False):
+    def __init__(self, length, nodes, start_time=8, random_seed=0,
+                 restart=False, runtime_estimates=True):
         """Synthetic workload generator based on Lublin's work.
 
         Parameters
@@ -111,6 +113,7 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
             nodes : number of compute nodes in the system
             start_time : hour of day in which to start simulation
             random_seed : random seed to use to generate jobs
+            restart : whether to restart after a sample finishes
         """
         self.lublin = Lublin99(True, random_seed)#, length)
         self.lublin.start = start_time
@@ -126,11 +129,17 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
         self.lublin.setParallelJobProbabilities(
             True, uLow, uMed, uHi, uProb
         )
+
+        self.runtime_estimates = runtime_estimates
         trace = self.refresh_jobs()
         super().__init__(restart, trace)
 
     def refresh_jobs(self):
-        self.trace = [job.Job.from_swf_job(j) for j in self.lublin.generate()]
+        jobs = self.lublin.generate()
+        if self.runtime_estimates:
+            tsafrir = Tsafrir05(jobs)
+            jobs = tsafrir.generate(jobs)
+        self.trace = [job.Job.from_swf_job(j) for j in jobs]
         return self.trace
 
 
