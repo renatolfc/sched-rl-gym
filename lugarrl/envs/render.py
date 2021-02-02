@@ -46,21 +46,22 @@ class DeepRmRgbRenderer(object):
         height = self.resolution[1] / self.dpi
         fig = plt.figure(0, figsize=(width, height), dpi=self.dpi)
 
+        current, wait, backlog, time = state
+        lines = current.shape[0]
+
         # Axes {{{
-        ax_proc = plt.subplot2grid((2, 3), (0, 0))
-        ax_mem = plt.subplot2grid((2, 3), (1, 0))
-        ax_wait_proc = plt.subplot2grid((2, 3), (0, 1))
-        ax_wait_mem = plt.subplot2grid((2, 3), (1, 1))
-        ax_backlog = plt.subplot2grid((2, 3), (0, 2), rowspan=2)
+        axs_current = [plt.subplot2grid((lines, 3), (i, 0)) for i in range(lines)]
+        axs_wait = [plt.subplot2grid((lines, 3), (i, 1)) for i in range(lines)]
+        ax_backlog = plt.subplot2grid((2, 3), (0, 2), rowspan=lines)
         # End of Axes }}}
 
-        procs, mem, wait_procs, wait_mem, backlog, _ = state
-        self.plot_substate(ax_proc, 'Cluster Processors', procs)
-        self.plot_substate(ax_mem, 'Cluster Memory', mem)
-        self.plot_substate(ax_wait_proc, 'Waiting Processor Stack',
-                           np.mean(wait_procs, axis=0))
-        self.plot_substate(ax_wait_mem, 'Waiting Memory Stack',
-                           np.mean(wait_mem, axis=0))
+        for i, (ax_current, ax_wait) in enumerate(zip(axs_current, axs_wait)):
+            self.plot_substate(
+                ax_current, f'Current resources {i}', current[i]
+            )
+            self.plot_substate(
+                ax_wait, f'Waiting jobs stack {i}', np.mean(wait[i], axis=0)
+            )
         self.plot_substate(ax_backlog, 'Backlog', backlog, True)
 
         fig.tight_layout()
