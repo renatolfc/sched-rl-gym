@@ -194,7 +194,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
             self.time_horizon, self.job_slots, self.backlog_size
         )
         s = self._convert_state(
-            state[0], state[1], jobs[0], jobs[1], backlog,
+            state, jobs, backlog,
             ((self.simulator.current_time - self.simulator.last_job_time)
                 / MAX_TIME_TRACKING_SINCE_LAST_JOB)
         )
@@ -203,13 +203,13 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         return self.pack_observation(s)
 
     def pack_observation(self, ob):
-        ob = list(ob)
-        ob[2] = np.hstack(ob[2]).reshape((self.time_horizon, -1))
-        ob[3] = np.hstack(ob[3]).reshape((self.time_horizon, -1))
+        current, wait, backlog, time = ob
+        wait = wait.reshape(self.time_horizon, -1)
+        current = current.reshape(self.time_horizon, -1)
         return np.hstack(ob)
 
-    def _convert_state(self, procs, mem, wait_procs, wait_mem, backlog, time):
-        unique = set(np.unique(procs)) - {0.0}
+    def _convert_state(self, current, wait, backlog, time):
+        unique = set(np.unique(current[0])) - {0.0}
         if len(unique) > self.job_num_cap:
             raise AssertionError("Number of jobs > number of colors")
         available_colors = list(set(self.color_index) - set(
@@ -219,12 +219,12 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         for i, j in enumerate(need_color):
             self.color_cache[j] = available_colors[i]
         for j in unique:  # noqa
-            procs[procs == j] = self.colormap[self.color_cache[j]]
-            mem[mem == j] = self.colormap[self.color_cache[j]]
-        wait_procs[wait_procs != 0] = 1.0
-        wait_mem[wait_mem != 0] = 1.0
+            for resource in current:
+                resource[resource == j] = self.colormap[self.color_cache[j]]
+        for resource in wait:
+            resource[resource != 0] = 1.0
 
-        return procs, mem, wait_procs, wait_mem, \
+        return np.array(current), np.array(wait), \
             backlog.reshape((self.time_horizon, -1)), \
             np.ones((self.time_horizon, 1)) * min(1.0, time)
 
@@ -251,7 +251,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
     def reset(self):
         self.scheduler = NullScheduler(
-            self.processors, self.memory
+            self.processors, self.memory, ignore_memory=False
         )
         wl = build_workload(
             self.workload_config
