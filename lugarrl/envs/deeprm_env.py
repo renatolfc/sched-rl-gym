@@ -56,23 +56,33 @@ class DeepRmSimulator(simulator.TimeBasedSimulator):
                 or not isinstance(scheduler, NullScheduler):
             raise AssertionError("Invalid arguments received.")
         super().__init__(workload_generator, scheduler)
+
         self.last_job_time = 0
+        if isinstance(workload_generator, SyntheticWorkloadGenerator):
+            first_job_time = workload_generator.peek().submission_time - 1
+            workload_generator.current_time = first_job_time
+            scheduler.job_events.time = first_job_time
+            scheduler.current_time = first_job_time
 
     def step(self, submit=True):
         raise NotImplementedError('This simulator cannot follow the base API')
 
     def rl_step(self, action: int) -> bool:
-        "Returns True when time passes."
+        "Returns True when an action executes successfully."
+
         if self.scheduler.step(action):
             return False
-        else:
-            self.current_time += 1
+
+        self.current_time += 1
+        while True:
             j = self.workload.step()
             if j:
                 self.scheduler.submit(j)
                 self.last_job_time = self.current_time
             self.scheduler.forward_time()
-            return True
+            if self.scheduler.queue_admission:
+                break
+        return True
 
 
 class DeepRmEnv(gym.Env, utils.EzPickle):
@@ -128,7 +138,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
     def setup_spaces(self):
         self.scheduler = NullScheduler(
-            self.processors, self.memory
+            self.processors, self.memory, ignore_memory=False
         )
 
         self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
@@ -186,7 +196,6 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
             np.prod(e.shape) if isinstance(e, spaces.box.Box) else e.n
             for e in self.observation_space
         ])
-
 
     @property
     def state(self):
