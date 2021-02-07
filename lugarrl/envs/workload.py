@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import math
 import random
 import warnings
 import itertools
@@ -177,10 +178,12 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
                 jobs = tsafrir.generate(jobs)
             elif self.runtime_estimates == 'gaussian':
                 for j in jobs:
-                    j.reqTime = random.gauss(
+                    j.reqTime = math.ceil(random.gauss(
                         j.runTime,
                         self.estimate_parameters * j.runTime
-                    )
+                    ))
+                    if j.reqTime < 1:
+                        j.reqTime = 1
             else:
                 raise ValueError(
                     f'Unsupported estimate type {self.runtime_estimates}'
