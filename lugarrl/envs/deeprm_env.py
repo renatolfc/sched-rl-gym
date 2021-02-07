@@ -122,6 +122,8 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
         self.job_slots = kwargs.get('job_slots', JOB_SLOTS)  # Number of jobs to show
 
+        self.ignore_memory = kwargs.get('ignore_memory', False)
+
         if self.backlog_size % self.time_horizon:
             raise AssertionError('Backlog must be a multiple of time horizon')
 
@@ -138,7 +140,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
     def setup_spaces(self):
         self.scheduler = NullScheduler(
-            self.processors, self.memory, ignore_memory=False
+            self.processors, self.memory, ignore_memory=self.ignore_memory
         )
 
         self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
@@ -260,7 +262,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
     def reset(self):
         self.scheduler = NullScheduler(
-            self.processors, self.memory, ignore_memory=False
+            self.processors, self.memory, ignore_memory=self.ignore_memory
         )
         wl = build_workload(
             self.workload_config
