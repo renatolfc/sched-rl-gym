@@ -39,6 +39,15 @@ class TraceGenerator(WorkloadGenerator):
         """
         if offset < 0:
             raise ValueError('Submission time must be positive')
+        if self.current_element >= len(self.trace):
+            if self.restart:
+                self.current_element = 0
+                for job in self.trace:
+                    job.submission_time += self.current_time
+                if hasattr(self, 'refresh_jobs'):
+                    self.refresh_jobs()
+            else:
+                raise StopIteration('Workload finished')
         submission_time = self.current_time + offset
         jobs = takewhile(
             lambda j: j[1].submission_time <= submission_time,
