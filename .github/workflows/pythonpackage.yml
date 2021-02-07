@@ -34,7 +34,7 @@ jobs:
         coverage run --source lugarrl -m pytest lugarrl
         coverage report -m
     - name: Push results to coveralls
-      run: coveralls
+      run: coveralls --service=gihtub
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         COVERALLS_PARALLEL: true
@@ -47,6 +47,6 @@ jobs:
     - name: Finished
       run: |
         pip3 install --upgrade coveralls
-        coveralls --finish
+        coveralls --service=gihtub --finish
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
