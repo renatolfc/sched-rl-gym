@@ -143,7 +143,8 @@ class NullScheduler(Scheduler):
 
         best = None
         bestidx = limit
-        for i, job in enumerate(self.queue_admission[:limit]):
+        limits = slice(0, limit if limit >= 0 else None)
+        for i, job in enumerate(self.queue_admission[limits]):
             if self.sjf_lt(job, best):
                 if self.cluster.fits(job):
                     best = job
