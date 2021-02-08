@@ -223,7 +223,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         current, wait, backlog, time = ob
         wait = wait.reshape(self.time_horizon, -1)
         current = current.reshape(self.time_horizon, -1)
-        return np.hstack(ob)
+        return np.hstack((current, wait, backlog, time))
 
     def _convert_state(self, current, wait, backlog, time):
         unique = set(np.unique(current[0])) - {0.0}
