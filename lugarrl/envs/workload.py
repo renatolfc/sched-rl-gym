@@ -141,7 +141,7 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
                 floating-point pairs specifying a histogram (time, number of
                 jobs) of job runtime popularity.
         """
-        self.lublin = Lublin99(True, random_seed, length)
+        self.lublin = Lublin99(False, random_seed, length)
         self.lublin.start = start_time
         self.random_seed = random_seed
         random.seed(random_seed)
@@ -152,10 +152,6 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
 
         self.lublin.setParallelJobProbabilities(
             False, uniform_low_prob, breaking_point, log2_size,
-            uniform_proportion
-        )
-        self.lublin.setParallelJobProbabilities(
-            True, uniform_low_prob, breaking_point, log2_size,
             uniform_proportion
         )
 
