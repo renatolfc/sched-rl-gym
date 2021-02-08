@@ -107,7 +107,7 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
 class SyntheticWorkloadGenerator(wl.TraceGenerator):
     """A synthetic workload generator based on realistic models."""
     def __init__(self, length, nodes, start_time=8, random_seed=0,
-                 restart=False, uniform_proportion=.7,
+                 restart=False, uniform_proportion=.95, cdf_break=.5,
                  runtime_estimates=None, estimate_parameters=None):
         """Synthetic workload generator based on Lublin's work.
 
@@ -123,6 +123,13 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
                 random seed to use to generate jobs
             restart : bool
                 whether to restart after a sample finishes
+            uniform_proportion : float
+                tunes the proportion between the first and second uniform
+                distributions in the two-stage uniform process
+            cdf_break : float
+                whether to move the break closer to the inferior or superior
+                limit. A value closer to 0 will (tend to) produce bigger jobs,
+                while a value closer to 1 will (tend to) produce smaller jobs
             runtime_estimates : {'gaussian', 'tsafrir', None}
                 whether to include runtime estimates and the method used
                 to compute them:
@@ -150,7 +157,9 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
 
         uniform_low_prob = .8
         log2_size = log2(nodes)
-        breaking_point = ((log2_size - 1.5) + (log2_size - 3.5)) / 2
+        min_umed = log2_size - 3.5
+        max_umed = log2_size - 1.5
+        breaking_point = cdf_break * min_umed + (1 - cdf_break) * max_umed
 
         self.lublin.setParallelJobProbabilities(
             False, uniform_low_prob, breaking_point, log2_size,
