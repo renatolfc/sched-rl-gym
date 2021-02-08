@@ -22,7 +22,7 @@ def sjf_action(observation):
 
     for slot in range(wait.shape[1]):
         required_resources = (wait[:, slot, 0, :] != 0).sum(axis=1)
-        if np.all(required_resources <= free):
+        if np.all(required_resources) and np.all(required_resources <= free):
             tmp = np.sum(wait[0, slot, :, 0])
             if tmp < best:
                 best_idx = slot
