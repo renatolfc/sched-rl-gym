@@ -159,7 +159,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         self.observation_space = spaces.box.Box(
             low=0.0, high=1.0, shape=(
                 self.time_horizon,
-                (self.job_slots + 1) * self.scheduler.total_memory +
+                0 if self.ignore_memory else (self.job_slots + 1) * self.scheduler.total_memory +
                 (self.job_slots + 1) * self.scheduler.number_of_processors +
                 self.backlog_width +
                 1
