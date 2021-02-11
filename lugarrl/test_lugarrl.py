@@ -968,8 +968,17 @@ class TestSwfGenerator(unittest.TestCase):
         wl = self.load()
         wl.step(int(1e9))
         self.assertEqual(self.TOTAL_JOBS, wl.current_element)
-        jobs = wl.step()
-        self.assertFalse(jobs)
+        with self.assertRaises(StopIteration):
+            jobs = wl.step()
+
+    def test_get_all_restarts(self):
+        wl = self.load()
+        wl.step(int(1e9))
+        wl.restart = True
+        wl.step()
+        self.assertEqual(1, wl.current_element)
+        wl.step(int(1e9))
+        self.assertEqual(self.TOTAL_JOBS, wl.current_element)
 
     def test_fixed_length(self):
         wl = self.load(length=10)
