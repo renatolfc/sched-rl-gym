@@ -40,11 +40,13 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
 
     @staticmethod
     def build(new_job_rate, small_job_chance,
-              max_job_len, max_job_size):
+              max_job_len, max_job_size, ignore_memory,
+              min_large_job_len=None, max_small_job_len=None,
+              min_small_job_len=None):
         # Time-related job parameters {{{
-        small_job_time_lower = 1
-        small_job_time_upper = max(max_job_len // 5, 1)
-        large_job_time_lower = int(max_job_len * (2 / 3))
+        small_job_time_lower = 1 if min_small_job_len is None else min_small_job_len
+        small_job_time_upper = max(max_job_len // 5, 1) if max_small_job_len is None else max_small_job_len
+        large_job_time_lower = int(max_job_len * (2 / 3)) if min_large_job_len is None else min_large_job_len
         large_job_time_upper = max_job_len
         # }}}
 
