@@ -95,7 +95,7 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
             ),
         )  # }}}
 
-        return DeepRmWorkloadGenerator(
+        generators = (
             wl.BinomialWorkloadGenerator(
                 new_job_rate, small_job_chance,
                 cpu_dominant_parameters.small, cpu_dominant_parameters.large
@@ -104,6 +104,10 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
                 new_job_rate, small_job_chance,
                 mem_dominant_parameters.small, mem_dominant_parameters.large
             ),
+        )
+
+        return DeepRmWorkloadGenerator(
+            *generators[:(1 if ignore_memory else -1)]
         )
 
 
