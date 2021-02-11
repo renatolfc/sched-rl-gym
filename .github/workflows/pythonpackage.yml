@@ -34,7 +34,7 @@ jobs:
         coverage run --source lugarrl -m pytest lugarrl
         coverage report -m
     - name: Coveralls Parallel
-      uses: coverallsapp/github-action@master
+      uses: AndreMiras/coveralls-python-action@develop
       with:
         github-token: ${{ secrets.github_token }}
         parallel: true
@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Finished
-      uses: coverallsapp/github-action@master
+      uses: AndreMiras/coveralls-python-action@develop
       with:
         github-token: ${{ secrets.github_token }}
         parallel-finished: true
