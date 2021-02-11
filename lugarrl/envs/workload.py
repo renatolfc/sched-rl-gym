@@ -42,7 +42,8 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
     def build(new_job_rate, small_job_chance,
               max_job_len, max_job_size, ignore_memory=False,
               min_large_job_len=None, max_small_job_len=None,
-              min_small_job_len=None):
+              min_small_job_len=None, min_dominant_job_size=None,
+              min_other_job_size=None, max_other_job_size=None):
         # Time-related job parameters {{{
         small_job_time_lower = 1 if min_small_job_len is None else min_small_job_len
         small_job_time_upper = max(max_job_len // 5, 1) if max_small_job_len is None else max_small_job_len
@@ -51,10 +52,10 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
         # }}}
 
         # Resource-related job parameters {{{
-        dominant_resource_lower = max_job_size // 2
+        dominant_resource_lower = max_job_size // 2 if min_dominant_job_size is None else min_dominant_job_size
         dominant_resource_upper = max_job_size
-        other_resource_lower = 1
-        other_resource_upper = max_job_size // 5
+        other_resource_lower = 1 if min_other_job_size is None else min_other_job_size
+        other_resource_upper = max_job_size // 5 if max_other_job_size is None else max_other_job_size
         # }}}
 
         cpu_dominant_parameters = JobParameters(  # {{{
