@@ -40,7 +40,7 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
 
     @staticmethod
     def build(new_job_rate, small_job_chance,
-              max_job_len, max_job_size, ignore_memory,
+              max_job_len, max_job_size, ignore_memory=False,
               min_large_job_len=None, max_small_job_len=None,
               min_small_job_len=None):
         # Time-related job parameters {{{
