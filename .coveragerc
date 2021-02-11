@@ -1,0 +1,11 @@
+[run]
+    omit = lugarrl/envs
+           lugarrl/envs/deeprm_env.py
+           lugarrl/envs/workload.py
+           lugarrl/envs/__init__.py
+           lugarrl/envs/render.py
+           lugarrl/envs/__init__.py
+           lugarrl/__init__.py
+           lugarrl/scheduler/__init__.py
+           lugarrl/workload/__init__.py
+    relative_files = True
