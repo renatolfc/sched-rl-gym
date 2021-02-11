@@ -33,20 +33,18 @@ jobs:
         pip install pytest pytest-cov coveralls
         coverage run --source lugarrl -m pytest lugarrl
         coverage report -m
-    - name: Push results to coveralls
-      run: coveralls --service=gihtub
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        COVERALLS_PARALLEL: true
-  coveralls:
+    - name: Coveralls Parallel
+      uses: coverallsapp/github-action@master
+      with:
+        github_token: ${{ secrets.github_token }}
+        parallel: true
+  finish:
     name: Finish Coveralls
     needs: build
     runs-on: ubuntu-latest
-    container: python:3-slim
     steps:
     - name: Finished
-      run: |
-        pip3 install --upgrade coveralls
-        coveralls --service=gihtub --finish
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.github_token }}
+        parallel-finished: true
