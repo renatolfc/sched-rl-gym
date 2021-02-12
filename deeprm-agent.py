@@ -5,9 +5,12 @@ from collections import namedtuple, defaultdict
 
 import argparse
 
+import os
 import gym
+import pickle
 import numpy as np
 from typing import List
+from pathlib import Path
 
 import lugarrl.envs as deeprm
 
@@ -30,13 +33,14 @@ TIME_HORIZON: int = 20
 PARALLEL_WORKERS: int = 20
 TRAINING_ITERATIONS: int = 6
 OPTIMIZERS = {
-    'adam': lambda params, args: optim.Adam(params, lr=args.lr),
-    'rmsprop': lambda params, args: optim.RMSprop(params, lr=args.lr, momentum=args.momentum),
+    'adam': lambda model, args: optim.Adam(model.parameters(), lr=args.lr),
+    'rmsprop': lambda model, args: optim.RMSprop(model.parameters(), lr=args.lr, momentum=args.momentum),
 }
 
+TMPDIR = Path(f'/run/user/{os.getuid()}')
 Experience = namedtuple(
     'Experience',
-    field_names='state reward log_prob value'.split()
+    field_names='state action reward'.split()
 )
 
 
@@ -44,44 +48,32 @@ class PGNet(nn.Module):
     def __init__(self, env):
         super().__init__()
 
-        action_space = env.action_space.n
-        observation_space = env.observation_space
+        self.input_height = env.observation_space.shape[0]
+        self.input_width = env.observation_space.shape[1]
+        self.output_size = env.action_space.n
 
-        proc, mem, proc_slots, mem_slots, backlog, time = observation_space
-        self.input_height = proc.shape[0]
-        self.input_width = proc.shape[1] + mem.shape[1] + \
-            proc_slots.shape[0] * proc_slots.shape[2] + \
-            mem_slots.shape[0] * mem_slots.shape[2] + \
-            backlog.shape[1] + 1 if len(time.shape) < 2 else time.shape[-1]
-        self.output_size = action_space
-
-        self.actor = nn.Sequential(
-            nn.Linear(self.input_height * self.input_width, 20),
-            nn.ReLU(),
-            nn.Linear(20, self.output_size),
-            nn.Softmax(dim=1)
-        )
-
-        self.critic = nn.Sequential(
-            nn.Linear(self.input_height * self.input_width, 20),
-            nn.ReLU(),
-            nn.Linear(20, 1),
-            nn.Softmax(dim=1)
-        )
+        self.hidden = nn.Linear(self.input_height * self.input_width, 20)
+        self.out = nn.Linear(20, self.output_size)
 
     def forward(self, x):
         x = x.view(-1, self.input_height * self.input_width)
-        probs = self.actor(x)
-        value = self.critic(x)
-        return probs, value
+        x = F.relu(self.hidden(x))
+        scores = self.out(x)
+        return F.softmax(scores, dim=1)
 
     def select_action(self, state, device='cpu'):
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
-        probs, value = self(state)
+        probs = self(state)
         mass = Categorical(probs)
         action = mass.sample()
-        return action.item(), mass.log_prob(action), value
+        return action.item()
 
+    def log_prob(self, state, action, device='cpu'):
+        state = state.float()
+        action = action.float()
+        probs = self(state).view((action.shape[0], action.shape[1], -1))
+        mass = Categorical(probs)
+        return mass.log_prob(action)
 
 class Callback(object):
     def __call__(self, score) -> None:
@@ -122,7 +114,7 @@ class ReduceLROnPlateau(Callback):
 
 
 def make_discount_array(gamma, timesteps):
-    vals = np.zeros(2 * timesteps - 1, dtype=np.float32)
+    vals = np.zeros(2 * timesteps - 1)
     vals[timesteps - 1:] = gamma ** np.arange(timesteps)
     return as_strided(
         vals[timesteps - 1:],
@@ -146,10 +138,10 @@ def run_episode(env, model, max_episode_length, device='cpu'):
     trajectory = []
     total_reward = 0
     state = env.reset()
-    for i in range(max_episode_length):
-        action, log_prob, value = model.select_action(state, device)
-        next_state, reward, done, _ = env.step()
-        exp = Experience(state, reward, log_prob, value)
+    for _ in range(max_episode_length):
+        action = model.select_action(state, device)
+        next_state, reward, done, _ = env.step(action)
+        exp = Experience(state, action, reward)
         trajectory.append(exp)
         total_reward += reward
         if done:
@@ -159,7 +151,7 @@ def run_episode(env, model, max_episode_length, device='cpu'):
 
 
 def compute_baselines(trajectories):
-    returns = np.zeros((len(trajectories), max((len(t) for t in trajectories))))
+    returns = np.zeros((len(trajectories), max((len(traj) for traj in trajectories))))
     for i in range(len(trajectories)):
         tmp = np.array([e.reward for e in trajectories[i]])
         returns[i, :len(tmp)] = tmp
@@ -173,6 +165,12 @@ def run_episodes(rank, args, model, device) -> List[List[Experience]]:
 
     return [run_episode(env, model, args.max_episode_length, device)
             for _ in range(args.trajectories_per_batch)]
+
+
+def run_episodes_pickle(rank, args, model, device):
+    trajectories = run_episodes(rank, args, model, device)
+    with open(TMPDIR / f'{rank}.pkl', 'wb') as fp:
+        pickle.dump(trajectories, fp, pickle.HIGHEST_PROTOCOL)
 
 
 def train_one_epoch(rank, args, model, device, loss_queue) -> None:
@@ -193,43 +191,34 @@ def train_one_epoch(rank, args, model, device, loss_queue) -> None:
     """
     # You might need to divide the learning rate by the number of workers
 
-    actor_optimizer = OPTIMIZERS[args.optimizer.lower()](model.actor.parameters(), args)
-    critic_optimizer = OPTIMIZERS[args.optimizer.lower()](model.critic.parameters(), args)
+    optimizer = OPTIMIZERS[args.optimizer.lower()](model, args)
 
-    actor_optimizer.zero_grad()
-    critic_optimizer.zero_grad()
+    optimizer.zero_grad()
     trajectories = run_episodes(rank, args, model, device)
 
-    extra = defaultdict(list)
-    policy_loss, critic_loss = [], []
-    for trajectory in trajectories:
-        rewards = np.array([e.reward for e in trajectory], dtype=np.float32).reshape((1, -1))
-        baselines = torch.cat([e.value for e in trajectory]).view(1, -1)
-        discounts = make_discount_array(args.gamma, rewards.shape[1])
-        discounted_returns = torch.from_numpy((discounts @ rewards.T).T).to(device)
-        advantages = discounted_returns - baselines.detach()
-        log_probs = torch.cat([e.log_prob for e in trajectory]).view(1, -1)
-        policy_loss.append((log_probs * advantages).sum().view(1, 1))
-        critic_loss.append(F.mse_loss(baselines, discounted_returns).sum().view(1, 1))
+    rewards, baselines = compute_baselines(trajectories)
+    baselines_mat = np.array([baselines
+                              for _ in range(args.trajectories_per_batch)])
+    baselines_mat = baselines_mat * (rewards != 0)
+    discounts = make_discount_array(args.gamma, rewards.shape[1])
+    discounted_returns = (discounts @ rewards.T).T
+    advantages = discounted_returns - baselines_mat
 
-        extra['returns'].append(rewards.mean())
-        extra['advantages'].append(advantages.mean().detach().cpu().data.numpy())
-        extra['discounted_returns'].append(discounted_returns.mean().detach().cpu().data.numpy())
+    policy_loss = []
+    for i, t in enumerate(trajectories):
+        for j, e in enumerate(t):
+            policy_loss.append(e.log_prob * advantages[i, j])
 
     policy_loss = torch.cat(policy_loss).sum()
     (-policy_loss).backward()
-    actor_optimizer.step()
-
-    critic_loss = torch.cat(critic_loss).sum()
-    critic_loss.backward()
-    critic_optimizer.step()
+    optimizer.step()
 
     lengths = [len(t) for t in trajectories]
     loss_queue.put((
-        rank, policy_loss.detach().cpu().data.numpy(),
-        np.mean(extra['advantages']), np.std(extra['advantages']),
-        np.mean(extra['returns']), np.std(extra['returns']),
-        np.mean(extra['discounted_returns']), np.std(extra['discounted_returns']),
+        rank, policy_loss.clone().cpu().data.numpy(),
+        advantages.mean(), advantages.std(),
+        rewards.mean(), rewards.std(),
+        discounted_returns.mean(), discounted_returns.std(),
         np.mean(lengths), np.std(lengths)
     ))
 
@@ -294,37 +283,94 @@ def train_synchronous_parallel(args, callbacks, device, loss_queue, model, write
         if args.debug:
             train_one_epoch(0, args, model, device, loss_queue)
         else:
-            mp.spawn(
-                train_one_epoch,
-                (args, model, device, loss_queue),
-                nprocs=args.workers,
-                join=True
-            )
+            with mp.Pool(processes=args.workers) as pool:
+                pool.starmap_async(
+                    run_episodes_pickle,
+                    [(i, args, model, device) for i in range(args.workers)],
+                    1
+                ).get()
 
-            for name, param in model.named_parameters():
-                writer.add_histogram(name, param.clone().cpu().data.numpy(), epoch)
+                fps = [open(TMPDIR / f'{i}.pkl', 'rb') for i in range(args.workers)]
+                ret = [pickle.load(fp) for fp in fps]
+                [fp.close() for fp in fps]
 
-            losses, extras = [], defaultdict(list)
-            features = 'ardl'
-            while not loss_queue.empty():
-                rank, loss, *extra = loss_queue.get()
-                print(
-                    f'Loss for worker {rank} on epoch {epoch}: {loss}'
+                optimizer = OPTIMIZERS[args.optimizer.lower()](model, args)
+                optimizer.zero_grad()
+
+                trajectories = [e for l in ret for e in l]
+                rewards, baselines = compute_baselines(trajectories)
+                baselines_mat = np.array([baselines
+                                          for _ in range(len(trajectories))])
+                baselines_mat = baselines_mat * (rewards != 0)
+                discounts = make_discount_array(args.gamma, rewards.shape[1])
+                discounted_returns = (discounts @ rewards.T).T
+                advantages = discounted_returns - baselines_mat
+
+                states = [[e.state for e in t] for t in trajectories]
+                actions = [[e.action for e in t] for t in trajectories]
+                maxlen = max((len(s) for s in states))
+                for s, a in zip(states, actions):
+                    s += [np.zeros_like(s[0])] * (maxlen - len(s))
+                    a += [np.zeros_like(a[0])] * (maxlen - len(a))
+
+                def compute_loss(model, states, actions, advantages, device):
+                    states, actions, advantages = [torch.from_numpy(t) for t in (states, actions, advantages)]
+                    dataset = data.TensorDataset(
+                        states, actions, advantages
+                    )
+                    loader = data.DataLoader(
+                        dataset, batch_size=64, shuffle=False
+                    )
+                    loss = 0
+                    for state, action, advantage in loader:
+                        loss += (model.log_prob(
+                            state.to(device), action.to(device), device
+                        ) * advantage.to(device)).sum()
+                    return loss
+
+                policy_loss = compute_loss(
+                    model,
+                    np.array(states),
+                    np.array(actions),
+                    np.array(advantages),
+                    device
                 )
-                losses.append(loss)
+                (-policy_loss).backward()
+                optimizer.step()
+
+                lengths = [len(t) for t in trajectories]
+                loss_queue.put((
+                    0, policy_loss.clone().cpu().data.numpy(),
+                    advantages.mean(), advantages.std(),
+                    rewards.mean(), rewards.std(),
+                    discounted_returns.mean(), discounted_returns.std(),
+                    np.mean(lengths), np.std(lengths)
+                ))
+
+                for name, param in model.named_parameters():
+                    writer.add_histogram(name, param.clone().cpu().data.numpy(), epoch)
+
+                losses, extras = [], defaultdict(list)
+                features = 'ardl'
+                while not loss_queue.empty():
+                    rank, loss, *extra = loss_queue.get()
+                    print(
+                        f'Loss for worker {rank} on epoch {epoch}: {loss}'
+                    )
+                    losses.append(loss)
+                    for i, feature in enumerate(features):
+                        extras[f'{feature}μ'].append(extra[i * 2])
+                        extras[f'{feature}σ'].append(extra[i * 2 + 1])
+                        writer.add_scalar(f'{feature}μ/{rank}', extra[i * 2], epoch)
+                        writer.add_scalar(f'{feature}σ/{rank}', extra[i * 2 + 1], epoch)
+                print(
+                    'Loss for epoch {}: {}±{}'.format(epoch, np.mean(losses), np.std(losses))
+                )
+                writer.add_scalar('loss', np.mean(losses), epoch)
                 for i, feature in enumerate(features):
-                    extras[f'{feature}μ'].append(extra[i * 2])
-                    extras[f'{feature}σ'].append(extra[i * 2 + 1])
-                    writer.add_scalar(f'{feature}μ/{rank}', extra[i * 2], epoch)
-                    writer.add_scalar(f'{feature}σ/{rank}', extra[i * 2 + 1], epoch)
-            print(
-                'Loss for epoch {}: {}±{}'.format(epoch, np.mean(losses), np.std(losses))
-            )
-            writer.add_scalar('loss', np.mean(losses), epoch)
-            for i, feature in enumerate(features):
-                writer.add_scalar(f'{feature}μ', np.mean(extras[f'{feature}μ']), epoch)
-                writer.add_scalar(f'{feature}σ', np.mean(extras[f'{feature}σ']), epoch)
-            writer.add_scalar('α', args.lr, epoch)
+                    writer.add_scalar(f'{feature}μ', np.mean(extras[f'{feature}μ']), epoch)
+                    writer.add_scalar(f'{feature}σ', np.mean(extras[f'{feature}σ']), epoch)
+                writer.add_scalar('α', args.lr, epoch)
         for callback in callbacks:
             callback(np.mean(losses))
 
