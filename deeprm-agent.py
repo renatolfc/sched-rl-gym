@@ -17,10 +17,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+import torch.utils.data as data
 import torch.multiprocessing as mp
 from torch.distributions import Categorical
 
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 SLOTS: int = 10
 BACKLOG: int = 60
