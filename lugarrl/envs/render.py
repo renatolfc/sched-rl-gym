@@ -32,13 +32,11 @@ class DeepRmRgbRenderer(object):
         im = ax.imshow(state, cmap=cmap, vmin=0.001, vmax=1)
         if colorbar:
             ax.figure.colorbar(im, ax=ax)
-        ax.set_xticks(np.arange(-.5, state.shape[1], 1))
-        ax.set_yticks(np.arange(-.5, state.shape[0], 1))
-        ax.set_xticklabels(range(state.shape[1] + 1), rotation=45, ha='center')
-        ax.set_yticklabels(range(state.shape[0] + 1))
         ax.set_title(title)
         ax.set_xlabel('Slots')
         ax.set_ylabel('Time horizon (timesteps)')
+        ax.set_xticks([])
+        ax.set_yticks([])
         ax.grid()
 
     def render(self, state):
