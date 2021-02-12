@@ -7,10 +7,12 @@ import argparse
 
 import os
 import gym
+import json
 import pickle
 import numpy as np
 from typing import List
 from pathlib import Path
+from collections import OrderedDict
 
 import lugarrl.envs as deeprm
 
@@ -52,12 +54,17 @@ class PGNet(nn.Module):
         self.input_width = env.observation_space.shape[1]
         self.output_size = env.action_space.n
 
-        self.hidden = nn.Linear(self.input_height * self.input_width, 20)
-        self.out = nn.Linear(20, self.output_size)
+        self.nn = nn.Sequential(OrderedDict([
+            ('fc1', nn.Linear(self.input_height * self.input_width, 512)),
+            ('relu1', nn.ReLU()),
+            ('fc2', nn.Linear(512, 256)),
+            ('relu2', nn.ReLU()),
+        ]))
+        self.out = nn.Linear(256, self.output_size)
 
     def forward(self, x):
         x = x.view(-1, self.input_height * self.input_width)
-        x = F.relu(self.hidden(x))
+        x = self.nn(x)
         scores = self.out(x)
         return F.softmax(scores, dim=1)
 
