@@ -131,11 +131,8 @@ def make_discount_array(gamma, timesteps):
     )
 
 
-def setup_environment(envname) -> deeprm.DeepRmEnv:
-    env: deeprm.DeepRmEnv = gym.make(
-        envname, job_slots=SLOTS, time_limit=TIME_LIMIT, backlog_size=BACKLOG,
-        time_horizon=TIME_HORIZON
-    )
+def setup_environment(envname, wlkwargs) -> deeprm.DeepRmEnv:
+    env: deeprm.DeepRmEnv = gym.make(envname, **wlkwargs)
     env.reset()
 
     return env
@@ -165,22 +162,22 @@ def compute_baselines(trajectories):
     return returns, returns.mean(axis=0)
 
 
-def run_episodes(rank, args, model, device) -> List[List[Experience]]:
+def run_episodes(rank, args, model, device, wlkwargs) -> List[List[Experience]]:
     np.random.seed(args.seed + rank)
     torch.manual_seed(args.seed + rank)
-    env = setup_environment(args.envname)
+    env = setup_environment(args.envname, wlkwargs)
 
     return [run_episode(env, model, args.max_episode_length, device)
             for _ in range(args.trajectories_per_batch)]
 
 
-def run_episodes_pickle(rank, args, model, device):
-    trajectories = run_episodes(rank, args, model, device)
+def run_episodes_pickle(rank, args, model, device, wlkwargs):
+    trajectories = run_episodes(rank, args, model, device, wlkwargs)
     with open(TMPDIR / f'{rank}.pkl', 'wb') as fp:
         pickle.dump(trajectories, fp, pickle.HIGHEST_PROTOCOL)
 
 
-def train_one_epoch(rank, args, model, device, loss_queue) -> None:
+def train_one_epoch(rank, args, model, device, loss_queue, wlkwargs) -> None:
     """Trains the model for one epoch.
 
     This uses baselining in the REINFORCE algorithm. There are many ways to
@@ -201,7 +198,7 @@ def train_one_epoch(rank, args, model, device, loss_queue) -> None:
     optimizer = OPTIMIZERS[args.optimizer.lower()](model, args)
 
     optimizer.zero_grad()
-    trajectories = run_episodes(rank, args, model, device)
+    trajectories = run_episodes(rank, args, model, device, wlkwargs)
 
     rewards, baselines = compute_baselines(trajectories)
     baselines_mat = np.array([baselines
@@ -257,6 +254,8 @@ def build_argument_parser():
                         help='Loads a previously-trained model')
     parser.add_argument('--optimizer', type=str, default='adam',
                         help='optimizer to use')
+    parser.add_argument('--workload', type=str, default=None,
+                        help='Path to a workload configuration file')
     return parser
 
 
@@ -268,7 +267,14 @@ def main():
 
     torch.manual_seed(args.seed)
     mp.set_start_method('spawn')
-    model = PGNet(setup_environment(args.envname)).to(device)
+
+    if args.workload is None:
+        wlkwargs = {}
+    else:
+        with open(args.workload) as fp:
+            wlkwargs = json.load(fp)
+
+    model = PGNet(setup_environment(args.envname, wlkwargs)).to(device)
     if args.load is not None:
         model.load_state_dict(torch.load(args.load))
     model.share_memory()
@@ -277,13 +283,13 @@ def main():
     loss_queue = mp.Queue()
 
     callbacks = [ReduceLROnPlateau(500, .5, args, 1e-5, negate_score=True)]
-    train_synchronous_parallel(args, callbacks, device, loss_queue, model, writer)
+    train_synchronous_parallel(args, callbacks, device, loss_queue, model, writer, wlkwargs)
 
     writer.close()
     torch.save(model.state_dict(), 'policy.pth')
 
 
-def train_synchronous_parallel(args, callbacks, device, loss_queue, model, writer):
+def train_synchronous_parallel(args, callbacks, device, loss_queue, model, writer, wlkwargs):
     for epoch in range(args.epochs):
         print(f'Current epoch: {epoch}')
         losses = []
@@ -293,7 +299,7 @@ def train_synchronous_parallel(args, callbacks, device, loss_queue, model, write
             with mp.Pool(processes=args.workers) as pool:
                 pool.starmap_async(
                     run_episodes_pickle,
-                    [(i, args, model, device) for i in range(args.workers)],
+                    [(i, args, model, device, wlkwargs) for i in range(args.workers)],
                     1
                 ).get()
 
