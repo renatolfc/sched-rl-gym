@@ -52,7 +52,7 @@ class DeepRmRgbRenderer(object):
         # Axes {{{
         axs_current = [plt.subplot2grid((lines, 3), (i, 0)) for i in range(lines)]
         axs_wait = [plt.subplot2grid((lines, 3), (i, 1)) for i in range(lines)]
-        ax_backlog = plt.subplot2grid((2, 3), (0, 2), rowspan=lines)
+        ax_backlog = plt.subplot2grid((lines, 3), (0, 2), rowspan=lines)
         # End of Axes }}}
 
         for i, (ax_current, ax_wait) in enumerate(zip(axs_current, axs_wait)):
