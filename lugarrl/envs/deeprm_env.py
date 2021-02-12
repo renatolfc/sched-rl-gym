@@ -130,6 +130,8 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
         self.ignore_memory = kwargs.get('ignore_memory', False)
 
+        self.shuffle_colors = kwargs.get('shuffle_colors', False)
+
         if self.backlog_size % self.time_horizon:
             raise AssertionError('Backlog must be a multiple of time horizon')
 
@@ -140,7 +142,8 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         step = 1.0 / self.job_num_cap
         # zero is already present and set to "no job there"
         self.colormap = np.arange(start=step, stop=1, step=step)
-        np.random.shuffle(self.colormap)
+        if self.shuffle_colors:
+            np.random.shuffle(self.colormap)
         self.color_index = list(range(len(self.colormap)))
 
         utils.EzPickle.__init__(self, **kwargs)
