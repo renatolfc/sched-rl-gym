@@ -56,7 +56,13 @@ class DeepRmSimulator(simulator.TimeBasedSimulator):
                 or not isinstance(scheduler, NullScheduler):
             raise AssertionError("Invalid arguments received.")
         super().__init__(workload_generator, scheduler)
+
         self.last_job_time = 0
+        if isinstance(workload_generator, SyntheticWorkloadGenerator):
+            first_job_time = workload_generator.peek().submission_time - 1
+            workload_generator.current_time = first_job_time
+            scheduler.job_events.time = first_job_time
+            scheduler.current_time = first_job_time
 
     def step(self, submit=True):
         raise NotImplementedError('This simulator cannot follow the base API')
