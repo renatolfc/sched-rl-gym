@@ -197,7 +197,6 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
             for e in self.observation_space
         ])
 
-
     @property
     def state(self):
         state, jobs, backlog = self.scheduler.state(
