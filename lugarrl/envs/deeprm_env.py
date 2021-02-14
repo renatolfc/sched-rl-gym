@@ -68,17 +68,21 @@ class DeepRmSimulator(simulator.TimeBasedSimulator):
         raise NotImplementedError('This simulator cannot follow the base API')
 
     def rl_step(self, action: int) -> bool:
-        "Returns True when time passes."
+        "Returns True when an action executes successfully."
+
         if self.scheduler.step(action):
             return False
-        else:
-            self.current_time += 1
+
+        self.current_time += 1
+        while True:
             j = self.workload.step()
             if j:
                 self.scheduler.submit(j)
                 self.last_job_time = self.current_time
             self.scheduler.forward_time()
-            return True
+            if self.scheduler.queue_admission:
+                break
+        return True
 
 
 class DeepRmEnv(gym.Env, utils.EzPickle):
