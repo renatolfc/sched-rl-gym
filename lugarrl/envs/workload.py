@@ -108,7 +108,7 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
         )
 
         return DeepRmWorkloadGenerator(
-            *generators[:(1 if ignore_memory else -1)]
+            *generators[:(1 if ignore_memory else None)]
         )
 
 
