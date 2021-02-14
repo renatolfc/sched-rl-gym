@@ -138,7 +138,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
 
     def setup_spaces(self):
         self.scheduler = NullScheduler(
-            self.processors, self.memory
+            self.processors, self.memory, ignore_memory=False
         )
 
         self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
