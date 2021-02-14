@@ -26,36 +26,40 @@ class DeepRmSimulator(simulator.TimeBasedSimulator):
     def __init__(self, workload_generator: DeepRmWorkloadGenerator,
                  scheduler: NullScheduler):
         if (not isinstance(workload_generator, DeepRmWorkloadGenerator)
-                and not isinstance(
-                    workload_generator, SyntheticWorkloadGenerator
-                )) \
+                and not isinstance(workload_generator,
+                                   SyntheticWorkloadGenerator)) \
                 or not isinstance(scheduler, NullScheduler):
             raise AssertionError("Invalid arguments received.")
         super().__init__(workload_generator, scheduler)
 
-        self.last_job_time = 0
+        self.current_time = self.last_job_time = 0
         if isinstance(workload_generator, SyntheticWorkloadGenerator):
             first_job_time = workload_generator.peek().submission_time - 1
             workload_generator.current_time = first_job_time
             scheduler.job_events.time = first_job_time
             scheduler.current_time = first_job_time
+            self.current_time = first_job_time
 
     def step(self, submit=True):
-        "Not implemented in DeepRmSimulator"
+        "Not implemented"
         raise NotImplementedError('This simulator cannot follow the base API')
 
     def rl_step(self, action: int) -> bool:
-        "Returns True when time passes."
+        "Returns True when an action executes successfully."
+
         if self.scheduler.step(action):
             return False
-        else:
-            self.current_time += 1
+
+        self.current_time += 1
+        while True:
             j = self.workload.step()
             if j:
                 self.scheduler.submit(j)
                 self.last_job_time = self.current_time
             self.scheduler.forward_time()
-            return True
+            if self.scheduler.queue_admission:
+                break
+        return True
 
 
 class BaseRmEnv(ABC, gym.Env):
