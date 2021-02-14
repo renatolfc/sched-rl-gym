@@ -67,28 +67,18 @@ class DeepRmSimulator(simulator.TimeBasedSimulator):
     def step(self, submit=True):
         raise NotImplementedError('This simulator cannot follow the base API')
 
-    def _some_job_fits(self, slots):
-        for job in self.scheduler.queue_admission[:slots]:
-            if self.scheduler.cluster.fits(job):
-                return True
-        return False
-
-    def rl_step(self, action: int, slots: int) -> bool:
-        "Returns True when an action executes successfully."
-
+    def rl_step(self, action: int) -> bool:
+        "Returns True when time passes."
         if self.scheduler.step(action):
             return False
-
-        self.current_time += 1
-        while True:
+        else:
+            self.current_time += 1
             j = self.workload.step()
             if j:
                 self.scheduler.submit(j)
                 self.last_job_time = self.current_time
             self.scheduler.forward_time()
-            if self.scheduler.queue_admission and self._some_job_fits(slots):
-                break
-        return True
+            return True
 
 
 class DeepRmEnv(gym.Env, utils.EzPickle):
@@ -263,7 +253,7 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         else:
             action = None
         try:
-            time_passed = self.simulator.rl_step(action, self.job_slots)
+            time_passed = self.simulator.rl_step(action)
         except StopIteration:
             time_passed = True
             done = True
