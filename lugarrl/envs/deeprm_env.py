@@ -260,6 +260,8 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         done = False
         if 0 <= action < self.action_space.n - 1:
             action = self.find_slot_position(action)
+        else:
+            action = None
         try:
             time_passed = self.simulator.rl_step(action, self.job_slots)
         except StopIteration:
