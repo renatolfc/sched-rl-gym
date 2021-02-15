@@ -80,7 +80,7 @@ class PGNet(nn.Module):
         action = action.float()
         probs = self(state).view((action.shape[0], action.shape[1], -1))
         mass = Categorical(probs)
-        return mass.log_prob(action)
+        return mass.log_prob(action), mass.entropy()
 
 class Callback(object):
     def __call__(self, score) -> None:
@@ -208,12 +208,13 @@ def train_one_epoch(rank, args, model, device, loss_queue, wlkwargs) -> None:
     discounted_returns = (discounts @ rewards.T).T
     advantages = discounted_returns - baselines_mat
 
-    policy_loss = []
+    policy_loss, entropy = [], []
     for i, t in enumerate(trajectories):
         for j, e in enumerate(t):
             policy_loss.append(e.log_prob * advantages[i, j])
+            entropy.append(e.entropy())
 
-    policy_loss = torch.cat(policy_loss).sum()
+    policy_loss = torch.cat(policy_loss).sum() + torch.cat(entropy).sum() * args.entropy
     (-policy_loss).backward()
     optimizer.step()
 
@@ -256,6 +257,8 @@ def build_argument_parser():
                         help='optimizer to use')
     parser.add_argument('--workload', type=str, default=None,
                         help='Path to a workload configuration file')
+    parser.add_argument('--entropy', type=float, default=0.,
+                        help='entropy regularization factor')
     return parser
 
 
@@ -336,9 +339,11 @@ def train_synchronous_parallel(args, callbacks, device, loss_queue, model, write
                     )
                     loss = 0
                     for state, action, advantage in loader:
-                        loss += (model.log_prob(
+                        l, e = model.log_prob(
                             state.to(device), action.to(device), device
-                        ) * advantage.to(device)).sum()
+                        )
+                        loss += (l * advantage.to(device)).sum()
+                        loss += (e * args.entropy).sum()
                     return loss
 
                 policy_loss = compute_loss(
