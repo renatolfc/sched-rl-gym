@@ -70,7 +70,9 @@ class DeepRmRgbRenderer(object):
         size = canvas.get_width_height()
         plt.close(fig)
 
-        return raw_data, size
+        return np.frombuffer(raw_data, dtype=np.uint8).reshape(
+            (size[0], size[1], 3)
+        )
 
 
 class DeepRmHumanRenderer(DeepRmRgbRenderer, pyglet.window.Window):
@@ -87,22 +89,17 @@ class DeepRmHumanRenderer(DeepRmRgbRenderer, pyglet.window.Window):
     def on_draw(self):
         self.window.clear()
         if self.rendering is not None:
-            (width, height), data = self.rendering
-            img = pyglet.image.ImageData(width, height, 'RGB', data)
-            # "Fix" projection between OpenGL and matplotlib {{{
-            pyglet.gl.glMatrixMode(pyglet.gl.GL_PROJECTION)
-            pyglet.gl.glLoadIdentity()
-            pyglet.gl.glOrtho(0.0, width, height, 0.0, -1.0, 1.0)
-            pyglet.gl.glMatrixMode(pyglet.gl.GL_MODELVIEW)
-            pyglet.gl.glLoadIdentity()
-            # }}}
+            height, width, _ = self.rendering.shape
+            img = pyglet.image.ImageData(
+                height, width, 'RGB',
+                self.rendering.data.tobytes(), -3 * height
+            )
 
             img.blit(0, 0)
 
 
     def render(self, state):
-        rgb, size = super().render(state)
-        self.rendering = size, rgb
+        self.rendering = super().render(state)
 
         pyglet.clock.tick()
         self.window.switch_to()
@@ -110,7 +107,7 @@ class DeepRmHumanRenderer(DeepRmRgbRenderer, pyglet.window.Window):
         self.window.dispatch_event('on_draw')
         self.window.flip()
 
-        return rgb, size
+        return self.rendering
 
 
 class DeepRmRenderer(object):
