@@ -285,14 +285,12 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
             from .render import DeepRmRenderer
             self.renderer = DeepRmRenderer(mode)
         if self.use_raw_state:
-            rgb, size = self.renderer.render(self.state)
+            rgb = self.renderer.render(self.state)
         else:
             self.use_raw_state = True
-            rgb, size = self.renderer.render(self.state)
+            rgb = self.renderer.render(self.state)
             self.use_raw_state = False
-        return np.frombuffer(rgb, dtype=np.uint8).reshape(
-            (size[0], size[1], 3)
-        )
+        return rgb
 
     @property
     def slowdown(self):
