@@ -3,6 +3,7 @@
 
 """distribution - Generative models for workload generation"""
 
+import math
 import random
 import itertools
 from abc import ABC, abstractmethod
@@ -65,7 +66,8 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
     small_job: JobParameters
 
     def __init__(self, new_job_rate, small_job_chance, small_job_parameters,
-                 large_job_parameters, length=0):
+                 large_job_parameters, length=0, runtime_estimates=None,
+                 estimate_parameters=None):
         super().__init__(length)
 
         self.current_time = 0
@@ -75,6 +77,12 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
         self.small_job = small_job_parameters
         self.large_job = large_job_parameters
 
+        if runtime_estimates is not None and runtime_estimates != 'gaussian':
+            raise ValueError(f'Unsupported estimate type {runtime_estimates}')
+
+        self.runtime_estimates = runtime_estimates
+        self.estimate_parameters = estimate_parameters
+
     def step(self, offset=1) -> List[Optional[Job]]:
         self.current_time += offset
         if random.random() > self.new_job_rate:
@@ -83,6 +91,11 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
             j = self.small_job.sample(self.current_time)
         else:
             j = self.large_job.sample(self.current_time)
+        if self.runtime_estimates == 'gaussian':
+            j.requested_time = max(math.ceil(random.gauss(
+                j.execution_time,
+                self.estimate_parameters * j.execution_time
+            )), 1)
         j.id = next(self.counter)
         return [j]
 

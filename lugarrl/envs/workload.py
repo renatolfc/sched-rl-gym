@@ -43,7 +43,8 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
               max_job_len, max_job_size, ignore_memory=False,
               min_large_job_len=None, max_small_job_len=None,
               min_small_job_len=None, min_dominant_job_size=None,
-              min_other_job_size=None, max_other_job_size=None):
+              min_other_job_size=None, max_other_job_size=None,
+              runtime_estimates=None, estimate_parameters=None):
         # Time-related job parameters {{{
         small_job_time_lower = 1 if min_small_job_len is None else min_small_job_len
         small_job_time_upper = max(max_job_len // 5, 1) if max_small_job_len is None else max_small_job_len
@@ -99,11 +100,15 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
         generators = (
             wl.BinomialWorkloadGenerator(
                 new_job_rate, small_job_chance,
-                cpu_dominant_parameters.small, cpu_dominant_parameters.large
+                cpu_dominant_parameters.small, cpu_dominant_parameters.large,
+                runtime_estimates=runtime_estimates,
+                estimate_parameters=estimate_parameters,
             ),
             wl.BinomialWorkloadGenerator(
                 new_job_rate, small_job_chance,
-                mem_dominant_parameters.small, mem_dominant_parameters.large
+                mem_dominant_parameters.small, mem_dominant_parameters.large,
+                runtime_estimates=runtime_estimates,
+                estimate_parameters=estimate_parameters,
             ),
         )
 
