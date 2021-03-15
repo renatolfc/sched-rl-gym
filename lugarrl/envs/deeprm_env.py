@@ -220,7 +220,39 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         current = current.reshape(self.time_horizon, -1)
         return np.hstack((current, wait, backlog, time))
 
+    def build_current_state(self, current):
+        ret = [np.zeros((self.time_horizon, e[0][0])) for e in current]
+        for i, resource in enumerate(current):
+            for t in range(self.time_horizon):
+                for k, v in current[i][t][-1].items():
+                    ret[i][t][slice(*k)] = v
+        return ret
+
+    def build_job_slots(self, wait):
+        memory = np.zeros((
+            self.job_slots, self.time_horizon, self.scheduler.total_memory
+        ))
+        processors = np.zeros((
+            self.job_slots, self.time_horizon,
+            self.scheduler.number_of_processors
+        ))
+        for i, j in enumerate(wait):
+            if j.requested_processors == -1:
+                break
+            time_slice = slice(
+                0,
+                self.time_horizon if j.requested_time > self.time_horizon
+                else j.requested_time,
+            )
+            processors[i, time_slice, :j.requested_processors] = 1.0
+            if j.requested_memory != -1:
+                memory[i, time_slice, :j.requested_memory] = 1.0
+        return (processors,) if self.ignore_memory else (processors, memory)
+
     def _convert_state(self, current, wait, backlog, time):
+        current = self.build_current_state(current)
+        wait = self.build_job_slots(wait)
+        backlog = np.ones(self.time_horizon) * backlog
         unique = set(np.unique(current[0])) - {0.0}
         if len(unique) > self.job_num_cap:
             raise AssertionError("Number of jobs > number of colors")
@@ -233,17 +265,14 @@ class DeepRmEnv(gym.Env, utils.EzPickle):
         for j in unique:  # noqa
             for resource in current:
                 resource[resource == j] = self.colormap[self.color_cache[j]]
-        for resource in wait:
-            resource[resource != 0] = 1.0
 
         return np.array(current), np.array(wait), \
             backlog.reshape((self.time_horizon, -1)), \
             np.ones((self.time_horizon, 1)) * min(1.0, time)
 
     def find_slot_position(self, action):
-        for i, j in enumerate(self.scheduler.queue_admission):
-            if j.slot_position == action:
-                return i
+        if action < len(self.scheduler.queue_admission):
+            return action
         return self.action_space.n - 1
 
     def step(self, action: int):
