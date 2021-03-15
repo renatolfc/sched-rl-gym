@@ -264,12 +264,11 @@ class TestScheduler(unittest.TestCase):
 
     def test_empty_cluster_should_return_empty_state(self):
         state, jobs, backlog = self.scheduler.state(10, 10, 10)
-        self.assertEqual(0, jobs[0].sum())
-        self.assertEqual(0, jobs[1].sum())
-        self.assertEqual(0, state[0].sum())
-        self.assertEqual(0, state[1].sum())
-        self.assertEqual(0, backlog[0].sum())
-        self.assertEqual(0, backlog[1].sum())
+        self.assertEqual(-1, jobs[0].requested_processors)
+        self.assertEqual(-1, jobs[1].requested_processors)
+        self.assertEqual(0, state[0][0][1])
+        self.assertEqual(0, state[1][0][1])
+        self.assertEqual(0, backlog)
 
 
 class TestFifoBasedSchedulers(unittest.TestCase):
@@ -877,34 +876,33 @@ class TestSchedulers(unittest.TestCase):
         self.submit_jobs(s, 20)
         state, jobs, backlog = s.state(timesteps, job_slots, backlog_size)
 
-        self.assertEqual((timesteps, total_processors), state[0].shape)
-        self.assertEqual((timesteps, total_memory), state[1].shape)
+        self.assertEqual(timesteps, len(state[0]))
+        self.assertEqual(total_processors, state[0][0][0])
+        self.assertEqual(total_memory, state[1][0][0])
 
-        self.assertEqual((job_slots, timesteps, total_processors), jobs[0].shape)
-        self.assertEqual((job_slots, timesteps, total_memory), jobs[1].shape)
-
-        self.assertEqual((backlog_size,), backlog.shape)
+        self.assertEqual(job_slots, len(jobs))
 
         # state is empty because we haven't stepped the simulator
-        self.assertEqual(0, state[0].sum())
-        self.assertEqual(0, state[1].sum())
+        self.assertEqual(0, state[0][0][1])
+        self.assertEqual(0, state[1][0][1])
 
         # Everything must be in the backlog + job slots
-        self.assertEqual(len(s.all_jobs) - job_slots, backlog.sum())
+        self.assertEqual(len(s.all_jobs) - job_slots, backlog)
 
         for _ in range(5):
             s.step()
             state, jobs, backlog = s.state(timesteps, job_slots, backlog_size)
 
-            self.assertEqual(max(len(s.queue_admission) - job_slots, 0), backlog.sum())
+            self.assertEqual(max(len(s.queue_admission) - job_slots, 0), backlog)
             for j in s.queue_admission[:job_slots]:
                 self.assertEqual(
-                    j.requested_memory * j.requested_time,
-                    jobs[1][j.slot_position].sum()
+                    j.requested_time, jobs[j.slot_position].requested_time
                 )
                 self.assertEqual(
-                    j.requested_processors * j.requested_time,
-                    jobs[0][j.slot_position].sum()
+                    j.requested_memory, jobs[j.slot_position].requested_memory
+                )
+                self.assertEqual(
+                    j.requested_processors, jobs[j.slot_position].requested_processors
                 )
 
 
