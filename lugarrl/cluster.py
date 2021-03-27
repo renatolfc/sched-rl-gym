@@ -193,12 +193,12 @@ class Cluster:
             memory used and the jobs that are using such resources.
         """
         processors = (
-            self.processors.size,
+            self.processors.free_resources,
             self.processors.used_resources,
             {(i.begin, i.end): i.data for i in self.processors.used_pool}
         )
         memory = (
-            self.memory.size,
+            self.memory.free_resources,
             self.memory.used_resources,
             {(i.begin, i.end): i.data for i in self.memory.used_pool}
         )
