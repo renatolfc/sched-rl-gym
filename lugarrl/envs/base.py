@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from typing import List
+from typing import List, Dict
 from abc import ABC, abstractmethod
 
 import gym
@@ -66,7 +66,7 @@ class BaseRmEnv(ABC, gym.Env):
     ignore_memory: bool
     color_index: List[int]
     scheduler: NullScheduler
-    color_cache: dict[int, float]
+    color_cache: Dict[int, float]
 
     @abstractmethod
     def __init__(self, **kwargs):
