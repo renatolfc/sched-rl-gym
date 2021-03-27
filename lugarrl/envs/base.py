@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from typing import List
 from abc import ABC, abstractmethod
 
 import gym
@@ -63,7 +64,7 @@ class BaseRmEnv(ABC, gym.Env):
     job_num_cap: int
     time_horizon: int
     ignore_memory: bool
-    color_index: list[int]
+    color_index: List[int]
     scheduler: NullScheduler
     color_cache: dict[int, float]
 
