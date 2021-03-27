@@ -387,13 +387,12 @@ class Scheduler(ABC):
         job.queue_size = len(self.queue_admission)
         job.queued_work = sum([j.requested_time * j.requested_processors
                                for j in self.queue_admission])
-        processors = self.cluster.state[0]
-        job.free_processors = processors[0] - processors[1]
+        job.free_processors = self.cluster.state[0][0]
         # }}}
 
         self.queue_admission.append(job)
 
-    def state(self, timesteps: int, job_slots: int, backlog_size: int):
+    def state(self, timesteps: int, job_slots: int):
         """Returns the current state of the cluster as viewed by the scheduler.
 
         The state representation used here is deeply inspired by the DeepRM
@@ -411,9 +410,6 @@ class Scheduler(ABC):
             job_slots : int
                 The number of job slots to use (the amount of jobs in the
                 admission queue to represent)
-            backlog_size : int
-                The size of the backlog to use to represent jobs that are in
-                the admission queue, but that didn't fit `job_slots`
         """
         # Gets all events between now and `timesteps` {{{
         near_future: Dict[int, List[JobEvent]] = defaultdict(list)

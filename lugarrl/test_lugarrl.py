@@ -263,7 +263,7 @@ class TestScheduler(unittest.TestCase):
         ))
 
     def test_empty_cluster_should_return_empty_state(self):
-        state, jobs, backlog = self.scheduler.state(10, 10, 10)
+        state, jobs, backlog = self.scheduler.state(10, 10)
         self.assertEqual(-1, jobs[0].requested_processors)
         self.assertEqual(-1, jobs[1].requested_processors)
         self.assertEqual(0, state[0][0][1])
@@ -870,11 +870,10 @@ class TestSchedulers(unittest.TestCase):
 
         timesteps = 100
         job_slots = 4
-        backlog_size = 20
 
         s = scheduler.SjfScheduler(total_processors, total_memory)
         self.submit_jobs(s, 20)
-        state, jobs, backlog = s.state(timesteps, job_slots, backlog_size)
+        state, jobs, backlog = s.state(timesteps, job_slots)
 
         self.assertEqual(timesteps, len(state[0]))
         self.assertEqual(total_processors, state[0][0][0])
@@ -891,7 +890,7 @@ class TestSchedulers(unittest.TestCase):
 
         for _ in range(5):
             s.step()
-            state, jobs, backlog = s.state(timesteps, job_slots, backlog_size)
+            state, jobs, backlog = s.state(timesteps, job_slots)
 
             self.assertEqual(max(len(s.queue_admission) - job_slots, 0), backlog)
             for j in s.queue_admission[:job_slots]:
