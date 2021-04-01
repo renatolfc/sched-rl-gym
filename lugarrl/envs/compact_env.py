@@ -7,11 +7,9 @@ import gym
 import numpy as np
 from gym import utils, spaces
 
-from .. import simulator
-from .deeprm_env import DeepRmEnv
 from ..scheduler.null_scheduler import NullScheduler
-from .workload import build as build_workload, DeepRmWorkloadGenerator
-from .workload import SyntheticWorkloadGenerator
+from .workload import build as build_workload
+from ..job import JobState
 
 from .base import DeepRmSimulator, BaseRmEnv
 
