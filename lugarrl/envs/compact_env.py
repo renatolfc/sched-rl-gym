@@ -83,11 +83,9 @@ class CompactRmEnv(BaseRmEnv):
             self.time_horizon, self.job_slots
         )
         self.observation_space = spaces.Box(
-            low=-1.0, high=np.inf, shape=((
-                (len(cluster[0][0]) - 1) * self.time_horizon +
-                len(jobs[0]) * self.job_slots +
-                1  # backlog
-            ,)), dtype=np.float32)
+            low=0.0, high=1.0, shape=((len(self.state),)),
+            dtype=np.float32
+        )
 
     def step(self, action: int):
         done = False
