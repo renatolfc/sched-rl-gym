@@ -66,23 +66,15 @@ class CompactRmEnv(BaseRmEnv):
         self.maximum_work = self.time_limit * self.processors
         self.maximum_work_mem = self.time_limit * self.memory
 
-        self._setup_spaces()
-
-    def _setup_spaces(self):
         self.scheduler = NullScheduler(
             self.processors, self.memory, ignore_memory=self.ignore_memory
         )
 
+        self._setup_spaces()
+
+    def _setup_spaces(self):
         self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
 
-        # TODO: add more cluster-related features
-        # 2 * time_horizon
-        # job_slots * (7)
-        # backlog
-
-        cluster, jobs, backlog = self.scheduler.state(
-            self.time_horizon, self.job_slots
-        )
         self.observation_space = spaces.Box(
             low=0.0, high=1.0, shape=((len(self.state),)),
             dtype=np.float32
