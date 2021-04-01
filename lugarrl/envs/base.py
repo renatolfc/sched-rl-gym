@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import random
 from typing import List, Dict
 from abc import ABC, abstractmethod
 
@@ -145,11 +146,17 @@ class BaseRmEnv(ABC, gym.Env):
             backlog.reshape((self.time_horizon, -1)), \
             np.ones((self.time_horizon, 1)) * min(1.0, time)
 
-
     def render(self, mode='human'):
         if self.renderer is None:
             from .render import DeepRmRenderer
             self.renderer = DeepRmRenderer(mode)
         rgb = self.renderer.render(self._render_state())
         return rgb
+
+    def seed(self, seed=None):
+        if seed is None:
+            seed = random.randint(0, 99999999)
+        np.random.seed(seed)
+        random.seed(seed)
+        return [seed]
 
