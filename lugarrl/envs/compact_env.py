@@ -120,7 +120,7 @@ class CompactRmEnv(BaseRmEnv):
         backlog = backlog * np.ones(1) / BACKLOG_SIZE
 
         running = [j for j in self.scheduler.queue_running
-                   if j.submission_time + j.execution_time >
+                   if j.submission_time + j.requested_time>
                    self.scheduler.current_time]
 
         remaining_work = sum([
