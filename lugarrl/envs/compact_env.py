@@ -94,7 +94,8 @@ class CompactRmEnv(BaseRmEnv):
         reward = 0
         if time_passed:
             reward = -np.sum([
-                1 / j.execution_time for j in self.scheduler.jobs_in_system
+                1 / j.execution_time for j in
+                self.scheduler.queue_admission[:self.job_slots]
             ])
 
         done = self.scheduler.current_time > self.time_limit or done
