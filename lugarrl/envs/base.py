@@ -132,7 +132,8 @@ class BaseRmEnv(ABC, gym.Env):
     def _convert_state(self, current, wait, backlog, time):
         current = self.build_current_state(current)
         wait = self.build_job_slots(wait)
-        backlog = np.ones(self.time_horizon) * backlog
+        backlog_width = self.backlog_size // self.time_horizon
+        backlog = np.ones(self.time_horizon * backlog_width) * backlog
         unique = set(np.unique(current[0])) - {0.0}
         if len(unique) > self.job_num_cap:
             raise AssertionError("Number of jobs > number of colors")
