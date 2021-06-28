@@ -58,6 +58,7 @@ class CompactRmEnv(BaseRmEnv):
         self.workload_config = kwargs.get('workload', DEFAULT_WORKLOAD)
 
         self.job_slots = kwargs.get('job_slots', JOB_SLOTS)  # Number of jobs to show
+        self.backlog_size = kwargs.get('backlog_size', BACKLOG_SIZE)  # backlog queue size
 
         self.ignore_memory = kwargs.get('ignore_memory', False)
 
