@@ -11,7 +11,8 @@ from ..scheduler.null_scheduler import NullScheduler
 from .workload import build as build_workload
 from ..job import JobState
 
-from .base import DeepRmSimulator, BaseRmEnv
+from .base import BaseRmEnv
+from .simulator import DeepRmSimulator
 
 import logging
 logger = logging.getLogger(__name__)
@@ -53,12 +54,15 @@ class CompactRmEnv(BaseRmEnv):
         self.memory = kwargs.get('memory', AMOUNT_OF_MEMORY)
         self.processors = kwargs.get('processors', NUMBER_OF_PROCESSORS)
 
-        self.time_horizon = kwargs.get('time_horizon', TIME_HORIZON)  # number of time steps in the graph
+        # number of time steps in the graph
+        self.time_horizon = kwargs.get('time_horizon', TIME_HORIZON)
 
         self.workload_config = kwargs.get('workload', DEFAULT_WORKLOAD)
 
-        self.job_slots = kwargs.get('job_slots', JOB_SLOTS)  # Number of jobs to show
-        self.backlog_size = kwargs.get('backlog_size', BACKLOG_SIZE)  # backlog queue size
+        # Number of jobs to show
+        self.job_slots = kwargs.get('job_slots', JOB_SLOTS)
+        # backlog queue size
+        self.backlog_size = kwargs.get('backlog_size', BACKLOG_SIZE)
 
         self.ignore_memory = kwargs.get('ignore_memory', False)
 
@@ -69,6 +73,11 @@ class CompactRmEnv(BaseRmEnv):
 
         self.scheduler = NullScheduler(
             self.processors, self.memory, ignore_memory=self.ignore_memory
+        )
+
+        wl = build_workload(self.workload_config)
+        self.simulator = DeepRmSimulator(
+            wl, self.scheduler, simulation_type=self.simulation_type
         )
 
         self._setup_spaces()
@@ -187,7 +196,7 @@ class CompactRmEnv(BaseRmEnv):
             self.processors, self.memory, ignore_memory=self.ignore_memory
         )
         wl = build_workload(self.workload_config)
-        self.simulator = DeepRmSimulator(wl, self.scheduler)
+        self.simulator.reset(wl, self.scheduler)
 
         return self.state
 

@@ -6,60 +6,14 @@ from typing import List, Dict
 from abc import ABC, abstractmethod
 
 import gym
-from gym import utils, spaces
 
 import numpy as np
 
-from .. import simulator
+from .simulator import SimulationType
 from ..scheduler.null_scheduler import NullScheduler
-from .workload import DeepRmWorkloadGenerator
-from .workload import SyntheticWorkloadGenerator
 
 MAXIMUM_NUMBER_OF_ACTIVE_JOBS = 40  # Number of colors in image
 MAX_TIME_TRACKING_SINCE_LAST_JOB = 10
-
-
-class DeepRmSimulator(simulator.TimeBasedSimulator):
-    last_job_time: int
-    scheduler: NullScheduler
-
-    def __init__(self, workload_generator: DeepRmWorkloadGenerator,
-                 scheduler: NullScheduler):
-        if (not isinstance(workload_generator, DeepRmWorkloadGenerator)
-                and not isinstance(workload_generator,
-                                   SyntheticWorkloadGenerator)) \
-                or not isinstance(scheduler, NullScheduler):
-            raise AssertionError("Invalid arguments received.")
-        super().__init__(workload_generator, scheduler)
-
-        self.current_time = self.last_job_time = 0
-        if isinstance(workload_generator, SyntheticWorkloadGenerator):
-            first_job_time = workload_generator.peek().submission_time - 1
-            workload_generator.current_time = first_job_time
-            scheduler.job_events.time = first_job_time
-            scheduler.current_time = first_job_time
-            self.current_time = first_job_time
-
-    def step(self, submit=True):
-        "Not implemented"
-        raise NotImplementedError('This simulator cannot follow the base API')
-
-    def rl_step(self, action: int) -> bool:
-        "Returns True when an action executes successfully."
-
-        if self.scheduler.step(action):
-            return False
-
-        self.current_time += 1
-        while True:
-            j = self.workload.step()
-            if j:
-                self.scheduler.submit(j)
-                self.last_job_time = self.current_time
-            self.scheduler.forward_time()
-            if self.scheduler.queue_admission:
-                break
-        return True
 
 
 class BaseRmEnv(ABC, gym.Env):
@@ -79,7 +33,9 @@ class BaseRmEnv(ABC, gym.Env):
         self.renderer = kwargs.get('renderer', None)
         self.shuffle_colors = kwargs.get('shuffle_colors', False)
         self.job_num_cap = kwargs.get('job_num_cap', MAXIMUM_NUMBER_OF_ACTIVE_JOBS)
-
+        self.simulation_type = SimulationType.from_str(
+            kwargs.get('simulation_type', 'time_based')
+        )
 
         step = 1.0 / self.job_num_cap
         # zero is already present and set to "no job there"

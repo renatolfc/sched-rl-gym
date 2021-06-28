@@ -3,14 +3,15 @@
 
 from __future__ import annotations, division
 
-from collections import namedtuple
+from typing import Union
 
 import numpy as np
 
 import gym
 from gym import utils, spaces
 
-from .base import DeepRmSimulator, BaseRmEnv
+from .base import BaseRmEnv
+from .simulator import DeepRmSimulator
 from ..scheduler.null_scheduler import NullScheduler
 from .workload import build as build_workload, DeepRmWorkloadGenerator
 
@@ -53,7 +54,7 @@ class DeepRmEnv(BaseRmEnv):
     simulator: DeepRmSimulator
     scheduler: NullScheduler
     workload: DeepRmWorkloadGenerator
-    observation_space: spaces.tuple.Tuple
+    observation_space: Union[spaces.tuple.Tuple, spaces.box.Box]
     action_space: spaces.discrete.Discrete
 
     metadata = {'render.modes': ['human', 'rgb_array']}
@@ -84,13 +85,20 @@ class DeepRmEnv(BaseRmEnv):
 
         self.backlog_width = self.backlog_size // self.time_horizon
 
-        self.setup_spaces()
-
-    def setup_spaces(self):
-        self.scheduler = NullScheduler(
-            self.processors, self.memory, ignore_memory=self.ignore_memory
+        self.simulator = DeepRmSimulator(
+            build_workload(self.workload_config),
+            NullScheduler(
+                self.processors, self.memory, ignore_memory=self.ignore_memory
+            )
         )
 
+        self.setup_spaces()
+
+    @property
+    def scheduler(self):
+        return self.simulator.scheduler
+
+    def setup_spaces(self):
         self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
         if self.use_raw_state:
             self.setup_raw_spaces()
@@ -196,15 +204,12 @@ class DeepRmEnv(BaseRmEnv):
         return self.state, reward, done, {}
 
     def reset(self):
-        self.scheduler = NullScheduler(
+        scheduler = NullScheduler(
             self.processors, self.memory, ignore_memory=self.ignore_memory
         )
-        wl = build_workload(
-            self.workload_config
-        )
 
-        self.simulator = DeepRmSimulator(wl, self.scheduler)
-
+        wl = build_workload(self.workload_config)
+        self.simulator.reset(wl, scheduler)
         return self.state
 
     @property
