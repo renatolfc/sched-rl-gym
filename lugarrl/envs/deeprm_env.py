@@ -89,7 +89,8 @@ class DeepRmEnv(BaseRmEnv):
             build_workload(self.workload_config),
             NullScheduler(
                 self.processors, self.memory, ignore_memory=self.ignore_memory
-            )
+            ),
+            job_slots=self.job_slots
         )
 
         self.setup_spaces()

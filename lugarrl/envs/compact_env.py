@@ -77,7 +77,8 @@ class CompactRmEnv(BaseRmEnv):
 
         wl = build_workload(self.workload_config)
         self.simulator = DeepRmSimulator(
-            wl, self.scheduler, simulation_type=self.simulation_type
+            wl, self.scheduler, simulation_type=self.simulation_type,
+            job_slots=self.job_slots
         )
 
         self._setup_spaces()
