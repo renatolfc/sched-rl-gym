@@ -297,11 +297,11 @@ class Scheduler(ABC):
         """
         return cluster.find_resources_at_time(time, job, events)
 
-    def some_job_fits(self):
+    def some_job_fits(self, job_slots: slice = slice(0, None)):
         """Checks whether any jobs in the admission queue fits _right now_."""
 
         return any(
-            [self.cluster.fits(j) for j in self.queue_admission]
+            [self.cluster.fits(j) for j in self.queue_admission[job_slots]]
         )
 
     def can_schedule_now(self, job: Job) -> Resource:
