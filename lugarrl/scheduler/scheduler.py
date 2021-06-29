@@ -297,6 +297,13 @@ class Scheduler(ABC):
         """
         return cluster.find_resources_at_time(time, job, events)
 
+    def some_job_fits(self, job_slots: slice = slice(0, None)):
+        """Checks whether any jobs in the admission queue fits _right now_."""
+
+        return any(
+            [self.cluster.fits(j) for j in self.queue_admission[job_slots]]
+        )
+
     def can_schedule_now(self, job: Job) -> Resource:
         """Checks whether a job can be scheduled in the current cluster now.
 
@@ -382,9 +389,17 @@ class Scheduler(ABC):
             )
         job.submission_time = self.current_time
         job.status = JobStatus.SUBMITTED
+
+        # Compute statistics to be used in state representation {{{
+        job.queue_size = len(self.queue_admission)
+        job.queued_work = sum([j.requested_time * j.requested_processors
+                               for j in self.queue_admission])
+        job.free_processors = self.cluster.state[0][0]
+        # }}}
+
         self.queue_admission.append(job)
 
-    def state(self, timesteps: int, job_slots: int, backlog_size: int):
+    def state(self, timesteps: int, job_slots: int):
         """Returns the current state of the cluster as viewed by the scheduler.
 
         The state representation used here is deeply inspired by the DeepRM
@@ -402,9 +417,6 @@ class Scheduler(ABC):
             job_slots : int
                 The number of job slots to use (the amount of jobs in the
                 admission queue to represent)
-            backlog_size : int
-                The size of the backlog to use to represent jobs that are in
-                the admission queue, but that didn't fit `job_slots`
         """
         # Gets all events between now and `timesteps` {{{
         near_future: Dict[int, List[JobEvent]] = defaultdict(list)
@@ -415,54 +427,29 @@ class Scheduler(ABC):
         # }}}
 
         # Gets the state representation of currently in use resources {{{
-        memory = np.zeros((timesteps, self.total_memory))
-        processors = np.zeros((timesteps, self.number_of_processors))
+        tmp = []
         cluster = self.cluster.clone()
         for t in range(timesteps):
             if t in near_future:
                 cluster = self.play_events(near_future[t], cluster)
-            if self.ignore_memory:
-                processors[t, :] = cluster.state[0]
-            else:
-                processors[t, :], memory[t, :] = cluster.state
-        state = (processors,) if self.ignore_memory else (processors, memory)
+            tmp.append(cluster.state)
+        state = list(zip(*tmp))
+        if self.ignore_memory:
+            state = state[:1]
         # }}}
 
         # Gets the representation of jobs in `job_slots` {{{
-        positions: Dict[int, Job] = {}
-        memory = np.zeros((job_slots, timesteps, self.total_memory))
-        processors = np.zeros((
-            job_slots, timesteps, self.number_of_processors
-        ))
+        jobs = [j.state for i, j in enumerate(self.queue_admission)
+                if i < job_slots]
         for i, job in enumerate(self.queue_admission):
-            if i == job_slots:
+            if i >= job_slots:
                 break
-            if job.slot_position is None:
-                if i in positions:
-                    empty = set(range(job_slots)) - set(list(positions.keys()))
-                    positions[list(empty)[0]] = job
-                else:
-                    positions[i] = job
-            else:
-                if job.slot_position in positions:
-                    empty = set(range(job_slots)) - set(list(positions.keys()))
-                    tmp = positions[job.slot_position]
-                    positions[job.slot_position] = job
-                    positions[list(empty)[0]] = tmp
-                else:
-                    positions[job.slot_position] = job
-        for i, job in positions.items():
             job.slot_position = i
-            if self.ignore_memory:
-                processors[i, :, :] = cluster.get_job_state(job, timesteps)[0]
-            else:
-                processors[i, :, :], memory[i, :, :] = cluster.get_job_state(job, timesteps)
-        jobs = (processors, memory) if not self.ignore_memory else (processors,)
+        jobs += [Job().state for _ in range(job_slots - len(jobs))]
         # }}}
 
         # Gets the backlog {{{
-        backlog = np.zeros((backlog_size,))
-        backlog[:min(max(len(self.queue_admission) - job_slots, 0), backlog_size)] = 1.0
+        backlog = max(len(self.queue_admission) - len(jobs), 0)
         # }}}
 
         return state, jobs, backlog

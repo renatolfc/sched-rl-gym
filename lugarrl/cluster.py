@@ -192,15 +192,20 @@ class Cluster:
             Tuple: a pair containing the number of processors used and the
             memory used and the jobs that are using such resources.
         """
-        processors = np.zeros(self.processors.size)
-        for i in self.processors.used_pool:
-            processors[i.begin:i.end] = i.data
+        processors = (
+            self.processors.free_resources,
+            self.processors.used_resources,
+            {(i.begin, i.end): i.data for i in self.processors.used_pool}
+        )
+        memory = (
+            self.memory.free_resources,
+            self.memory.used_resources,
+            {(i.begin, i.end): i.data for i in self.memory.used_pool}
+        )
         if self.ignore_memory:
             return (processors,)
-        memory = np.zeros(self.memory.size)
-        for i in self.memory.used_pool:
-            memory[i.begin:i.end] = i.data
-        return processors, memory
+        else:
+            return processors, memory
 
     def get_job_state(self, job: Job, timesteps: int) -> Tuple[np.ndarray, ...]:
         """Gets the stat of a job given a time horizon.

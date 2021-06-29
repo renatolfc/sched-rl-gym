@@ -9,7 +9,14 @@ import enum
 import random
 import warnings
 
+from collections import namedtuple
+
 from .resource import Resource, PrimaryResource
+
+JobState = namedtuple('JobState', [
+    'submission_time', 'requested_time', 'requested_memory',
+    'requested_processors', 'queue_size', 'queued_work', 'free_processors'
+])
 
 
 class JobStatus(enum.IntEnum):
@@ -108,6 +115,9 @@ class Job:
         self.finish_time = None
         self.ignore_memory = ignore_memory
         self.slot_position = None
+        self.free_processors = -1
+        self.queued_work = -1
+        self.queue_size = -1
 
     def __str__(self):
         return f'Job<{self.id}, {self.status.name}, start={self.start_time}, '\
@@ -193,6 +203,14 @@ class Job:
             new_job.requested_time = new_job.execution_time
 
         return new_job
+
+    @property
+    def state(self):
+        return JobState(
+            self.submission_time, self.requested_time, self.requested_memory,
+            self.requested_processors, self.queue_size, self.queued_work,
+            self.free_processors
+        )
 
 
 class JobParameters:
