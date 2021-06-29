@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from enum import IntEnum
-from typing import Union
+from typing import Union, Optional
 
 from lugarrl.scheduler import NullScheduler
 from lugarrl.envs.workload import (
@@ -33,11 +33,13 @@ class DeepRmSimulator:
     def __init__(self, workload_generator: Union[DeepRmWorkloadGenerator,
                                                  SyntheticWorkloadGenerator],
                  scheduler: NullScheduler,
-                 simulation_type: SimulationType = SimulationType.TIME_BASED):
+                 simulation_type: SimulationType = SimulationType.TIME_BASED,
+                 job_slots: Optional[int] = None):
 
         self.scheduler = scheduler
         self.workload = workload_generator
         self.simulation_type = simulation_type
+        self.job_slots = slice(0, job_slots)
         self.simulator = self.build()
         self.reset(self.workload, scheduler)
 
@@ -48,12 +50,14 @@ class DeepRmSimulator:
         if self.simulation_type == SimulationType.EVENT_BASED:
             return EventBasedDeepRmSimulator(
                 self.workload,
-                self.scheduler
+                self.scheduler,
+                self.job_slots,
             )
         elif self.simulation_type == SimulationType.TIME_BASED:
             return TimeBasedDeepRmSimulator(
                 self.workload,
-                self.scheduler
+                self.scheduler,
+                self.job_slots,
             )
         else:
             raise NotImplementedError(
@@ -77,9 +81,10 @@ class DeepRmSimulator:
 class EventBasedDeepRmSimulator:
     last_job_time: int
     scheduler: NullScheduler
+    job_slots: slice
 
     def __init__(self, workload_generator: DeepRmWorkloadGenerator,
-                 scheduler: NullScheduler):
+                 scheduler: NullScheduler, job_slots: slice):
         if (not isinstance(workload_generator, DeepRmWorkloadGenerator)
                 and not isinstance(workload_generator,
                                    SyntheticWorkloadGenerator)) \
@@ -90,6 +95,7 @@ class EventBasedDeepRmSimulator:
         self.scheduler = scheduler
         self.simulation_start_time = 0
         self.workload = workload_generator
+        self.job_slots = job_slots
 
         self.current_time = self.last_job_time = 0
         if isinstance(workload_generator, SyntheticWorkloadGenerator):
@@ -112,7 +118,7 @@ class EventBasedDeepRmSimulator:
                 self.scheduler.submit(j)
                 self.last_job_time = self.current_time
             self.scheduler.forward_time()
-            if self.scheduler.queue_admission:
+            if self.scheduler.some_job_fits(self.job_slots):
                 break
         return True
 
@@ -120,9 +126,10 @@ class EventBasedDeepRmSimulator:
 class TimeBasedDeepRmSimulator:
     last_job_time: int
     scheduler: NullScheduler
+    job_slots: slice
 
     def __init__(self, workload_generator: DeepRmWorkloadGenerator,
-                 scheduler: NullScheduler):
+                 scheduler: NullScheduler, job_slots: slice):
         if (not isinstance(workload_generator, DeepRmWorkloadGenerator)
                 and not isinstance(
                     workload_generator, SyntheticWorkloadGenerator
@@ -134,6 +141,7 @@ class TimeBasedDeepRmSimulator:
         self.simulation_start_time = 0
         self.workload = workload_generator
         self.current_time = self.last_job_time = 0
+        self.job_slots = job_slots
 
         if isinstance(workload_generator, SyntheticWorkloadGenerator):
             first_job_time = workload_generator.peek().submission_time - 1
