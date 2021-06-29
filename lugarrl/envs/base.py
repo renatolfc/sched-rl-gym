@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import random
+from enum import IntEnum
 from typing import List, Dict
 from abc import ABC, abstractmethod
 
@@ -14,6 +15,23 @@ from ..scheduler.null_scheduler import NullScheduler
 
 MAXIMUM_NUMBER_OF_ACTIVE_JOBS = 40  # Number of colors in image
 MAX_TIME_TRACKING_SINCE_LAST_JOB = 10
+
+
+class RewardJobs(IntEnum):
+    ALL = 0,
+    JOB_SLOTS = 1,
+    WAITING = 2
+
+    @staticmethod
+    def from_str(reward_range: str):
+        reward_range = reward_range.upper().replace('-', '_')
+        if reward_range in RewardJobs.__members__:
+            return RewardJobs[reward_range]
+        else:
+            raise ValueError(
+                f'{reward_range} is not a valid RewardJobs range. '
+                f'Valid options are: {list(RewardJobs.__members__.keys())}.'
+            )
 
 
 class BaseRmEnv(ABC, gym.Env):
@@ -32,9 +50,15 @@ class BaseRmEnv(ABC, gym.Env):
         self.color_cache = {}
         self.renderer = kwargs.get('renderer', None)
         self.shuffle_colors = kwargs.get('shuffle_colors', False)
-        self.job_num_cap = kwargs.get('job_num_cap', MAXIMUM_NUMBER_OF_ACTIVE_JOBS)
+        self.job_num_cap = kwargs.get(
+            'job_num_cap', MAXIMUM_NUMBER_OF_ACTIVE_JOBS
+        )
         self.simulation_type = SimulationType.from_str(
             kwargs.get('simulation_type', 'time_based')
+        )
+
+        self.reward_jobs = RewardJobs.from_str(
+            kwargs.get('reward_jobs', 'all')
         )
 
         step = 1.0 / self.job_num_cap
@@ -44,6 +68,13 @@ class BaseRmEnv(ABC, gym.Env):
             np.random.shuffle(self.colormap)
         self.color_index = list(range(len(self.colormap)))
 
+        self.reward_mapper = {
+            RewardJobs.ALL: lambda: self.scheduler.jobs_in_system,
+            RewardJobs.WAITING: lambda: self.scheduler.queue_admission,
+            RewardJobs.JOB_SLOTS: lambda: self.scheduler.queue_admission[
+                :self.job_slots
+            ]
+        }
 
     def _render_state(self):
         state, jobs, backlog = self.scheduler.state(
@@ -121,3 +152,8 @@ class BaseRmEnv(ABC, gym.Env):
         random.seed(seed)
         return [seed]
 
+    @property
+    def reward(self):
+        return -np.sum([
+            1 / j.execution_time for j in self.reward_mapper[self.reward_jobs]()
+        ])

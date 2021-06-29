@@ -194,12 +194,7 @@ class DeepRmEnv(BaseRmEnv):
             time_passed = True
             done = True
 
-        reward = 0
-        if time_passed:
-            reward = -np.sum([
-                1 / j.execution_time for j in self.scheduler.jobs_in_system
-            ])
-
+        reward = self.reward if time_passed else 0
         done = self.scheduler.current_time > self.time_limit or done
 
         return self.state, reward, done, {}
