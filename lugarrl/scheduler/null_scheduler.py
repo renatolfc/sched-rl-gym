@@ -117,7 +117,7 @@ class NullScheduler(Scheduler):
         finally:
             self.current_slot = None
 
-    def sjf_lt(self, a: Job, b: Job):  # pylint: disable=C, no-self-use
+    def sjf_lt(self, a: Job, b: Optional[Job]):  # pylint: disable=C, no-self-use
         """Comparison function that gives the same ordering SJF would give.
 
         Parameters

@@ -43,7 +43,7 @@ class DeepRmSimulator:
         self.simulator = self.build()
         self.reset(self.workload, scheduler)
 
-    def rl_step(self, action: int) -> bool:
+    def rl_step(self, action: Optional[int]) -> bool:
         return self.simulator.rl_step(action)
 
     def build(self):

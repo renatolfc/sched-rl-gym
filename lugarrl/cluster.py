@@ -185,7 +185,7 @@ class Cluster:
         ).find(job)
 
     @property
-    def state(self) -> Tuple[np.ndarray, ...]:
+    def state(self) -> Tuple[Tuple[int, int, dict], ...]:
         """Gets the current state of the cluster as numpy arrays.
 
         Returns:

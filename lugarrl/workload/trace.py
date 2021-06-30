@@ -8,7 +8,7 @@ files.
 """
 
 from itertools import takewhile
-from typing import Iterator, Optional, Sequence
+from typing import Iterator, Optional, Sequence, Callable
 
 from ..job import Job
 from .base import WorkloadGenerator
@@ -18,6 +18,7 @@ from .swf_parser import parse as parse_swf
 class TraceGenerator(WorkloadGenerator):
     restart: bool
     trace: Sequence[Job]
+    refresh_jobs: Optional[Callable]
 
     def __init__(self, restart=False, trace=None):
         self.current_time = 0
@@ -44,7 +45,7 @@ class TraceGenerator(WorkloadGenerator):
                 self.current_element = 0
                 for job in self.trace:
                     job.submission_time += self.current_time
-                if hasattr(self, 'refresh_jobs'):
+                if self.refresh_jobs is not None:
                     self.refresh_jobs()
             else:
                 raise StopIteration('Workload finished')
@@ -76,7 +77,7 @@ class TraceGenerator(WorkloadGenerator):
         if self.current_element >= len(self.trace):
             if self.restart:
                 self.current_element = 0
-                if hasattr(self, 'refresh_jobs'):
+                if self.refresh_jobs is not None:
                     self.refresh_jobs()
             else:
                 raise StopIteration()
@@ -87,7 +88,7 @@ class TraceGenerator(WorkloadGenerator):
     def __iter__(self) -> Iterator[Optional[Job]]:
         return iter(self.trace)
 
-    def peek(self) -> Job:
+    def peek(self) -> Optional[Job]:
         job = next(self)
         if self.current_element > 0:
             self.current_element -= 1

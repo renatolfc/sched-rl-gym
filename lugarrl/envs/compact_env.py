@@ -98,11 +98,12 @@ class CompactRmEnv(BaseRmEnv):
 
     def step(self, action: int):
         done = False
+        found = True
         if not (0 <= action < self.action_space.n - 1):
-            action = None
+            found = False
 
         try:
-            time_passed = self.simulator.rl_step(action)
+            time_passed = self.simulator.rl_step(action if found else None)
             # XXX: This is technically incorrect. The correct thing to do here
             # is: when we have a trace-based workload generator, we need to
             # maintain a check on whether we want to sample from it or not, and

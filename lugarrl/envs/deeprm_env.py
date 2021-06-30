@@ -3,11 +3,10 @@
 
 from __future__ import annotations, division
 
-from typing import Union
+from typing import Union, cast
 
 import numpy as np
 
-import gym
 from gym import utils, spaces
 
 from .base import BaseRmEnv
@@ -53,7 +52,6 @@ class DeepRmEnv(BaseRmEnv):
     backlog_size: int
     use_raw_sate: bool
     simulator: DeepRmSimulator
-    scheduler: NullScheduler
     workload: DeepRmWorkloadGenerator
     observation_space: Union[spaces.tuple.Tuple, spaces.box.Box]
     action_space: spaces.discrete.Discrete
@@ -100,7 +98,6 @@ class DeepRmEnv(BaseRmEnv):
             self.time_limit = (
                     wl.trace[-1].submission_time + wl.trace[-1].execution_time
             )
-
 
         self.setup_spaces()
 
@@ -193,12 +190,12 @@ class DeepRmEnv(BaseRmEnv):
 
     def step(self, action: int):
         done = False
+        found = False
         if 0 <= action < self.action_space.n - 1:
             action = self.find_slot_position(action)
-        else:
-            action = None
+            found = True
         try:
-            time_passed = self.simulator.rl_step(action)
+            time_passed = self.simulator.rl_step(action if found else None)
         except StopIteration:
             time_passed = True
             done = True

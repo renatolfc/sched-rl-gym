@@ -7,7 +7,7 @@ import random
 import warnings
 import itertools
 from math import log2
-from typing import Optional
+from typing import Optional, List
 from collections import namedtuple
 from parallelworkloads.lublin99 import Lublin99
 from parallelworkloads.tsafrir05 import Tsafrir05
@@ -27,7 +27,7 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
         for generator in self.generators:
             generator.counter = self.counter
 
-    def step(self, offset=1) -> Optional[job.Job]:
+    def step(self, offset=1) -> List[Optional[job.Job]]:
         return self.generators[
             random.randint(0, len(self.generators) - 1)
         ].step()

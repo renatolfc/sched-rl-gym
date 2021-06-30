@@ -9,7 +9,9 @@ that interacts with all other components.
 
 from abc import ABC, abstractmethod
 from collections import defaultdict, namedtuple
-from typing import List, Iterable, Tuple, Dict, Any, Sequence, Union
+from typing import (
+    List, Iterable, Tuple, Dict, Any, Sequence, Union, NamedTuple, Optional
+)
 
 import collections.abc
 
@@ -19,11 +21,15 @@ from lugarrl.cluster import Cluster
 from lugarrl.job import Job, JobStatus, Resource
 from lugarrl.event import JobEvent, EventType, EventQueue
 
-Stats = namedtuple(  # pylint: disable=C
-    'Stats',
-    field_names='utilization offered_load slowdown makespan bsld'.split()
-)
-"""A named tuple with scheduling statistics"""
+
+class Stats(NamedTuple):
+    """A named tuple with scheduling statistics"""
+
+    utilization: float
+    offered_load: float
+    slowdown: float
+    makespan: float
+    bsld: float
 
 
 class Scheduler(ABC):
@@ -360,7 +366,7 @@ class Scheduler(ABC):
             'Failed to find time for job, even in the far future.'
         )
 
-    def submit(self, job: Union[Job, Sequence[Job]]) -> None:
+    def submit(self, job: Union[Job, Iterable[Optional[Job]]]) -> None:
         """Submits a new job to the system.
 
         Parameters
@@ -377,12 +383,15 @@ class Scheduler(ABC):
             self._submit(job)
         self.need_schedule_call = True
 
-    def _submit(self, job: Job) -> None:
+    def _submit(self, job: Optional[Job]) -> None:
         """Internal implementation of job submission.
 
         Adds the new job to the `submission_queue` and sets job status to
         `JobStatus.SUBMITTED`.
         """
+        if job is None:
+            return
+
         if job.requested_processors > self.number_of_processors:
             raise RuntimeError(
                 'Impossible to allocate resources for job bigger than cluster.'
