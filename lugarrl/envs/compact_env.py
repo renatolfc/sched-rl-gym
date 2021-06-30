@@ -50,6 +50,7 @@ class CompactRmEnv(BaseRmEnv):
         super().__init__(**kwargs)
 
         self.time_limit = kwargs.get('time_limit', 200)
+        self.update_time_limit = False if self.time_limit else True
 
         self.memory = kwargs.get('memory', AMOUNT_OF_MEMORY)
         self.processors = kwargs.get('processors', NUMBER_OF_PROCESSORS)
@@ -68,18 +69,22 @@ class CompactRmEnv(BaseRmEnv):
 
         self.renderer = kwargs.get('renderer', None)
 
-        self.maximum_work = self.time_limit * self.processors
-        self.maximum_work_mem = self.time_limit * self.memory
-
+        wl = build_workload(self.workload_config)
         self.scheduler = NullScheduler(
             self.processors, self.memory, ignore_memory=self.ignore_memory
         )
 
-        wl = build_workload(self.workload_config)
         self.simulator = DeepRmSimulator(
             wl, self.scheduler, simulation_type=self.simulation_type,
             job_slots=self.job_slots
         )
+
+        if not self.time_limit and hasattr(wl, 'trace'):
+            self.time_limit = (
+                wl.trace[-1].submission_time + wl.trace[-1].execution_time
+            )
+        self.maximum_work = self.time_limit * self.processors
+        self.maximum_work_mem = self.time_limit * self.memory
 
         self._setup_spaces()
 
@@ -98,12 +103,20 @@ class CompactRmEnv(BaseRmEnv):
 
         try:
             time_passed = self.simulator.rl_step(action)
+            # XXX: This is technically incorrect. The correct thing to do here
+            # is: when we have a trace-based workload generator, we need to
+            # maintain a check on whether we want to sample from it or not, and
+            # use the time limit to actually decide whether we're done or not.
+            # In the current setting, we might potentially "lose" the last jobs
+            # of the workload.
         except StopIteration:
             time_passed = True
             done = True
 
         reward = self.reward if time_passed else 0
-        done = self.scheduler.current_time > self.time_limit or done
+        done = self.time_limit and (
+                self.scheduler.current_time > self.time_limit or done
+        )
 
         return self.state, reward, done, {} if not done else self.stats
 
@@ -191,6 +204,10 @@ class CompactRmEnv(BaseRmEnv):
             self.processors, self.memory, ignore_memory=self.ignore_memory
         )
         wl = build_workload(self.workload_config)
+        if self.update_time_limit and hasattr(wl, 'trace'):
+            self.time_limit = (
+                    wl.trace[-1].submission_time + wl.trace[-1].execution_time
+            )
         self.simulator.reset(wl, self.scheduler)
 
         return self.state

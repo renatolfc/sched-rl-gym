@@ -65,6 +65,7 @@ class DeepRmEnv(BaseRmEnv):
 
         self.time_limit = kwargs.get('time_limit', 200)
         self.use_raw_state = kwargs.get('use_raw_state', False)
+        self.update_time_limit = False if self.time_limit else True
 
         self.memory = kwargs.get('memory', AMOUNT_OF_MEMORY)
         self.processors = kwargs.get('processors', NUMBER_OF_PROCESSORS)
@@ -86,13 +87,20 @@ class DeepRmEnv(BaseRmEnv):
 
         self.backlog_width = self.backlog_size // self.time_horizon
 
+        wl = build_workload(self.workload_config)
         self.simulator = DeepRmSimulator(
-            build_workload(self.workload_config),
+            wl,
             NullScheduler(
                 self.processors, self.memory, ignore_memory=self.ignore_memory
             ),
             job_slots=self.job_slots
         )
+
+        if not self.time_limit and hasattr(wl, 'trace'):
+            self.time_limit = (
+                    wl.trace[-1].submission_time + wl.trace[-1].execution_time
+            )
+
 
         self.setup_spaces()
 
@@ -196,7 +204,9 @@ class DeepRmEnv(BaseRmEnv):
             done = True
 
         reward = self.reward if time_passed else 0
-        done = self.scheduler.current_time > self.time_limit or done
+        done = self.time_limit and (
+                self.scheduler.current_time > self.time_limit or done
+        )
 
         return self.state, reward, done, {}
 
@@ -204,8 +214,11 @@ class DeepRmEnv(BaseRmEnv):
         scheduler = NullScheduler(
             self.processors, self.memory, ignore_memory=self.ignore_memory
         )
-
         wl = build_workload(self.workload_config)
+        if self.update_time_limit and hasattr(wl, 'trace'):
+            self.time_limit = (
+                    wl.trace[-1].submission_time + wl.trace[-1].execution_time
+            )
         self.simulator.reset(wl, scheduler)
         return self.state
 
