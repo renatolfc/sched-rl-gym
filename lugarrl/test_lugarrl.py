@@ -1065,21 +1065,25 @@ class TestCompactEnv(unittest.TestCase):
         gym.make('CompactRM-v0')
 
     def test_environment_with_sjf_agent_to_completion(self):
-        env: compact_env.CompactRmEnv = gym.make('CompactRM-v0')
-        observation = env.reset()
-        action = 0
-        done = False
-        while not done:
-            observation, reward, done, _ = env.step(action)
-            action = self.sjf_action(env, observation)
-            submission_times = [
-                j.execution_time
-                for j in env.scheduler.queue_admission[:env.job_slots]
-            ]
-            self.assertEqual(
-                action,
-                np.argmin(submission_times) if submission_times else 0
+        for simulation_type in 'time-based event-based'.split():
+            env: compact_env.CompactRmEnv = gym.make(
+                'CompactRM-v0',
+                simulation_type=simulation_type
             )
+            observation = env.reset()
+            action = 0
+            done = False
+            while not done:
+                observation, reward, done, _ = env.step(action)
+                action = self.sjf_action(env, observation)
+                submission_times = [
+                    j.execution_time
+                    for j in env.scheduler.queue_admission[:env.job_slots]
+                ]
+                self.assertEqual(
+                    action,
+                    np.argmin(submission_times) if submission_times else 0
+                )
 
 
 class TestDeepRmEnv(unittest.TestCase):
@@ -1087,15 +1091,19 @@ class TestDeepRmEnv(unittest.TestCase):
         gym.make('DeepRM-v0')
 
     def test_environment_with_trivial_agent(self):
-        env: deeprm_env.DeepRmEnv = gym.make(
-            'DeepRM-v0', **{'use_raw_state': True}
-        )
-        observation = env.reset()
-        action = 0
-        done = False
-        while not done:
-            observation, reward, done, _ = env.step(action)
-        self.assertTrue(done)
+        for simulation_type in 'time-based event-based'.split():
+            env: deeprm_env.DeepRmEnv = gym.make(
+                'DeepRM-v0', **{
+                    'use_raw_state': True,
+                    'simulation_type': simulation_type,
+                }
+            )
+            observation = env.reset()
+            action = 0
+            done = False
+            while not done:
+                observation, reward, done, _ = env.step(action)
+            self.assertTrue(done)
 
     def test_environment_with_event_based_simulator(self):
         env: deeprm_env.DeepRmEnv = gym.make(
