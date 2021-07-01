@@ -18,7 +18,7 @@ from .swf_parser import parse as parse_swf
 class TraceGenerator(WorkloadGenerator):
     restart: bool
     trace: Sequence[Job]
-    refresh_jobs: Optional[Callable]
+    refresh_jobs: Optional[Callable] = None
 
     def __init__(self, restart=False, trace=None):
         self.current_time = 0
