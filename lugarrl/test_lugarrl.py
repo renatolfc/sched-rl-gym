@@ -985,6 +985,22 @@ class TestSwfGenerator(unittest.TestCase):
         wl = self.load(offset=1, length=10)
         self.assertEqual(10, len(list(wl)))
 
+    def test_iterating(self):
+        wl = self.load(offset=1, length=10)
+        for job in wl:
+            self.assertIsNotNone(job)
+        with self.assertRaises(StopIteration):
+            while True:
+                next(wl)
+
+    def test_last_event_time(self):
+        wl = self.load(offset=1, length=1)
+        self.assertEqual(wl.last_event_time, wl.peek().submission_time)
+        job = wl.step(wl.last_event_time + 1)[0]
+        with self.assertRaises(StopIteration):
+            wl.step()
+        self.assertEqual(wl.last_event_time, job.submission_time)
+
 
 class TestEnvWorkload(unittest.TestCase):
     def test_distribution_factory(self):
