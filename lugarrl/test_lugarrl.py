@@ -1135,11 +1135,25 @@ class TestRewardMappers(unittest.TestCase):
         total_jobs = 100
         scheduled_jobs = 5
         execution_time = 10
+        reward_methods = [
+            'all', 'waiting', 'job-slots', 'running-job-slots'
+        ]
         for e in 'DeepRM-v0 CompactRM-v0'.split():
-            for m, mapper in enumerate('all waiting job-slots'.split()):
+            for m, mapper in enumerate(reward_methods):
                 env: Union[
                     compact_env.CompactRmEnv, deeprm_env.DeepRmEnv
-                ] = gym.make(e, reward_jobs=mapper)
+                ] = gym.make(
+                    e,
+                    reward_jobs=mapper,
+                    workload=dict(
+                        type='deeprm',
+                        ignore_memory=False,
+                        new_job_rate=0.0,
+                        small_job_chance=0.0,
+                        max_job_len=15,
+                        max_job_size=10
+                    )
+                )
                 rewards = [
                     -np.sum([
                         1 / execution_time for _ in range(total_jobs)
@@ -1153,6 +1167,11 @@ class TestRewardMappers(unittest.TestCase):
                         1 / execution_time for _ in range(
                             env.job_slots
                         )
+                    ]),
+                    -np.sum([
+                        1 / execution_time for _ in range(
+                            env.job_slots + scheduled_jobs
+                        )
                     ])
                 ]
                 env.reset()
@@ -1161,6 +1180,7 @@ class TestRewardMappers(unittest.TestCase):
                 env.scheduler.submit(jobs)
                 for i in range(scheduled_jobs):
                     env.step(0)
+                env.step(env.job_slots)  # forward time
                 self.assertAlmostEqual(
                     env.reward,
                     rewards[m],

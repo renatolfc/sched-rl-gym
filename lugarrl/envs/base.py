@@ -20,7 +20,8 @@ MAX_TIME_TRACKING_SINCE_LAST_JOB = 10
 class RewardJobs(IntEnum):
     ALL = 0,
     JOB_SLOTS = 1,
-    WAITING = 2
+    WAITING = 2,
+    RUNNING_JOB_SLOTS = 3,
 
     @staticmethod
     def from_str(reward_range: str):
@@ -73,7 +74,10 @@ class BaseRmEnv(ABC, gym.Env):
             RewardJobs.WAITING: lambda: self.scheduler.queue_admission,
             RewardJobs.JOB_SLOTS: lambda: self.scheduler.queue_admission[
                 :self.job_slots
-            ]
+            ],
+            RewardJobs.RUNNING_JOB_SLOTS: lambda:
+                self.scheduler.queue_running +
+                self.scheduler.queue_admission[:self.job_slots],
         }
 
     def _render_state(self):
