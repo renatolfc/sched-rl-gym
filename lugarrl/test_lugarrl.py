@@ -11,6 +11,9 @@ import urllib.request
 
 from pathlib import Path
 
+import gym
+import numpy as np
+
 from . import simulator, job, workload, pool, event, heap, scheduler
 from . import cluster as clstr
 from .envs import workload as env_workload
@@ -1043,3 +1046,67 @@ class TestBaseEnv(unittest.TestCase):
         return list(map(''.join, itertools.product(
             *zip(string.upper(), string.lower())
         )))
+
+
+class TestCompactEnv(unittest.TestCase):
+    @staticmethod
+    def sjf_action(env, observation):
+        "Selects the job SJF (Shortest Job First) would select."
+
+        skip = env.time_horizon * 2 * (1 if env.ignore_memory else 2)
+        size = len(job.JobState._fields)
+        time = job.JobState._fields.index('requested_time')
+        reqs = observation[skip:][time:(env.job_slots * size):size]
+        reqs[reqs == 0] = 1.1
+        action = np.argmin(reqs)
+        return action
+
+    def test_instantiation_with_gym(self):
+        gym.make('CompactRM-v0')
+
+    def test_environment_with_sjf_agent_to_completion(self):
+        env: compact_env.CompactRmEnv = gym.make('CompactRM-v0')
+        observation = env.reset()
+        action = 0
+        done = False
+        while not done:
+            observation, reward, done, _ = env.step(action)
+            action = self.sjf_action(env, observation)
+            submission_times = [
+                j.execution_time
+                for j in env.scheduler.queue_admission[:env.job_slots]
+            ]
+            self.assertEqual(
+                action,
+                np.argmin(submission_times) if submission_times else 0
+            )
+
+
+class TestDeepRmEnv(unittest.TestCase):
+    def test_instantiation_with_gym(self):
+        gym.make('DeepRM-v0')
+
+    def test_environment_with_trivial_agent(self):
+        env: deeprm_env.DeepRmEnv = gym.make(
+            'DeepRM-v0', **{'use_raw_state': True}
+        )
+        observation = env.reset()
+        action = 0
+        done = False
+        while not done:
+            observation, reward, done, _ = env.step(action)
+        self.assertTrue(done)
+
+    def test_environment_with_event_based_simulator(self):
+        env: deeprm_env.DeepRmEnv = gym.make(
+            'DeepRM-v0', **{
+                'use_raw_state': True,
+                'simulation_type': 'event-based'
+            }
+        )
+        observation = env.reset()
+        action = 0
+        done = False
+        while not done:
+            observation, reward, done, _ = env.step(action)
+        self.assertTrue(done)
