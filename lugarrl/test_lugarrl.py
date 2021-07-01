@@ -6,6 +6,7 @@ import gzip
 import random
 import tempfile
 import unittest
+import itertools
 import urllib.request
 
 from pathlib import Path
@@ -14,6 +15,7 @@ from . import simulator, job, workload, pool, event, heap, scheduler
 from . import cluster as clstr
 from .envs import workload as env_workload
 from .workload import swf_parser
+from .envs import base, deeprm_env, compact_env
 
 
 class MockLugarRL(object):
@@ -1014,3 +1016,30 @@ class TestEnvWorkload(unittest.TestCase):
         wl = env_workload.build(config)
         j = wl.step()[0]
         self.assertLessEqual(j.requested_time, 10)
+
+
+class TestBaseEnv(unittest.TestCase):
+    def test_rewardjobs_parsing(self):
+        with self.assertRaises(ValueError):
+            base.RewardJobs.from_str("none")
+        for string in self.all_casings("all"):
+            self.assertEqual(
+                base.RewardJobs.from_str(string),
+                base.RewardJobs.ALL
+            )
+        for string in self.all_casings("waiting"):
+            self.assertEqual(
+                base.RewardJobs.from_str(string),
+                base.RewardJobs.WAITING
+            )
+        for string in self.all_casings("job_slots"):
+            self.assertEqual(
+                base.RewardJobs.from_str(string),
+                base.RewardJobs.JOB_SLOTS
+            )
+
+    @staticmethod
+    def all_casings(string):
+        return list(map(''.join, itertools.product(
+            *zip(string.upper(), string.lower())
+        )))
