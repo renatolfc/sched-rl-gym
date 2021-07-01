@@ -91,6 +91,7 @@ class DeepRmEnv(BaseRmEnv):
             NullScheduler(
                 self.processors, self.memory, ignore_memory=self.ignore_memory
             ),
+            simulation_type=self.simulation_type,
             job_slots=self.job_slots
         )
 
