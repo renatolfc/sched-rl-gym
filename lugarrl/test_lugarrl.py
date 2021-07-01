@@ -10,6 +10,7 @@ import itertools
 import urllib.request
 
 from pathlib import Path
+from typing import Union
 
 import gym
 import numpy as np
@@ -1118,3 +1119,50 @@ class TestDeepRmEnv(unittest.TestCase):
         while not done:
             observation, reward, done, _ = env.step(action)
         self.assertTrue(done)
+
+class TestRewardMappers(unittest.TestCase):
+    def setUp(self) -> None:
+        self.counter = 0
+
+    def make_job(self, submission, duration, processors):
+        self.counter += 1
+        return job.Job(
+            self.counter, submission, duration, processors, 1, 1, processors,
+            duration, 1, job.JobStatus.SCHEDULED, 1, 1, 1, 1, 1, -1, -1, 0
+        )
+
+    def test_instantiation_and_reward_computation(self):
+        total_jobs = 100
+        scheduled_jobs = 5
+        execution_time = 10
+        for e in 'DeepRM-v0 CompactRM-v0'.split():
+            for m, mapper in enumerate('all waiting job-slots'.split()):
+                env: Union[
+                    compact_env.CompactRmEnv, deeprm_env.DeepRmEnv
+                ] = gym.make(e, reward_jobs=mapper)
+                rewards = [
+                    -np.sum([
+                        1 / execution_time for _ in range(total_jobs)
+                    ]),
+                    -np.sum([
+                        1 / execution_time for _ in range(
+                            total_jobs - scheduled_jobs
+                        )
+                    ]),
+                    -np.sum([
+                        1 / execution_time for _ in range(
+                            env.job_slots
+                        )
+                    ])
+                ]
+                env.reset()
+                jobs = [self.make_job(0, execution_time, 1)
+                        for i in range(total_jobs)]
+                env.scheduler.submit(jobs)
+                for i in range(scheduled_jobs):
+                    env.step(0)
+                self.assertAlmostEqual(
+                    env.reward,
+                    rewards[m],
+                    delta=1e-5
+                )
