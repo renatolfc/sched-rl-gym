@@ -25,7 +25,7 @@ registered. Lucky for you, it supports auto registration upon first
 import.
 
 Therefore, you can get started by importing the environment with
-``import lugarrl.envs as schedgym``.
+``import schedgym.envs as schedgym``.
 
 As a parallel with the CartPole example in the Gym documentation, the
 following code will implement a random agent:
@@ -33,7 +33,7 @@ following code will implement a random agent:
 .. code:: python
 
    import gym
-   import lugarrl.envs as schedgym
+   import schedgym.envs as schedgym
 
    env = gym.make('DeepRM-v0', use_raw_state=True)
    env.reset()
