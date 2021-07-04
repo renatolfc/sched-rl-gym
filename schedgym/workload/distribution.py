@@ -9,8 +9,8 @@ import itertools
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from lugarrl.job import Job, JobParameters
-from lugarrl.workload.base import WorkloadGenerator
+from schedgym.job import Job, JobParameters
+from schedgym.workload.base import WorkloadGenerator
 
 
 class DistributionalWorkloadGenerator(WorkloadGenerator, ABC):

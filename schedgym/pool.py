@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""pool - Resource Pool management (see :class:`lugarrl.cluster.Cluster`)."""
+"""pool - Resource Pool management (see :class:`schedgym.cluster.Cluster`)."""
 
 import copy
 import enum
@@ -19,7 +19,7 @@ class ResourceType(enum.IntEnum):
 class ResourcePool:
     """A pool of resources.
 
-    This is the basic structure managed by a :class:`lugarrl.cluster.Cluster`.
+    This is the basic structure managed by a :class:`schedgym.cluster.Cluster`.
 
     Parameters
     ----------
@@ -125,14 +125,14 @@ class ResourcePool:
     def allocate(self, intervals: Iterable[Interval]) -> None:
         """Adds a set of intervals to the current used pool of resources.
 
-        This is the opposite of :func:`lugarrl.cluster.Cluster.free`.
+        This is the opposite of :func:`schedgym.cluster.Cluster.free`.
 
         Parameters
         ----------
             intervals : Iterable[Interval]
                 The set of intervals that should be allocated (most likely,
                 this will be the resource of calling
-                :func:`lugarrl.cluster.Cluster.find`).
+                :func:`schedgym.cluster.Cluster.find`).
 
         Returns:
             None
@@ -148,14 +148,14 @@ class ResourcePool:
     def free(self, intervals: Iterable[Interval]) -> None:
         """Frees a set of used resources.
 
-        This is the opposite of :func:`lugarrl.cluster.Cluster.allocate`.
+        This is the opposite of :func:`schedgym.cluster.Cluster.allocate`.
 
         Parameters
         ----------
             intervals : Iterable[Interval]
                 The set of intervals to be freed (most likely, these will have
                 been allocated with the output of
-                :func:`lugarrl.cluster.Cluster.find`).
+                :func:`schedgym.cluster.Cluster.find`).
         """
         for i in intervals:
             if i not in self.used_pool:

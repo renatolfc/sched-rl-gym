@@ -51,9 +51,9 @@ class Job:
     initializer arguments follow the same ordering and have the same meaning
     than those in the SWF description.
 
-    This makes use of the :class:`lugarrl.resource.Resource` class to keep
+    This makes use of the :class:`schedgym.resource.Resource` class to keep
     track of the assigned resources to the job. Resource assignment itself is
-    performed by :func:`lugarrl.scheduler.scheduler.Scheduler.assign_schedule`.
+    performed by :func:`schedgym.scheduler.scheduler.Scheduler.assign_schedule`.
 
     The figure below shows the relationship between jobs, resources, and the
     basic data structure for resource management (`IntervalTree`).
@@ -244,7 +244,7 @@ class JobParameters:
         upper_mem_bound : int
             The maximum amount of memory a job will consume
 
-    Used by :class:`lugarrl.workload.distribution.BinomialWorkloadGenerator`.
+    Used by :class:`schedgym.workload.distribution.BinomialWorkloadGenerator`.
     """
     lower_time_bound: int
     upper_time_bound: int

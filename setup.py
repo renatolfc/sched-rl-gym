@@ -10,7 +10,7 @@ https://github.com/pypa/sampleproject
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
 import pathlib
-import lugarrl
+import schedgym
 
 here = pathlib.Path(__file__).parent.resolve()
 
@@ -73,8 +73,8 @@ setup(
 
     keywords='gym, reinforcement learning, artificial intelligence',
 
-    package_dir={'': 'lugarrl'},
-    packages=find_packages(where='lugarrl'),
+    package_dir={'': 'schedgym'},
+    packages=find_packages(where='schedgym'),
     python_requires='>=3.6, <4',
 
     # This field lists other packages that your project depends on to run.

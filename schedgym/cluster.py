@@ -3,7 +3,7 @@
 
 """cluster - Classes for cluster management
 
-The workhorse of this module is the :class:`lugarrl.cluster.Cluster` class,
+The workhorse of this module is the :class:`schedgym.cluster.Cluster` class,
 which manages resources in a cluster.
 """
 
@@ -167,7 +167,7 @@ class Cluster:
         Returns:
             A set of resources if the job fits the cluster at time `time`, or
             an empty set of resources otherwise. (See
-            :func:`lugarrl.cluster.Cluster.find`.)
+            :func:`schedgym.cluster.Cluster.find`.)
         """
         used = Resource(self.processors.used_pool, self.memory.used_pool)
         valid = lambda e, time: time + 1 <= e.time < job.requested_time + time

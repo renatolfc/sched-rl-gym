@@ -5,7 +5,7 @@
 
 import random
 
-from lugarrl.scheduler import PackerScheduler
+from schedgym.scheduler import PackerScheduler
 
 
 class RandomScheduler(PackerScheduler):

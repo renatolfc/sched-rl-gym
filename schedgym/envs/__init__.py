@@ -11,11 +11,11 @@ logger = logging.getLogger(__name__)
 register(
     id='DeepRM-v0',
     nondeterministic=False,
-    entry_point='lugarrl.envs:DeepRmEnv',
+    entry_point='schedgym.envs:DeepRmEnv',
 )
 
 register(
     id='CompactRM-v0',
     nondeterministic=False,
-    entry_point='lugarrl.envs:CompactRmEnv'
+    entry_point='schedgym.envs:CompactRmEnv'
 )

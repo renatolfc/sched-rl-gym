@@ -3,7 +3,7 @@
 
 "backfilling_scheduler - Module for a conservative backfilling scheduler"
 
-from lugarrl.scheduler import Scheduler
+from schedgym.scheduler import Scheduler
 
 
 class BackfillingScheduler(Scheduler):

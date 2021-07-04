@@ -17,9 +17,9 @@ import collections.abc
 
 import numpy as np
 
-from lugarrl.cluster import Cluster
-from lugarrl.job import Job, JobStatus, Resource
-from lugarrl.event import JobEvent, EventType, EventQueue
+from schedgym.cluster import Cluster
+from schedgym.job import Job, JobStatus, Resource
+from schedgym.event import JobEvent, EventType, EventQueue
 
 
 class Stats(NamedTuple):

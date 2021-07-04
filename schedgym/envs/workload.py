@@ -12,7 +12,7 @@ from collections import namedtuple
 from parallelworkloads.lublin99 import Lublin99
 from parallelworkloads.tsafrir05 import Tsafrir05
 
-from lugarrl import workload as wl, job
+from schedgym import workload as wl, job
 
 JobParameters = namedtuple('JobParameters', ['small', 'large'])
 

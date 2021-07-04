@@ -7,7 +7,7 @@ This module comprises an abstract base class for simulation and a time-based
 simulator that inherits directly from `Simulator`.
 
 The time-based simulator is coupled with
-a :class:`lugarrl.workload.WorkloadGenerator` to generate jobs at a given time
+a :class:`schedgym.workload.WorkloadGenerator` to generate jobs at a given time
 step.
 """
 

@@ -4,8 +4,8 @@
 from enum import IntEnum
 from typing import Union, Optional
 
-from lugarrl.scheduler import NullScheduler
-from lugarrl.envs.workload import (
+from schedgym.scheduler import NullScheduler
+from schedgym.envs.workload import (
     DeepRmWorkloadGenerator,
     SyntheticWorkloadGenerator
 )

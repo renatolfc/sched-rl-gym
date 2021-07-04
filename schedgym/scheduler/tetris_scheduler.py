@@ -3,8 +3,8 @@
 
 "tetris_scheduler - A scheduler that mixes Packer and SJF"
 
-from lugarrl.job import Job
-from lugarrl.scheduler import PackerScheduler
+from schedgym.job import Job
+from schedgym.scheduler import PackerScheduler
 
 
 class TetrisScheduler(PackerScheduler):

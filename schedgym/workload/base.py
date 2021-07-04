@@ -6,7 +6,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List
 
-from lugarrl.job import Job
+from schedgym.job import Job
 
 
 class WorkloadGenerator(ABC):

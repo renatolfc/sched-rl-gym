@@ -6,9 +6,9 @@
 
 from typing import List, Tuple, Optional
 
-from lugarrl.job import Job, JobStatus
-from lugarrl.scheduler import Scheduler
-from lugarrl.event import JobEvent
+from schedgym.job import Job, JobStatus
+from schedgym.scheduler import Scheduler
+from schedgym.event import JobEvent
 
 
 class EasyScheduler(Scheduler):

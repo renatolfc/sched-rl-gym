@@ -5,8 +5,8 @@
 
 from typing import List
 
-from lugarrl.job import Job
-from lugarrl.scheduler import Scheduler
+from schedgym.job import Job
+from schedgym.scheduler import Scheduler
 
 
 class FifoScheduler(Scheduler):
