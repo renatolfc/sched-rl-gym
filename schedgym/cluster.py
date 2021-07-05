@@ -207,23 +207,6 @@ class Cluster:
         else:
             return processors, memory
 
-    def get_job_state(self, job: Job, timesteps: int) -> Tuple[np.ndarray, ...]:
-        """Gets the stat of a job given a time horizon.
-
-        Parameters
-        ----------
-            timesteps : int
-                The number of time steps to look into the future to create this
-                representation.
-        """
-        processors = np.zeros((timesteps, self.processors.size))
-        memory = np.zeros((timesteps, self.memory.size))
-        processors[:job.requested_time, :job.requested_processors] = 1.0
-        if self.ignore_memory:
-            return (processors,)
-        memory[:job.requested_time, :job.requested_memory] = 1.0
-        return processors, memory
-
     def __bool__(self):
         return self.processors.free_resources != 0 and\
             self.memory.free_resources != 0
