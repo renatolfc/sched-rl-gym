@@ -93,7 +93,8 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
             j = self.small_job.sample(self.current_time)
         else:
             j = self.large_job.sample(self.current_time)
-        if self.runtime_estimates.startswith('gaussian'):
+        if self.runtime_estimates and \
+                self.runtime_estimates.startswith('gaussian'):
             diff = random.gauss(
                 0,
                 self.estimate_parameters * j.execution_time
