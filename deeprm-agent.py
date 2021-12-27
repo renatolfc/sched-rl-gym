@@ -14,7 +14,7 @@ from typing import List
 from pathlib import Path
 from collections import OrderedDict
 
-import lugarrl.envs as deeprm
+import schedgym.envs as deeprm
 
 from numpy.lib.stride_tricks import as_strided
 
@@ -26,7 +26,7 @@ import torch.utils.data as data
 import torch.multiprocessing as mp
 from torch.distributions import Categorical
 
-from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard.writer import SummaryWriter
 
 SLOTS: int = 10
 BACKLOG: int = 60

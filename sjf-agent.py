@@ -5,7 +5,7 @@ import os
 import gym
 import json
 import numpy as np
-import lugarrl.envs as deeprm
+import schedgym.envs as deeprm
 
 EPISODES = 1
 MAX_EPISODE_LENGTH = 200

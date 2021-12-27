@@ -1,4 +1,4 @@
-lugarrl package
+schedgym package
 ===============
 
 Subpackages
@@ -7,67 +7,67 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   lugarrl.envs
-   lugarrl.scheduler
-   lugarrl.workload
+   schedgym.envs
+   schedgym.scheduler
+   schedgym.workload
 
 Submodules
 ----------
 
-lugarrl.resource module
+schedgym.resource module
 -----------------------
 
-.. automodule:: lugarrl.resource
+.. automodule:: schedgym.resource
    :members:
    :undoc-members:
    :show-inheritance:
 
-lugarrl.cluster module
+schedgym.cluster module
 ----------------------
 
-.. automodule:: lugarrl.cluster
+.. automodule:: schedgym.cluster
    :members:
    :undoc-members:
    :show-inheritance:
 
-lugarrl.event module
+schedgym.event module
 --------------------
 
-.. automodule:: lugarrl.event
+.. automodule:: schedgym.event
    :members:
    :undoc-members:
    :show-inheritance:
 
-lugarrl.heap module
+schedgym.heap module
 -------------------
 
-.. inheritance-diagram:: lugarrl.heap.Heap
+.. inheritance-diagram:: schedgym.heap.Heap
 
-.. automodule:: lugarrl.heap
+.. automodule:: schedgym.heap
    :members:
    :undoc-members:
    :show-inheritance:
 
-lugarrl.job module
+schedgym.job module
 ------------------
 
-.. automodule:: lugarrl.job
+.. automodule:: schedgym.job
    :members:
    :undoc-members:
    :show-inheritance:
 
-lugarrl.pool module
+schedgym.pool module
 -------------------
 
-.. automodule:: lugarrl.pool
+.. automodule:: schedgym.pool
    :members:
    :undoc-members:
    :show-inheritance:
 
-lugarrl.simulator module
+schedgym.simulator module
 ------------------------
 
-.. automodule:: lugarrl.simulator
+.. automodule:: schedgym.simulator
    :members:
    :undoc-members:
    :show-inheritance:
@@ -75,7 +75,7 @@ lugarrl.simulator module
 Module contents
 ---------------
 
-.. automodule:: lugarrl
+.. automodule:: schedgym
    :members:
    :undoc-members:
    :show-inheritance:
