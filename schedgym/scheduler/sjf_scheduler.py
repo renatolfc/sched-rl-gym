@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"sjf_scheduler - Shortest job first scheduler"
+"""sjf_scheduler - Shortest job first scheduler"""
 
 from typing import List
 
@@ -10,7 +10,8 @@ from schedgym.scheduler import Scheduler
 
 
 class SjfScheduler(Scheduler):
-    "A shortest job first scheduler."
+    """A shortest job first scheduler."""
+
     def schedule(self) -> None:
         """Schedules jobs according to shortest job first.
 
@@ -29,8 +30,9 @@ class SjfScheduler(Scheduler):
         # FIXME: With the current implementation, smaller jobs that are
         # longer may be scheduled first.
         for job in sorted(
-                self.queue_admission,
-                key=lambda j: (j.requested_time, j.submission_time)):
+            self.queue_admission,
+            key=lambda j: (j.requested_time, j.submission_time),
+        ):
             resources = self.can_schedule_now(job)
             if resources:
                 self.assign_schedule(job, resources, self.current_time)

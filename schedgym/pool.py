@@ -11,7 +11,8 @@ from intervaltree import IntervalTree, Interval
 
 
 class ResourceType(enum.IntEnum):
-    "Enumeration to determine which kind of resource we're managing."
+    """Enumeration to determine which kind of resource we're managing."""
+
     CPU = 1
     MEMORY = 0
 
@@ -30,10 +31,15 @@ class ResourcePool:
         used_pool : IntervalTree
             The set of resources currently in use in this resource pool.
     """
+
     used_pool: IntervalTree
 
-    def __init__(self, resource_type: ResourceType, size: int,
-                 used_pool: IntervalTree = None):
+    def __init__(
+        self,
+        resource_type: ResourceType,
+        size: int,
+        used_pool: IntervalTree = None,
+    ):
         self.size = size
         self.used_resources = 0
         self.type = resource_type
@@ -41,17 +47,17 @@ class ResourcePool:
             self.used_pool = IntervalTree()
         else:
             self.used_pool = used_pool
-            self.used_resources = sum([
-                ResourcePool.measure(i) for i in used_pool
-            ])
+            self.used_resources = sum(
+                [ResourcePool.measure(i) for i in used_pool]
+            )
 
     def clone(self):
-        "Duplicates this ResourcePool in memory."
+        """Duplicates this ResourcePool in memory."""
         return copy.deepcopy(self)
 
     @property
     def free_resources(self) -> int:
-        "Returns the amount of free resources in this resource pool"
+        """Returns the amount of free resources in this resource pool"""
         return self.size - self.used_resources
 
     def fits(self, size) -> bool:
@@ -116,9 +122,11 @@ class ResourcePool:
                 used.add(interval)
                 used_size = temp_size
             else:
-                used.add(Interval(
-                    interval.begin, interval.begin + size - used_size, data
-                ))
+                used.add(
+                    Interval(
+                        interval.begin, interval.begin + size - used_size, data
+                    )
+                )
                 break
         return used
 
@@ -140,7 +148,7 @@ class ResourcePool:
         for i in intervals:
             if self.used_resources + self.measure(i) > self.size:
                 raise AssertionError(
-                    "Tried to allocate past size of resource pool"
+                    'Tried to allocate past size of resource pool'
                 )
             self.used_pool.add(i)
             self.used_resources += self.measure(i)
@@ -159,7 +167,7 @@ class ResourcePool:
         """
         for i in intervals:
             if i not in self.used_pool:
-                raise AssertionError("Tried to free unused resource set")
+                raise AssertionError('Tried to free unused resource set')
             self.used_pool.remove(i)
             self.used_resources -= self.measure(i)
 
@@ -170,6 +178,7 @@ class ResourcePool:
         return [i for i in self.used_pool]
 
     def __repr__(self):
-        return \
-            f'ResourcePool(resource_type={self.type}, ' \
+        return (
+            f'ResourcePool(resource_type={self.type}, '
             f'size={self.size}, used_pool={self.used_pool})'
+        )

@@ -55,14 +55,19 @@ class Cluster:
         used_memory : Optional[Resource]
             Amount of memory already used in this cluster
     """
+
     ignore_memory: bool
     memory: pool.ResourcePool
     processors: pool.ResourcePool
 
-    def __init__(self, processors: int, memory: int,
-                 ignore_memory: bool = False,
-                 used_processors: Optional[Resource] = None,
-                 used_memory: Optional[Resource] = None):
+    def __init__(
+        self,
+        processors: int,
+        memory: int,
+        ignore_memory: bool = False,
+        used_processors: Optional[Resource] = None,
+        used_memory: Optional[Resource] = None,
+    ):
         self.ignore_memory = ignore_memory
         self.memory = pool.ResourcePool(
             pool.ResourceType.MEMORY, memory, used_memory
@@ -88,8 +93,9 @@ class Cluster:
             True if the job fits the cluster (can be added to the cluster), and
             False otherwise
         """
-        return self.processors.fits(job.requested_processors) and \
-            (self.ignore_memory or self.memory.fits(job.requested_memory))
+        return self.processors.fits(job.requested_processors) and (
+            self.ignore_memory or self.memory.fits(job.requested_memory)
+        )
 
     def allocate(self, job: Job) -> None:
         """Checks whether a job fits the system and allocates resources for it.
@@ -101,7 +107,7 @@ class Cluster:
         """
         if not self.fits(job):
             raise AssertionError(
-                f"Unable to allocate resources for {job} in {self}"
+                f'Unable to allocate resources for {job} in {self}'
             )
         self.processors.allocate(job.resources.processors)
         self.memory.allocate(job.resources.memory)
@@ -142,8 +148,9 @@ class Cluster:
         if not self.ignore_memory:
             self.memory.free(job.resources.memory)
 
-    def find_resources_at_time(self, time: int, job: Job, events:
-                               Iterable[JobEvent]) -> Resource:
+    def find_resources_at_time(
+        self, time: int, job: Job, events: Iterable[JobEvent]
+    ) -> Resource:
         """Finds resources for a job at a given time step.
 
         This is probably the most complex (and most important) function in this
@@ -171,8 +178,11 @@ class Cluster:
         """
         used = Resource(self.processors.used_pool, self.memory.used_pool)
         valid = lambda e, time: time + 1 <= e.time < job.requested_time + time
-        for event in (e for e in events if (valid(e, time) and
-                                            e.type == EventType.JOB_START)):
+        for event in (
+            e
+            for e in events
+            if (valid(e, time) and e.type == EventType.JOB_START)
+        ):
             for i in event.processors:
                 used.processors.add(i)
             for i in event.memory:
@@ -180,8 +190,11 @@ class Cluster:
         used.processors.merge_overlaps()
         used.memory.merge_overlaps()
         return Cluster(
-            self.processors.size, self.memory.size, self.ignore_memory,
-            used.processors, used.memory
+            self.processors.size,
+            self.memory.size,
+            self.ignore_memory,
+            used.processors,
+            used.memory,
         ).find(job)
 
     @property
@@ -195,12 +208,12 @@ class Cluster:
         processors = (
             self.processors.free_resources,
             self.processors.used_resources,
-            {(i.begin, i.end): i.data for i in self.processors.used_pool}
+            {(i.begin, i.end): i.data for i in self.processors.used_pool},
         )
         memory = (
             self.memory.free_resources,
             self.memory.used_resources,
-            {(i.begin, i.end): i.data for i in self.memory.used_pool}
+            {(i.begin, i.end): i.data for i in self.memory.used_pool},
         )
         if self.ignore_memory:
             return (processors,)
@@ -208,13 +221,17 @@ class Cluster:
             return processors, memory
 
     def __bool__(self):
-        return self.processors.free_resources != 0 and\
-            self.memory.free_resources != 0
+        return (
+            self.processors.free_resources != 0
+            and self.memory.free_resources != 0
+        )
 
     def __repr__(self):
-        return \
+        return (
             f'Cluster({self.processors}, {self.memory}, {self.ignore_memory})'
+        )
 
     def __str__(self):
-        return \
+        return (
             f'Cluster({self.processors}, {self.memory}, {self.ignore_memory})'
+        )

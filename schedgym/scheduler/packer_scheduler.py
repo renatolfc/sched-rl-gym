@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"packer_scheduler - A scheduler based on the Packer heuristic"
+"""packer_scheduler - A scheduler based on the Packer heuristic"""
 
 from typing import List
 
@@ -32,17 +32,16 @@ class PackerScheduler(Scheduler):
                 The job whose priority is to be calculated.
         """
         return (
-            self.free_resources[0] * j.requested_processors +
-            self.free_resources[1] * j.requested_memory
+            self.free_resources[0] * j.requested_processors
+            + self.free_resources[1] * j.requested_memory
         )
 
     def schedule(self) -> None:
-        """Schedules jobs according to the Packer heuristic.
-
-        """
+        """Schedules jobs according to the Packer heuristic."""
         ignored_jobs: List[Job] = []
-        for job in reversed(sorted(
-                self.queue_admission, key=lambda j: self.get_priority(j))):
+        for job in reversed(
+            sorted(self.queue_admission, key=lambda j: self.get_priority(j))
+        ):
             resources = self.can_schedule_now(job)
             if resources:
                 self.assign_schedule(job, resources, self.current_time)

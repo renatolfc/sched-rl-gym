@@ -19,7 +19,8 @@ from . import workload, scheduler as sched
 
 
 class SimulationType(enum.Enum):
-    "Enumeration to differentiate between simulation types"
+    """Enumeration to differentiate between simulation types"""
+
     TIME_BASED = 0
     EVENT_BASED = 1
 
@@ -35,13 +36,16 @@ class Simulator(ABC):
             A scheduling algorithm that will schedule jobs according to a given
             rule.
     """
+
     current_time: int
     scheduler: sched.Scheduler
     simulation_start_time: int
 
-    def __init__(self,
-                 workload_generator: workload.WorkloadGenerator,
-                 scheduler: sched.Scheduler):
+    def __init__(
+        self,
+        workload_generator: workload.WorkloadGenerator,
+        scheduler: sched.Scheduler,
+    ):
 
         self.current_time = 0
         self.scheduler = scheduler
@@ -49,25 +53,31 @@ class Simulator(ABC):
         self.workload: workload.WorkloadGenerator = workload_generator
 
     @staticmethod
-    def make(simulation_type: SimulationType,
-             workload_generator: workload.WorkloadGenerator,
-             scheduler: sched.Scheduler):
+    def make(
+        simulation_type: SimulationType,
+        workload_generator: workload.WorkloadGenerator,
+        scheduler: sched.Scheduler,
+    ):
         """Factory method for instantiating new simulators."""
         if simulation_type == SimulationType.TIME_BASED:
             return TimeBasedSimulator(workload_generator, scheduler)
-        raise RuntimeError(f"Unsupported simulation type {simulation_type}")
+        raise RuntimeError(f'Unsupported simulation type {simulation_type}')
 
     @abstractmethod
     def step(self, submit) -> None:
-        "Runs a simulation step."
+        """Runs a simulation step."""
 
 
 class TimeBasedSimulator(Simulator):
     """A simulator that is based on time."""
+
     scheduler: sched.Scheduler
 
-    def __init__(self, workload_generator: workload.WorkloadGenerator,
-                 scheduler: sched.Scheduler):
+    def __init__(
+        self,
+        workload_generator: workload.WorkloadGenerator,
+        scheduler: sched.Scheduler,
+    ):
         super().__init__(workload_generator, scheduler)
         self.current_time = 0
 

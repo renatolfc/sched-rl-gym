@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"base - base module for all workload generators"
+"""base - base module for all workload generators"""
 
 from abc import ABC, abstractmethod
 from typing import Optional, List
@@ -10,7 +10,8 @@ from schedgym.job import Job
 
 
 class WorkloadGenerator(ABC):
-    "An abstract workload generator"
+    """An abstract workload generator"""
+
     current_time: int
 
     @abstractmethod
@@ -24,7 +25,7 @@ class WorkloadGenerator(ABC):
         ----------
             offset : int
                 The number of time steps to advance the workload generator.
-         """
+        """
 
     @abstractmethod
     def __len__(self):

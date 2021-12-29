@@ -40,25 +40,52 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
 
     @staticmethod
     def build(
-        new_job_rate, small_job_chance,
-        max_job_len, max_job_size, ignore_memory=False,
-        min_large_job_len=None, max_small_job_len=None,
-        min_small_job_len=None, min_dominant_job_size=None,
-        min_other_job_size=None, max_other_job_size=None,
-        runtime_estimates=None, estimate_parameters=None
-    ) -> "DeepRmWorkloadGenerator":
+        new_job_rate,
+        small_job_chance,
+        max_job_len,
+        max_job_size,
+        ignore_memory=False,
+        min_large_job_len=None,
+        max_small_job_len=None,
+        min_small_job_len=None,
+        min_dominant_job_size=None,
+        min_other_job_size=None,
+        max_other_job_size=None,
+        runtime_estimates=None,
+        estimate_parameters=None,
+    ) -> 'DeepRmWorkloadGenerator':
         # Time-related job parameters {{{
-        small_job_time_lower = 1 if min_small_job_len is None else min_small_job_len
-        small_job_time_upper = max(max_job_len // 5, 1) if max_small_job_len is None else max_small_job_len
-        large_job_time_lower = int(max_job_len * (2 / 3)) if min_large_job_len is None else min_large_job_len
+        small_job_time_lower = (
+            1 if min_small_job_len is None else min_small_job_len
+        )
+        small_job_time_upper = (
+            max(max_job_len // 5, 1)
+            if max_small_job_len is None
+            else max_small_job_len
+        )
+        large_job_time_lower = (
+            int(max_job_len * (2 / 3))
+            if min_large_job_len is None
+            else min_large_job_len
+        )
         large_job_time_upper = max_job_len
         # }}}
 
         # Resource-related job parameters {{{
-        dominant_resource_lower = max_job_size // 2 if min_dominant_job_size is None else min_dominant_job_size
+        dominant_resource_lower = (
+            max_job_size // 2
+            if min_dominant_job_size is None
+            else min_dominant_job_size
+        )
         dominant_resource_upper = max_job_size
-        other_resource_lower = 1 if min_other_job_size is None else min_other_job_size
-        other_resource_upper = max_job_size // 5 if max_other_job_size is None else max_other_job_size
+        other_resource_lower = (
+            1 if min_other_job_size is None else min_other_job_size
+        )
+        other_resource_upper = (
+            max_job_size // 5
+            if max_other_job_size is None
+            else max_other_job_size
+        )
         # }}}
 
         cpu_dominant_parameters = JobParameters(  # {{{
@@ -68,7 +95,7 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
                 dominant_resource_lower,
                 dominant_resource_upper,
                 other_resource_lower,
-                other_resource_upper
+                other_resource_upper,
             ),
             job.JobParameters(
                 large_job_time_lower,
@@ -76,7 +103,7 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
                 dominant_resource_lower,
                 dominant_resource_upper,
                 other_resource_lower,
-                other_resource_upper
+                other_resource_upper,
             ),
         )  # }}}
 
@@ -101,29 +128,43 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
 
         generators = (
             wl.BinomialWorkloadGenerator(
-                new_job_rate, small_job_chance,
-                cpu_dominant_parameters.small, cpu_dominant_parameters.large,
+                new_job_rate,
+                small_job_chance,
+                cpu_dominant_parameters.small,
+                cpu_dominant_parameters.large,
                 runtime_estimates=runtime_estimates,
                 estimate_parameters=estimate_parameters,
             ),
             wl.BinomialWorkloadGenerator(
-                new_job_rate, small_job_chance,
-                mem_dominant_parameters.small, mem_dominant_parameters.large,
+                new_job_rate,
+                small_job_chance,
+                mem_dominant_parameters.small,
+                mem_dominant_parameters.large,
                 runtime_estimates=runtime_estimates,
                 estimate_parameters=estimate_parameters,
             ),
         )
 
         return DeepRmWorkloadGenerator(
-            *generators[:(1 if ignore_memory else None)]
+            *generators[: (1 if ignore_memory else None)]
         )
 
 
 class SyntheticWorkloadGenerator(wl.TraceGenerator):
     """A synthetic workload generator based on realistic models."""
-    def __init__(self, length, nodes, start_time=8, random_seed=0,
-                 restart=False, uniform_proportion=.95, cdf_break=.5,
-                 runtime_estimates=None, estimate_parameters=None):
+
+    def __init__(
+        self,
+        length,
+        nodes,
+        start_time=8,
+        random_seed=0,
+        restart=False,
+        uniform_proportion=0.95,
+        cdf_break=0.5,
+        runtime_estimates=None,
+        estimate_parameters=None,
+    ):
         """Synthetic workload generator based on Lublin's work.
 
         Parameters
@@ -170,15 +211,18 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
         self.random_seed = random_seed
         self.nodes = nodes
 
-        uniform_low_prob = .8
+        uniform_low_prob = 0.8
         log2_size = log2(nodes)
         min_umed = log2_size - 3.5
         max_umed = log2_size - 1.5
         breaking_point = cdf_break * min_umed + (1 - cdf_break) * max_umed
 
         self.lublin.setParallelJobProbabilities(
-            False, uniform_low_prob, breaking_point, log2_size,
-            uniform_proportion
+            False,
+            uniform_low_prob,
+            breaking_point,
+            log2_size,
+            uniform_proportion,
         )
 
         self.runtime_estimates = runtime_estimates
@@ -188,7 +232,7 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
         super().__init__(restart, trace)
 
     def refresh_jobs(self):
-        "Refreshes the underlying job list."
+        """Refreshes the underlying job list."""
         jobs = self.lublin.generate()
         if self.runtime_estimates:
             if self.runtime_estimates == 'tsafrir':
@@ -200,10 +244,11 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
                 jobs = tsafrir.generate(jobs)
             elif self.runtime_estimates == 'gaussian':
                 for j in jobs:
-                    j.reqTime = math.ceil(random.gauss(
-                        j.runTime,
-                        self.estimate_parameters * j.runTime
-                    ))
+                    j.reqTime = math.ceil(
+                        random.gauss(
+                            j.runTime, self.estimate_parameters * j.runTime
+                        )
+                    )
                     if j.reqTime < 1:
                         j.reqTime = 1
             else:
@@ -217,14 +262,10 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
 
 def build(workload_config: dict):
     type = workload_config['type']
-    kwargs = {
-        k: v for k, v in workload_config.items() if k != 'type'
-    }
+    kwargs = {k: v for k, v in workload_config.items() if k != 'type'}
     if type == 'deeprm':
         return DeepRmWorkloadGenerator.build(**kwargs)
     elif type == 'lublin':
         return SyntheticWorkloadGenerator(**kwargs)
     else:
-        raise RuntimeError(
-            f"Unsupported workload model type {type} requested"
-        )
+        raise RuntimeError(f'Unsupported workload model type {type} requested')

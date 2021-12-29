@@ -17,5 +17,5 @@ register(
 register(
     id='CompactRM-v0',
     nondeterministic=False,
-    entry_point='schedgym.envs:CompactRmEnv'
+    entry_point='schedgym.envs:CompactRmEnv',
 )

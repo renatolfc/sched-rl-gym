@@ -41,10 +41,13 @@ class NullScheduler(Scheduler):
 
     current_slot: Optional[int]
 
-    def __init__(self, number_of_processors, total_memory, ignore_memory=False):
+    def __init__(
+        self, number_of_processors, total_memory, ignore_memory=False
+    ):
         self.current_slot: Optional[int] = None
-        super().__init__(number_of_processors, total_memory,
-                         ignore_memory=ignore_memory)
+        super().__init__(
+            number_of_processors, total_memory, ignore_memory=ignore_memory
+        )
 
     def step(self, offset: int = None) -> bool:
         """Steps the scheduler by setting which job to choose.
@@ -101,9 +104,11 @@ class NullScheduler(Scheduler):
             bool: True if the selected job was scheduled. False otherwise.
         """
         try:
-            if self.current_slot is not None \
-               and len(self.queue_admission) > 0 \
-               and 0 <= self.current_slot < len(self.queue_admission):
+            if (
+                self.current_slot is not None
+                and len(self.queue_admission) > 0
+                and 0 <= self.current_slot < len(self.queue_admission)
+            ):
                 job: Job = self.queue_admission[self.current_slot]
                 if not self.cluster.fits(job):
                     return False
@@ -117,7 +122,9 @@ class NullScheduler(Scheduler):
         finally:
             self.current_slot = None
 
-    def sjf_lt(self, a: Job, b: Optional[Job]):  # pylint: disable=C, no-self-use
+    def sjf_lt(
+        self, a: Job, b: Optional[Job]
+    ):  # pylint: disable=C, no-self-use
         """Comparison function that gives the same ordering SJF would give.
 
         Parameters

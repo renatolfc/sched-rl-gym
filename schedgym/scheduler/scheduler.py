@@ -10,7 +10,15 @@ that interacts with all other components.
 from abc import ABC, abstractmethod
 from collections import defaultdict, namedtuple
 from typing import (
-    List, Iterable, Tuple, Dict, Any, Sequence, Union, NamedTuple, Optional
+    List,
+    Iterable,
+    Tuple,
+    Dict,
+    Any,
+    Sequence,
+    Union,
+    NamedTuple,
+    Optional,
 )
 
 import collections.abc
@@ -74,8 +82,9 @@ class Scheduler(ABC):
     job_events: EventQueue[JobEvent]
     stats: Dict[int, Stats]
 
-    def __init__(self, number_of_processors, total_memory,
-                 ignore_memory=False):
+    def __init__(
+        self, number_of_processors, total_memory, ignore_memory=False
+    ):
         self.number_of_processors = number_of_processors
         self.total_memory = total_memory
 
@@ -90,32 +99,35 @@ class Scheduler(ABC):
         self.used_processors = 0
         self.ignore_memory = ignore_memory
         self.job_events = EventQueue(self.current_time - 1)
-        self.cluster = Cluster(number_of_processors, total_memory,
-                               ignore_memory)
+        self.cluster = Cluster(
+            number_of_processors, total_memory, ignore_memory
+        )
         self.need_schedule_call = False
-        "Tracks whether we might need to schedule jobs"
+        'Tracks whether we might need to schedule jobs'
 
     @property
     def all_jobs(self) -> List[Job]:
-        "Returns a list of all the jobs that ever got into the system"
-        return self.queue_completed + self.queue_running + self.queue_waiting \
+        """Returns a list of all the jobs that ever got into the system"""
+        return (
+            self.queue_completed
+            + self.queue_running
+            + self.queue_waiting
             + self.queue_admission
+        )
 
     @property
     def slowdown(self) -> List[int]:
-        "Returns the slowdown of all completed jobs"
-        return [
-            j.slowdown for j in self.queue_completed
-        ]
+        """Returns the slowdown of all completed jobs"""
+        return [j.slowdown for j in self.queue_completed]
 
     @property
     def jobs_in_system(self) -> List[Job]:
-        "Returns a list with all the jobs that haven't completed yet"
+        """Returns a list with all the jobs that haven't completed yet"""
         return self.queue_running + self.queue_waiting + self.queue_admission
 
     @property
     def makespan(self) -> int:
-        "Computes the makespan of all finished jobs"
+        """Computes the makespan of all finished jobs"""
         return max([0] + [j.finish_time for j in self.queue_completed])
 
     @property
@@ -132,15 +144,13 @@ class Scheduler(ABC):
 
     @property
     def utilization(self) -> float:
-        "Instant processor utilization."
+        """Instant processor utilization."""
         return self.used_processors / self.number_of_processors
 
     @property
     def bounded_slowdown(self) -> List[int]:
-        "Computes the bounded slowdown for all completed jobs"
-        return [
-            j.bounded_slowdown for j in self.queue_completed
-        ]
+        """Computes the bounded slowdown for all completed jobs"""
+        return [j.bounded_slowdown for j in self.queue_completed]
 
     def _start_running(self, j: Job) -> None:
         """Starts running job `j`.
@@ -174,8 +184,9 @@ class Scheduler(ABC):
         self.used_memory -= j.memory_use
         self.used_processors -= j.processors_allocated
 
-    def _add_job_events(self, job: Job, time: int) -> Tuple[JobEvent,
-                                                            JobEvent]:
+    def _add_job_events(
+        self, job: Job, time: int
+    ) -> Tuple[JobEvent, JobEvent]:
         """Adds start and finish events for a job to the current events.
 
         Parameters
@@ -187,13 +198,11 @@ class Scheduler(ABC):
         """
         if not job.resources or not job.proper:
             raise AssertionError(
-                "Malformed job submitted either with no processors, "
-                "or with insufficient number of "
-                "processors"
+                'Malformed job submitted either with no processors, '
+                'or with insufficient number of '
+                'processors'
             )
-        start = JobEvent(
-            time, EventType.JOB_START, job
-        )
+        start = JobEvent(time, EventType.JOB_START, job)
         finish = start.clone()
         finish.time += job.execution_time
         finish.type = EventType.JOB_FINISH
@@ -204,11 +213,10 @@ class Scheduler(ABC):
 
     @property
     def free_resources(self) -> Tuple[int, int]:
-        """Returns the amount of free resources in the system.
-        """
+        """Returns the amount of free resources in the system."""
         return (
             self.number_of_processors - self.used_processors,
-            self.total_memory - self.used_memory
+            self.total_memory - self.used_memory,
         )
 
     def step(self, offset: int = None) -> bool:
@@ -222,14 +230,15 @@ class Scheduler(ABC):
         if offset is None:
             offset = 1
         if offset < 0:
-            raise AssertionError("Tried to move backwards in time")
+            raise AssertionError('Tried to move backwards in time')
 
         scheduled = False
         for _ in range(offset):
             if self.need_schedule_call or (
-                    self.queue_admission and
-                    self.job_events.first and
-                    self.job_events.first.time == self.current_time):
+                self.queue_admission
+                and self.job_events.first
+                and self.job_events.first.time == self.current_time
+            ):
                 self.need_schedule_call = False
                 scheduled = True
                 self.schedule()
@@ -240,8 +249,12 @@ class Scheduler(ABC):
             self.current_time += 1
         return scheduled
 
-    def play_events(self, events: Iterable[JobEvent], cluster: Cluster,
-                    update_queues: bool = False) -> Cluster:
+    def play_events(
+        self,
+        events: Iterable[JobEvent],
+        cluster: Cluster,
+        update_queues: bool = False,
+    ) -> Cluster:
         """Play events from a given event queue, updating state accordingly.
 
         On top of playing the events, this also updates job statistics,
@@ -276,12 +289,13 @@ class Scheduler(ABC):
                     self._complete_job(event.job)
                     self.update_stats()
             else:
-                raise RuntimeError("Unexpected event type found")
+                raise RuntimeError('Unexpected event type found')
         return cluster
 
     @staticmethod
-    def fits(time: int, job: Job, cluster: Cluster,
-             events: Iterable[JobEvent]) -> Resource:
+    def fits(
+        time: int, job: Job, cluster: Cluster, events: Iterable[JobEvent]
+    ) -> Resource:
         """Checks whether a job fits a given cluster at a given time.
 
         Once again, this requires an iterable of events and a cluster to
@@ -341,8 +355,9 @@ class Scheduler(ABC):
                 The job to find a time for
         """
 
-        if (not self.job_events.next) or (self.job_events.next.time >
-                                          self.current_time):
+        if (not self.job_events.next) or (
+            self.job_events.next.time > self.current_time
+        ):
             resources = self.cluster.find_resources_at_time(
                 self.current_time, job, self.job_events
             )
@@ -401,8 +416,12 @@ class Scheduler(ABC):
 
         # Compute statistics to be used in state representation {{{
         job.queue_size = len(self.queue_admission)
-        job.queued_work = sum([j.requested_time * j.requested_processors
-                               for j in self.queue_admission])
+        job.queued_work = sum(
+            [
+                j.requested_time * j.requested_processors
+                for j in self.queue_admission
+            ]
+        )
         job.free_processors = self.cluster.state[0][0]
         # }}}
 
@@ -430,8 +449,9 @@ class Scheduler(ABC):
         # Gets all events between now and `timesteps` {{{
         near_future: Dict[int, List[JobEvent]] = defaultdict(list)
         for e in filter(
-                lambda e: e.time < self.current_time + timesteps + 1,
-                self.job_events):
+            lambda e: e.time < self.current_time + timesteps + 1,
+            self.job_events,
+        ):
             near_future[e.time - self.current_time].append(e)
         # }}}
 
@@ -448,8 +468,11 @@ class Scheduler(ABC):
         # }}}
 
         # Gets the representation of jobs in `job_slots` {{{
-        jobs = [j.state for i, j in enumerate(self.queue_admission)
-                if i < job_slots]
+        jobs = [
+            j.state
+            for i, j in enumerate(self.queue_admission)
+            if i < job_slots
+        ]
         for i, job in enumerate(self.queue_admission):
             if i >= job_slots:
                 break
@@ -463,8 +486,9 @@ class Scheduler(ABC):
 
         return state, jobs, backlog
 
-    def assign_schedule(self, job, resources, time) -> Tuple[JobEvent,
-                                                             JobEvent]:
+    def assign_schedule(
+        self, job, resources, time
+    ) -> Tuple[JobEvent, JobEvent]:
         """Assigns a schedule to a job.
 
         What this means is that the job is removed from the admission queue
@@ -491,7 +515,7 @@ class Scheduler(ABC):
 
     @abstractmethod
     def schedule(self) -> Any:
-        "Schedules tasks."
+        """Schedules tasks."""
 
     def update_stats(self) -> None:
         """Updates the usage statistics of the system.
@@ -503,5 +527,5 @@ class Scheduler(ABC):
             self.load,
             np.mean(self.slowdown) if self.queue_completed else 0.0,
             self.makespan,
-            np.mean(self.bounded_slowdown) if self.queue_completed else 0.
+            np.mean(self.bounded_slowdown) if self.queue_completed else 0.0,
         )

@@ -31,7 +31,7 @@ class TraceGenerator(WorkloadGenerator):
             self.trace = []
 
     def step(self, offset=1):
-        """"Samples" jobs from the trace file.
+        """ "Samples" jobs from the trace file.
 
         Parameters
         ----------
@@ -53,8 +53,8 @@ class TraceGenerator(WorkloadGenerator):
         jobs = takewhile(
             lambda j: j[1].submission_time <= submission_time,
             enumerate(
-                self.trace[self.current_element:], self.current_element
-            )
+                self.trace[self.current_element :], self.current_element
+            ),
         )
         self.current_time = submission_time
         jobs = list(jobs)
@@ -65,9 +65,12 @@ class TraceGenerator(WorkloadGenerator):
 
     @property
     def last_event_time(self):
-        "The submission time of the last generated job"
-        offset = self.current_element \
-            if self.current_element < len(self.trace) else -1
+        """The submission time of the last generated job"""
+        offset = (
+            self.current_element
+            if self.current_element < len(self.trace)
+            else -1
+        )
         return self.trace[offset].submission_time
 
     def __len__(self):
@@ -121,13 +124,20 @@ class SwfGenerator(TraceGenerator):
     tracefile: str
     ignore_memory: bool
 
-    def __init__(self, tracefile, processors, memory,
-                 offset=0, length=None, restart=False,
-                 ignore_memory=False):
+    def __init__(
+        self,
+        tracefile,
+        processors,
+        memory,
+        offset=0,
+        length=None,
+        restart=False,
+        ignore_memory=False,
+    ):
 
         super().__init__(
             restart,
-            list(parse_swf(tracefile, processors, memory, ignore_memory))
+            list(parse_swf(tracefile, processors, memory, ignore_memory)),
         )
         self.tracefile = tracefile
 
@@ -136,6 +146,6 @@ class SwfGenerator(TraceGenerator):
         else:
             length = length if length <= len(self.trace) else len(self.trace)
 
-        self.trace = self.trace[offset:offset+length]
+        self.trace = self.trace[offset : offset + length]
 
         self.current_element = 0

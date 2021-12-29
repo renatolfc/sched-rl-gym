@@ -18,6 +18,7 @@ from intervaltree import IntervalTree
 
 class PrimaryResource(enum.IntEnum):
     """Enumeration for identifying the various supported resource types."""
+
     CPU = 0
     MEMORY = 1
 
@@ -41,14 +42,18 @@ class Resource(object):
             Whether memory should be taken in consideration when measuring
             resource usage.
     """
+
     memory: IntervalTree
     """IntervalTree that stores memory used"""
     processors: IntervalTree
     """IntervalTree that stores processors used"""
 
-    def __init__(self, processors: IntervalTree = IntervalTree(),
-                 memory: IntervalTree = IntervalTree(),
-                 ignore_memory: bool = False):
+    def __init__(
+        self,
+        processors: IntervalTree = IntervalTree(),
+        memory: IntervalTree = IntervalTree(),
+        ignore_memory: bool = False,
+    ):
         self.ignore_memory = ignore_memory
         self.processors = copy.copy(processors)
         self.memory = copy.copy(memory)
@@ -65,8 +70,9 @@ class Resource(object):
         return processors, memory
 
     def __bool__(self) -> bool:
-        return bool(self.processors) and \
-            (self.ignore_memory or bool(self.memory))
+        return bool(self.processors) and (
+            self.ignore_memory or bool(self.memory)
+        )
 
     def __repr__(self):
         return f'Resource({self.processors}, {self.memory})'

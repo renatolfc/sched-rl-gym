@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"scheduler - basic scheduling algorithms for the *simulation* layer."
+"""scheduler - basic scheduling algorithms for the *simulation* layer."""
 
 from .scheduler import Scheduler
 from .sjf_scheduler import SjfScheduler

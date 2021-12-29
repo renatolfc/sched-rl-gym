@@ -16,6 +16,7 @@ from .base import BaseRmEnv
 from .simulator import DeepRmSimulator
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -77,8 +78,10 @@ class CompactRmEnv(BaseRmEnv):
         )
 
         self.simulator = DeepRmSimulator(
-            wl, self.scheduler, simulation_type=self.simulation_type,
-            job_slots=self.job_slots
+            wl,
+            self.scheduler,
+            simulation_type=self.simulation_type,
+            job_slots=self.job_slots,
         )
 
         if not self.time_limit and hasattr(wl, 'trace'):
@@ -95,8 +98,7 @@ class CompactRmEnv(BaseRmEnv):
         self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
 
         self.observation_space = spaces.Box(
-            low=0.0, high=1.0, shape=((len(self.state),)),
-            dtype=np.float32
+            low=0.0, high=1.0, shape=((len(self.state),)), dtype=np.float32
         )
 
     def step(self, action: int):
@@ -107,8 +109,7 @@ class CompactRmEnv(BaseRmEnv):
 
         try:
             time_passed = self.simulator.rl_step(
-                action if found else None,
-                self.reward_mapper[self.reward_jobs]
+                action if found else None, self.reward_mapper[self.reward_jobs]
             )
             # XXX: This is technically incorrect. The correct thing to do here
             # is: when we have a trace-based workload generator, we need to
@@ -122,20 +123,22 @@ class CompactRmEnv(BaseRmEnv):
 
         reward = self.reward if any(time_passed) else 0
         done = self.time_limit and (
-                self.scheduler.current_time > self.time_limit or done
+            self.scheduler.current_time > self.time_limit or done
         )
 
         intermediate_rewards = {
-            'intermediate_rewards': [reward] if done else
-                [self.compute_reward(js) for js in time_passed]
+            'intermediate_rewards': [reward]
+            if done
+            else [self.compute_reward(js) for js in time_passed]
         }
         intermediate_rewards['intermediate_rewards'][0] = reward
         return (
             self.state,
             reward,
             done,
-            intermediate_rewards if not done
-                                 else {**self.stats, **intermediate_rewards}
+            intermediate_rewards
+            if not done
+            else {**self.stats, **intermediate_rewards},
         )
 
     @property
@@ -143,35 +146,56 @@ class CompactRmEnv(BaseRmEnv):
         state, jobs, backlog = self.scheduler.state(
             self.time_horizon, self.job_slots
         )
-        newstate = np.zeros((
-            len(state[0]) * (1 if self.ignore_memory else 2) * 2
-        ))
-        newstate[:len(state[0]) * 2] = np.array(
-            [(e[0], e[1]) for e in state[0]]
-        ).reshape((-1,)) / self.processors
+        newstate = np.zeros(
+            (len(state[0]) * (1 if self.ignore_memory else 2) * 2)
+        )
+        newstate[: len(state[0]) * 2] = (
+            np.array([(e[0], e[1]) for e in state[0]]).reshape((-1,))
+            / self.processors
+        )
         if not self.ignore_memory:
-            newstate[len(state[0]) * 2:] = np.array(
-                [(e[0], e[1]) for e in state[1]]
-            ).reshape((-1,)) / self.memory
+            newstate[len(state[0]) * 2 :] = (
+                np.array([(e[0], e[1]) for e in state[1]]).reshape((-1,))
+                / self.memory
+            )
         jobs = self._normalize_jobs(jobs).reshape((-1,))
         backlog = backlog * np.ones(1) / BACKLOG_SIZE
 
-        running = [j for j in self.scheduler.queue_running
-                   if j.submission_time + j.requested_time>
-                   self.scheduler.current_time]
+        running = [
+            j
+            for j in self.scheduler.queue_running
+            if j.submission_time + j.requested_time
+            > self.scheduler.current_time
+        ]
 
-        remaining_work = sum([
-            (j.submission_time + j.requested_time -
-             self.scheduler.current_time) *
-            j.requested_processors
-            for j in running
-        ]) / self.maximum_work
-        remaining_work_mem = sum([
-            (j.submission_time + j.requested_time -
-             self.scheduler.current_time) *
-            j.requested_memory
-            for j in running
-        ]) / self.maximum_work_mem
+        remaining_work = (
+            sum(
+                [
+                    (
+                        j.submission_time
+                        + j.requested_time
+                        - self.scheduler.current_time
+                    )
+                    * j.requested_processors
+                    for j in running
+                ]
+            )
+            / self.maximum_work
+        )
+        remaining_work_mem = (
+            sum(
+                [
+                    (
+                        j.submission_time
+                        + j.requested_time
+                        - self.scheduler.current_time
+                    )
+                    * j.requested_memory
+                    for j in running
+                ]
+            )
+            / self.maximum_work_mem
+        )
 
         # XXX: this normalization only works while we're sampling at most one
         # job per time step. Once this is not true, we risk having the
@@ -181,25 +205,35 @@ class CompactRmEnv(BaseRmEnv):
 
         try:
             next_free = min(
-                running,
-                key=lambda x: x.start_time + x.requested_time
+                running, key=lambda x: x.start_time + x.requested_time
             )
-            next_free = np.array((
-                (next_free.start_time + next_free.requested_time -
-                 self.scheduler.current_time) / self.time_limit,
-                next_free.requested_processors / self.processors,
-                (state[0][0][0] + next_free.requested_processors) /
-                self.processors
-            ))
+            next_free = np.array(
+                (
+                    (
+                        next_free.start_time
+                        + next_free.requested_time
+                        - self.scheduler.current_time
+                    )
+                    / self.time_limit,
+                    next_free.requested_processors / self.processors,
+                    (state[0][0][0] + next_free.requested_processors)
+                    / self.processors,
+                )
+            )
         except ValueError:
             next_free = np.array((0, 0, 1.0))
 
-        return np.hstack((
-            newstate, jobs, backlog, next_free,
-            np.array((
-                remaining_work, remaining_work_mem, queue_size, time_left
-            ))
-        ))
+        return np.hstack(
+            (
+                newstate,
+                jobs,
+                backlog,
+                next_free,
+                np.array(
+                    (remaining_work, remaining_work_mem, queue_size, time_left)
+                ),
+            )
+        )
 
     def _normalize_jobs(self, jobs):
         def _sumdiv(arr, idx, orig, limit):
@@ -212,8 +246,12 @@ class CompactRmEnv(BaseRmEnv):
             _sumdiv(ret[i], 2, job.requested_memory, self.memory)
             _sumdiv(ret[i], 3, job.requested_processors, self.processors)
             _sumdiv(ret[i], 4, job.queue_size, self.time_limit)
-            _sumdiv(ret[i], 5, job.queued_work,
-                    self.time_limit * self.time_limit * self.processors)
+            _sumdiv(
+                ret[i],
+                5,
+                job.queued_work,
+                self.time_limit * self.time_limit * self.processors,
+            )
             _sumdiv(ret[i], 6, job.free_processors, self.processors)
         return ret
 
@@ -224,7 +262,7 @@ class CompactRmEnv(BaseRmEnv):
         wl = build_workload(self.workload_config)
         if self.update_time_limit and hasattr(wl, 'trace'):
             self.time_limit = (
-                    wl.trace[-1].submission_time + wl.trace[-1].execution_time
+                wl.trace[-1].submission_time + wl.trace[-1].execution_time
             )
         self.simulator.reset(wl, self.scheduler)
 

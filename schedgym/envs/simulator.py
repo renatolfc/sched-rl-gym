@@ -8,12 +8,12 @@ from schedgym.job import Job
 from schedgym.scheduler import NullScheduler
 from schedgym.envs.workload import (
     DeepRmWorkloadGenerator,
-    SyntheticWorkloadGenerator
+    SyntheticWorkloadGenerator,
 )
 
 
 class SimulationType(IntEnum):
-    EVENT_BASED = 0,
+    EVENT_BASED = (0,)
     TIME_BASED = 1
 
     @staticmethod
@@ -31,11 +31,15 @@ class DeepRmSimulator:
     scheduler: NullScheduler
     workload: Union[DeepRmWorkloadGenerator, SyntheticWorkloadGenerator]
 
-    def __init__(self, workload_generator: Union[DeepRmWorkloadGenerator,
-                                                 SyntheticWorkloadGenerator],
-                 scheduler: NullScheduler,
-                 simulation_type: SimulationType = SimulationType.TIME_BASED,
-                 job_slots: Optional[int] = None):
+    def __init__(
+        self,
+        workload_generator: Union[
+            DeepRmWorkloadGenerator, SyntheticWorkloadGenerator
+        ],
+        scheduler: NullScheduler,
+        simulation_type: SimulationType = SimulationType.TIME_BASED,
+        job_slots: Optional[int] = None,
+    ):
 
         self.scheduler = scheduler
         self.workload = workload_generator
@@ -47,11 +51,11 @@ class DeepRmSimulator:
     def rl_step(
         self,
         action: Optional[int],
-        listjobs: Optional[Callable[[], List[Job]]]
+        listjobs: Optional[Callable[[], List[Job]]],
     ) -> List[List[Job]]:
         return self.simulator.rl_step(
             action if action is not None else -1,
-            listjobs if listjobs else lambda: self.scheduler.jobs_in_system
+            listjobs if listjobs else lambda: self.scheduler.jobs_in_system,
         )
 
     def build(self):
@@ -69,7 +73,7 @@ class DeepRmSimulator:
             )
         else:
             raise NotImplementedError(
-                f"Unsupported simulation type {self.simulation_type}"
+                f'Unsupported simulation type {self.simulation_type}'
             )
 
     @property
@@ -91,13 +95,17 @@ class EventBasedDeepRmSimulator:
     scheduler: NullScheduler
     job_slots: slice
 
-    def __init__(self, workload_generator: DeepRmWorkloadGenerator,
-                 scheduler: NullScheduler, job_slots: slice):
-        if (not isinstance(workload_generator, DeepRmWorkloadGenerator)
-                and not isinstance(workload_generator,
-                                   SyntheticWorkloadGenerator)) \
-                or not isinstance(scheduler, NullScheduler):
-            raise AssertionError("Invalid arguments received.")
+    def __init__(
+        self,
+        workload_generator: DeepRmWorkloadGenerator,
+        scheduler: NullScheduler,
+        job_slots: slice,
+    ):
+        if (
+            not isinstance(workload_generator, DeepRmWorkloadGenerator)
+            and not isinstance(workload_generator, SyntheticWorkloadGenerator)
+        ) or not isinstance(scheduler, NullScheduler):
+            raise AssertionError('Invalid arguments received.')
 
         self.current_time = 0
         self.scheduler = scheduler
@@ -114,11 +122,9 @@ class EventBasedDeepRmSimulator:
             self.current_time = first_job_time
 
     def rl_step(
-        self,
-        action: int,
-        listjobs: Callable[[], List[Job]]
+        self, action: int, listjobs: Callable[[], List[Job]]
     ) -> List[List[Job]]:
-        "Returns a list of jobs for each successful intermediate time step."
+        """Returns a list of jobs for each successful intermediate time step."""
 
         if self.scheduler.step(action):
             return [[]]
@@ -142,14 +148,17 @@ class TimeBasedDeepRmSimulator:
     scheduler: NullScheduler
     job_slots: slice
 
-    def __init__(self, workload_generator: DeepRmWorkloadGenerator,
-                 scheduler: NullScheduler, job_slots: slice):
-        if (not isinstance(workload_generator, DeepRmWorkloadGenerator)
-                and not isinstance(
-                    workload_generator, SyntheticWorkloadGenerator
-                )) \
-                or not isinstance(scheduler, NullScheduler):
-            raise AssertionError("Invalid arguments received.")
+    def __init__(
+        self,
+        workload_generator: DeepRmWorkloadGenerator,
+        scheduler: NullScheduler,
+        job_slots: slice,
+    ):
+        if (
+            not isinstance(workload_generator, DeepRmWorkloadGenerator)
+            and not isinstance(workload_generator, SyntheticWorkloadGenerator)
+        ) or not isinstance(scheduler, NullScheduler):
+            raise AssertionError('Invalid arguments received.')
 
         self.scheduler = scheduler
         self.simulation_start_time = 0
@@ -164,15 +173,13 @@ class TimeBasedDeepRmSimulator:
             scheduler.current_time = first_job_time
 
     def step(self, submit=True):
-        "Not implemented in DeepRmSimulator"
+        """Not implemented in DeepRmSimulator"""
         raise NotImplementedError('This simulator cannot follow the base API')
 
     def rl_step(
-        self,
-        action: int,
-        listjobs: Callable[[], List[Job]]
+        self, action: int, listjobs: Callable[[], List[Job]]
     ) -> List[List[Job]]:
-        "Returns a list of jobs for each successful intermediate time step."
+        """Returns a list of jobs for each successful intermediate time step."""
 
         if self.scheduler.step(action):
             return [[]]

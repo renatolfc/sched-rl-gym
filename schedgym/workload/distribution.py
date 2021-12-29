@@ -22,6 +22,7 @@ class DistributionalWorkloadGenerator(WorkloadGenerator, ABC):
             An optional length of workload generation. When length samples
             are generated, automatic iteration will stop.
     """
+
     length: int
     current_element: int
 
@@ -40,7 +41,7 @@ class DistributionalWorkloadGenerator(WorkloadGenerator, ABC):
         ----------
             offset : int
                 The number of time steps to advance the workload generator.
-         """
+        """
 
 
 class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
@@ -60,14 +61,22 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
             The size of the sequence of jobs generated when iterating over this
             workload generator
     """
+
     new_job_rate: float
     small_job_chance: float
     large_job: JobParameters
     small_job: JobParameters
 
-    def __init__(self, new_job_rate, small_job_chance, small_job_parameters,
-                 large_job_parameters, length=0, runtime_estimates=None,
-                 estimate_parameters=None):
+    def __init__(
+        self,
+        new_job_rate,
+        small_job_chance,
+        small_job_parameters,
+        large_job_parameters,
+        length=0,
+        runtime_estimates=None,
+        estimate_parameters=None,
+    ):
         super().__init__(length)
 
         self.current_time = 0
@@ -77,9 +86,11 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
         self.small_job = small_job_parameters
         self.large_job = large_job_parameters
 
-        if runtime_estimates is not None and \
-                runtime_estimates not in [
-                    'gaussian', 'gaussian-over', 'gaussian-under']:
+        if runtime_estimates is not None and runtime_estimates not in [
+            'gaussian',
+            'gaussian-over',
+            'gaussian-under',
+        ]:
             raise ValueError(f'Unsupported estimate type {runtime_estimates}')
 
         self.runtime_estimates = runtime_estimates
@@ -93,12 +104,10 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
             j = self.small_job.sample(self.current_time)
         else:
             j = self.large_job.sample(self.current_time)
-        if self.runtime_estimates and \
-                self.runtime_estimates.startswith('gaussian'):
-            diff = random.gauss(
-                0,
-                self.estimate_parameters * j.execution_time
-            )
+        if self.runtime_estimates and self.runtime_estimates.startswith(
+            'gaussian'
+        ):
+            diff = random.gauss(0, self.estimate_parameters * j.execution_time)
             if 'over' in self.runtime_estimates:
                 diff = abs(diff)
             elif 'under' in self.runtime_estimates:

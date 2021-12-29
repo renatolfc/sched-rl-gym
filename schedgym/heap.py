@@ -20,12 +20,13 @@ class Heap(Generic[T]):
     itself after a certain number of operations, which can be configured by
     setting the `auto_vacuum` argument to the initializer function.
     """
+
     entry_finder: Dict[Optional[T], ENTRY_T]
-    "Cache to check in O(1) whether an entry exists in the heap."
+    'Cache to check in O(1) whether an entry exists in the heap.'
     priority_queue: List[ENTRY_T]
-    "The actual priority queue, implemented as a list with heap ordering."
+    'The actual priority queue, implemented as a list with heap ordering.'
     auto_vacuum: int
-    "int: number of operations to perform before cleaning the heap."
+    'int: number of operations to perform before cleaning the heap.'
 
     def __init__(self, auto_vacuum=1000):
         """Initializes the heap.
@@ -43,7 +44,7 @@ class Heap(Generic[T]):
         self.auto_vacuum = auto_vacuum
 
     def add(self, item, priority=0) -> None:
-        'Add a new item or update the priority of an existing item'
+        """Add a new item or update the priority of an existing item"""
         if item in self.entry_finder:
             self.remove(item)
         count = next(self.counter)
@@ -54,12 +55,12 @@ class Heap(Generic[T]):
             self.vacuum()
 
     def remove(self, item) -> None:
-        'Mark an existing item as removed. Raise KeyError if not found.'
+        """Mark an existing item as removed. Raise KeyError if not found."""
         entry = self.entry_finder.pop(item)
         entry[-1][0] = None
 
     def pop(self) -> T:
-        'Remove and return the lowest priority task. Raise KeyError if empty.'
+        """Remove and return the lowest priority task. Raise KeyError if empty."""
         while self.priority_queue:
             _, _, (item,) = heapq.heappop(self.priority_queue)
             if item is not None:
@@ -88,8 +89,7 @@ class Heap(Generic[T]):
 
     @property
     def first(self) -> Optional[T]:
-        """Returns the "first" item (the item with highest priority) in the Heap.
-        """
+        """Returns the "first" item (the item with highest priority) in the Heap."""
         if len(self.entry_finder) == 0:
             return None
         for (_, _, (item,)) in self.priority_queue:

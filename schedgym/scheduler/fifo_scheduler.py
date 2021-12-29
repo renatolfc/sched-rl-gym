@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"fifo_scheduler - First-In First-Out module"
+"""fifo_scheduler - First-In First-Out module"""
 
 from typing import List
 
@@ -10,7 +10,8 @@ from schedgym.scheduler import Scheduler
 
 
 class FifoScheduler(Scheduler):
-    "A FIFO scheduler."
+    """A FIFO scheduler."""
+
     def schedule(self) -> None:
         """Schedules jobs according to submission time.
 

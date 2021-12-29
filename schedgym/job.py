@@ -13,14 +13,23 @@ from collections import namedtuple
 
 from .resource import Resource, PrimaryResource
 
-JobState = namedtuple('JobState', [
-    'submission_time', 'requested_time', 'requested_memory',
-    'requested_processors', 'queue_size', 'queued_work', 'free_processors'
-])
+JobState = namedtuple(
+    'JobState',
+    [
+        'submission_time',
+        'requested_time',
+        'requested_memory',
+        'requested_processors',
+        'queue_size',
+        'queued_work',
+        'free_processors',
+    ],
+)
 
 
 class JobStatus(enum.IntEnum):
     """An enumeration for different states of a job within our simulator."""
+
     SUBMITTED = 0
     RUNNING = 1
     WAITING = 2
@@ -33,6 +42,7 @@ class SwfJobStatus(enum.IntEnum):
 
     .. _SWF: https://www.cs.huji.ac.il/labs/parallel/workload/swf.html
     """
+
     FAILED = 0
     COMPLETED = 1
     PARTIAL_TO_BE_CONTINUED = 2
@@ -60,6 +70,7 @@ class Job:
 
     .. image:: /img/job-resource.svg
     """
+
     resources: Resource
 
     SWF_JOB_MAP = {
@@ -80,16 +91,31 @@ class Job:
         'queueNum': 'queue_number',
         'partNum': 'partition_number',
         'precedingJob': 'preceding_job_id',
-        'thinkTime': 'think_time'
+        'thinkTime': 'think_time',
     }
 
-    def __init__(self, job_id=-1, submission_time=-1, execution_time=-1,
-                 processors_allocated=-1, average_cpu_use=-1, memory_use=-1,
-                 requested_processors=-1, requested_time=-1,
-                 requested_memory=-1, status=-1, user_id=-1, group_id=-1,
-                 executable=-1, queue_number=-1, partition_number=-1,
-                 preceding_job_id=-1, think_time=-1, wait_time=-1,
-                 ignore_memory=True):
+    def __init__(
+        self,
+        job_id=-1,
+        submission_time=-1,
+        execution_time=-1,
+        processors_allocated=-1,
+        average_cpu_use=-1,
+        memory_use=-1,
+        requested_processors=-1,
+        requested_time=-1,
+        requested_memory=-1,
+        status=-1,
+        user_id=-1,
+        group_id=-1,
+        executable=-1,
+        queue_number=-1,
+        partition_number=-1,
+        preceding_job_id=-1,
+        think_time=-1,
+        wait_time=-1,
+        ignore_memory=True,
+    ):
         self.id = job_id
         self.submission_time = submission_time
         self.execution_time = execution_time
@@ -120,10 +146,12 @@ class Job:
         self.queue_size = -1
 
     def __str__(self):
-        return f'Job<{self.id}, {self.status.name}, start={self.start_time}, '\
-            f'processors={self.requested_processors}, ' \
-            f'memory={self.requested_memory} ' \
+        return (
+            f'Job<{self.id}, {self.status.name}, start={self.start_time}, '
+            f'processors={self.requested_processors}, '
+            f'memory={self.requested_memory} '
             f'duration={self.execution_time}>'
+        )
 
     __repr__ = __str__
 
@@ -135,41 +163,43 @@ class Job:
             bool: True if the job is proper, and False otherwise.
         """
         processors, memory = self.resources.measure()
-        return processors == self.requested_processors and \
-            (self.ignore_memory or memory == self.requested_memory)
+        return processors == self.requested_processors and (
+            self.ignore_memory or memory == self.requested_memory
+        )
 
     @property
     def slowdown(self):
         """Computes the slowdown of the current job."""
         try:
-            return ((self.finish_time - self.submission_time) /
-                    self.execution_time)
+            return (
+                self.finish_time - self.submission_time
+            ) / self.execution_time
         except TypeError:
             warnings.warn(
-                f"Failed to obtain slowdown for job {self}. "
-                "It may not have finished yet."
+                f'Failed to obtain slowdown for job {self}. '
+                'It may not have finished yet.'
             )
             return -1
 
     @property
     def bounded_slowdown(self):
-        "Gives the bounded slowdown of a job"
+        """Gives the bounded slowdown of a job"""
         try:
             return max(
                 1,
-                (self.finish_time - self.submission_time) /
-                max(10, self.execution_time)
+                (self.finish_time - self.submission_time)
+                / max(10, self.execution_time),
             )
         except TypeError:
             warnings.warn(
-                f"Failed to obtain avg bounded slowdown for job {self}."
-                "It may not have finished yet."
+                f'Failed to obtain avg bounded slowdown for job {self}.'
+                'It may not have finished yet.'
             )
             return -1
 
     @property
     def swf(self):
-        "Returns an SWF representation of this job"
+        """Returns an SWF representation of this job"""
         return (
             f'{self.id} {self.submission_time} {self.wait_time} '
             f'{self.execution_time} {self.processors_allocated} '
@@ -207,9 +237,13 @@ class Job:
     @property
     def state(self):
         return JobState(
-            self.submission_time, self.requested_time, self.requested_memory,
-            self.requested_processors, self.queue_size, self.queued_work,
-            self.free_processors
+            self.submission_time,
+            self.requested_time,
+            self.requested_memory,
+            self.requested_processors,
+            self.queue_size,
+            self.queued_work,
+            self.free_processors,
         )
 
 
@@ -246,6 +280,7 @@ class JobParameters:
 
     Used by :class:`schedgym.workload.distribution.BinomialWorkloadGenerator`.
     """
+
     lower_time_bound: int
     upper_time_bound: int
     lower_resource_bound: int
@@ -256,15 +291,26 @@ class JobParameters:
         for param in args:
             if param <= 0:
                 raise AssertionError(
-                    "Unable to work with non-positive bounds."
+                    'Unable to work with non-positive bounds.'
                 )
 
-    def __init__(self, lower_time_bound: int, upper_time_bound: int,
-                 lower_cpu_bound: int, upper_cpu_bound: int,
-                 lower_mem_bound: int, upper_mem_bound: int):
-        self._validate_parameters(lower_time_bound, upper_time_bound,
-                                  lower_cpu_bound, upper_cpu_bound,
-                                  lower_mem_bound, upper_mem_bound)
+    def __init__(
+        self,
+        lower_time_bound: int,
+        upper_time_bound: int,
+        lower_cpu_bound: int,
+        upper_cpu_bound: int,
+        lower_mem_bound: int,
+        upper_mem_bound: int,
+    ):
+        self._validate_parameters(
+            lower_time_bound,
+            upper_time_bound,
+            lower_cpu_bound,
+            upper_cpu_bound,
+            lower_mem_bound,
+            upper_mem_bound,
+        )
 
         self.lower_time_bound = lower_time_bound
         self.upper_time_bound = upper_time_bound
@@ -274,19 +320,19 @@ class JobParameters:
         self.upper_mem_bound = upper_mem_bound
 
         self.resource_samplers = {
-            PrimaryResource.CPU: lambda: random.randint(self.lower_cpu_bound,
-                                                        self.upper_cpu_bound),
-            PrimaryResource.MEMORY:
-                lambda: random.randint(self.lower_mem_bound,
-                                       self.upper_mem_bound),
+            PrimaryResource.CPU: lambda: random.randint(
+                self.lower_cpu_bound, self.upper_cpu_bound
+            ),
+            PrimaryResource.MEMORY: lambda: random.randint(
+                self.lower_mem_bound, self.upper_mem_bound
+            ),
         }
 
         self.job_id = 1
         self.time_step = 0
 
     def add_time(self, steps: int = 1) -> None:
-        """Increments time in the internal counter.
-        """
+        """Increments time in the internal counter."""
         if steps < 0:
             raise AssertionError("Time can't be negative.")
         self.time_step += steps
@@ -300,16 +346,32 @@ class JobParameters:
                 The time at which the new sampled job would have been
                 submitted. If omitted, the current times step is used.
         """
-        time_duration = random.randint(self.lower_time_bound,
-                                       self.upper_time_bound)
+        time_duration = random.randint(
+            self.lower_time_bound, self.upper_time_bound
+        )
 
         cpu = self.resource_samplers[PrimaryResource.CPU]()
         mem = self.resource_samplers[PrimaryResource.MEMORY]()
 
         job = Job(
-            self.job_id, submission_time if submission_time else
-            self.time_step, time_duration, cpu, 0, mem, cpu, time_duration,
-            mem, JobStatus.WAITING, 1, 1, 1, 1, 1, -1, -1, -1
+            self.job_id,
+            submission_time if submission_time else self.time_step,
+            time_duration,
+            cpu,
+            0,
+            mem,
+            cpu,
+            time_duration,
+            mem,
+            JobStatus.WAITING,
+            1,
+            1,
+            1,
+            1,
+            1,
+            -1,
+            -1,
+            -1,
         )
         self.job_id += 1
 

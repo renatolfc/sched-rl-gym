@@ -15,9 +15,8 @@ RESOLUTION = (WIDTH, HEIGHT)
 
 SUPPORTED_MODES = {
     'human': lambda: DeepRmHumanRenderer,
-    'rgb_array': lambda: DeepRmRgbRenderer
+    'rgb_array': lambda: DeepRmRgbRenderer,
 }
-
 
 
 class DeepRmRgbRenderer(object):
@@ -48,7 +47,9 @@ class DeepRmRgbRenderer(object):
         lines = current.shape[0]
 
         # Axes {{{
-        axs_current = [plt.subplot2grid((lines, 3), (i, 0)) for i in range(lines)]
+        axs_current = [
+            plt.subplot2grid((lines, 3), (i, 0)) for i in range(lines)
+        ]
         axs_wait = [plt.subplot2grid((lines, 3), (i, 1)) for i in range(lines)]
         ax_backlog = plt.subplot2grid((lines, 3), (0, 2), rowspan=lines)
         # End of Axes }}}
@@ -91,12 +92,14 @@ class DeepRmHumanRenderer(DeepRmRgbRenderer, pyglet.window.Window):
         if self.rendering is not None:
             height, width, _ = self.rendering.shape
             img = pyglet.image.ImageData(
-                height, width, 'RGB',
-                self.rendering.data.tobytes(), -3 * height
+                height,
+                width,
+                'RGB',
+                self.rendering.data.tobytes(),
+                -3 * height,
             )
 
             img.blit(0, 0)
-
 
     def render(self, state):
         self.rendering = super().render(state)

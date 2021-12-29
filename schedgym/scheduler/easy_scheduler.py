@@ -33,8 +33,10 @@ class EasyScheduler(Scheduler):
             return
 
         start, finish = self.reservation
-        if (start.time == self.current_time
-                or start.job.status != JobStatus.WAITING):
+        if (
+            start.time == self.current_time
+            or start.job.status != JobStatus.WAITING
+        ):
             # Reservation will be fulfilled
             self.reservation = None
             return
@@ -46,9 +48,7 @@ class EasyScheduler(Scheduler):
             self.job_events.remove(start)
             self.job_events.remove(finish)
 
-            self.assign_schedule(
-                start.job, resources, self.current_time
-            )
+            self.assign_schedule(start.job, resources, self.current_time)
             self.reservation = None
 
     def schedule(self) -> None:
@@ -66,7 +66,7 @@ class EasyScheduler(Scheduler):
                     # reservation for this one job and keep going
                     time, resources = self.find_first_time_for(job)
                     if not resources:
-                        raise AssertionError("Something is terribly wrong")
+                        raise AssertionError('Something is terribly wrong')
                     self.reservation = self.assign_schedule(
                         job, resources, time
                     )

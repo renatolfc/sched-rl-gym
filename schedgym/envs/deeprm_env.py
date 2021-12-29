@@ -16,6 +16,7 @@ from .workload import build as build_workload, DeepRmWorkloadGenerator
 from .workload import SyntheticWorkloadGenerator
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 MAXIMUM_QUEUE_SIZE = 16
@@ -68,15 +69,25 @@ class DeepRmEnv(BaseRmEnv):
         self.memory = kwargs.get('memory', AMOUNT_OF_MEMORY)
         self.processors = kwargs.get('processors', NUMBER_OF_PROCESSORS)
 
-        self.n_resources = kwargs.get('n_resources', NUMBER_OF_RESOURCES)  # resources in the system
-        self.n_work = kwargs.get('n_work', MAXIMUM_QUEUE_SIZE)  # max amount of work in the queue
-        self.time_horizon = kwargs.get('time_horizon', TIME_HORIZON)  # number of time steps in the graph
+        self.n_resources = kwargs.get(
+            'n_resources', NUMBER_OF_RESOURCES
+        )  # resources in the system
+        self.n_work = kwargs.get(
+            'n_work', MAXIMUM_QUEUE_SIZE
+        )  # max amount of work in the queue
+        self.time_horizon = kwargs.get(
+            'time_horizon', TIME_HORIZON
+        )  # number of time steps in the graph
 
-        self.backlog_size = kwargs.get('backlog_size', BACKLOG_SIZE)  # backlog queue size
+        self.backlog_size = kwargs.get(
+            'backlog_size', BACKLOG_SIZE
+        )  # backlog queue size
 
         self.workload_config = kwargs.get('workload', DEFAULT_WORKLOAD)
 
-        self.job_slots = kwargs.get('job_slots', JOB_SLOTS)  # Number of jobs to show
+        self.job_slots = kwargs.get(
+            'job_slots', JOB_SLOTS
+        )  # Number of jobs to show
 
         self.ignore_memory = kwargs.get('ignore_memory', False)
 
@@ -92,12 +103,12 @@ class DeepRmEnv(BaseRmEnv):
                 self.processors, self.memory, ignore_memory=self.ignore_memory
             ),
             simulation_type=self.simulation_type,
-            job_slots=self.job_slots
+            job_slots=self.job_slots,
         )
 
         if not self.time_limit and hasattr(wl, 'trace'):
             self.time_limit = (
-                    wl.trace[-1].submission_time + wl.trace[-1].execution_time
+                wl.trace[-1].submission_time + wl.trace[-1].execution_time
             )
 
         self.setup_spaces()
@@ -115,54 +126,70 @@ class DeepRmEnv(BaseRmEnv):
 
     def setup_image_spaces(self):
         self.observation_space = spaces.box.Box(
-            low=0.0, high=1.0, shape=(
+            low=0.0,
+            high=1.0,
+            shape=(
                 self.time_horizon,
-                ((0 if self.ignore_memory else (self.job_slots + 1))
-                    * self.scheduler.total_memory) +
-                (self.job_slots + 1) * self.scheduler.number_of_processors +
-                self.backlog_width +
-                1
-            )
+                (
+                    (0 if self.ignore_memory else (self.job_slots + 1))
+                    * self.scheduler.total_memory
+                )
+                + (self.job_slots + 1) * self.scheduler.number_of_processors
+                + self.backlog_width
+                + 1,
+            ),
         )
 
     def setup_raw_spaces(self):
         self.memory_space = spaces.box.Box(
-            low=0.0, high=1.0, shape=(
-                self.time_horizon, self.scheduler.total_memory
-            )
+            low=0.0,
+            high=1.0,
+            shape=(self.time_horizon, self.scheduler.total_memory),
         )
         self.processor_space = spaces.box.Box(
-            low=0.0, high=1.0, shape=(
-                self.time_horizon, self.scheduler.number_of_processors
-            )
+            low=0.0,
+            high=1.0,
+            shape=(self.time_horizon, self.scheduler.number_of_processors),
         )
         self.backlog_space = spaces.box.Box(
-            low=0.0, high=1.0, shape=(
-                self.time_horizon, self.backlog_width
-            )
+            low=0.0, high=1.0, shape=(self.time_horizon, self.backlog_width)
         )
         self.memory_slots_space = spaces.box.Box(
-            low=0.0, high=1.0, shape=(
-                self.job_slots, self.time_horizon, self.scheduler.total_memory
-            )
+            low=0.0,
+            high=1.0,
+            shape=(
+                self.job_slots,
+                self.time_horizon,
+                self.scheduler.total_memory,
+            ),
         )
         self.processor_slots_space = spaces.box.Box(
-            low=0.0, high=1.0, shape=(
-                self.job_slots, self.time_horizon,
-                self.scheduler.number_of_processors
-            )
+            low=0.0,
+            high=1.0,
+            shape=(
+                self.job_slots,
+                self.time_horizon,
+                self.scheduler.number_of_processors,
+            ),
         )
         self.time_since_space = spaces.Discrete(self.time_horizon)
 
-        self.observation_space = spaces.tuple.Tuple((
-            self.processor_space, self.memory_space,
-            self.processor_slots_space, self.memory_slots_space,
-            self.backlog_space, self.time_since_space
-        ))
-        self.observation_space.n = np.sum([
-            np.prod(e.shape) if isinstance(e, spaces.box.Box) else e.n
-            for e in self.observation_space
-        ])
+        self.observation_space = spaces.tuple.Tuple(
+            (
+                self.processor_space,
+                self.memory_space,
+                self.processor_slots_space,
+                self.memory_slots_space,
+                self.backlog_space,
+                self.time_since_space,
+            )
+        )
+        self.observation_space.n = np.sum(
+            [
+                np.prod(e.shape) if isinstance(e, spaces.box.Box) else e.n
+                for e in self.observation_space
+            ]
+        )
 
     @property
     def state(self):
@@ -170,9 +197,13 @@ class DeepRmEnv(BaseRmEnv):
             self.time_horizon, self.job_slots
         )
         s = self._convert_state(
-            state, jobs, backlog,
-            ((self.simulator.current_time - self.simulator.last_job_time)
-                / MAX_TIME_TRACKING_SINCE_LAST_JOB)
+            state,
+            jobs,
+            backlog,
+            (
+                (self.simulator.current_time - self.simulator.last_job_time)
+                / MAX_TIME_TRACKING_SINCE_LAST_JOB
+            ),
         )
         if self.use_raw_state:
             return s
@@ -197,8 +228,7 @@ class DeepRmEnv(BaseRmEnv):
             found = True
         try:
             time_passed = self.simulator.rl_step(
-                action if found else None,
-                self.reward_mapper[self.reward_jobs]
+                action if found else None, self.reward_mapper[self.reward_jobs]
             )
         except StopIteration:
             time_passed = [True]
@@ -206,20 +236,22 @@ class DeepRmEnv(BaseRmEnv):
 
         reward = self.reward if any(time_passed) else 0
         done = self.time_limit and (
-                self.scheduler.current_time > self.time_limit or done
+            self.scheduler.current_time > self.time_limit or done
         )
 
         intermediate_rewards = {
-            'intermediate_rewards': [reward] if done else
-                [self.compute_reward(js) for js in time_passed]
+            'intermediate_rewards': [reward]
+            if done
+            else [self.compute_reward(js) for js in time_passed]
         }
         intermediate_rewards['intermediate_rewards'][0] = reward
         return (
             self.state,
             reward,
             done,
-            intermediate_rewards if not done
-                                 else {**self.stats, **intermediate_rewards}
+            intermediate_rewards
+            if not done
+            else {**self.stats, **intermediate_rewards},
         )
 
     def reset(self):
@@ -229,7 +261,7 @@ class DeepRmEnv(BaseRmEnv):
         wl = build_workload(self.workload_config)
         if self.update_time_limit and hasattr(wl, 'trace'):
             self.time_limit = (
-                    wl.trace[-1].submission_time + wl.trace[-1].execution_time
+                wl.trace[-1].submission_time + wl.trace[-1].execution_time
             )
         self.simulator.reset(wl, scheduler)
         return self.state

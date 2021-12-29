@@ -18,11 +18,12 @@ from .heap import Heap
 from .pool import ResourceType, Interval
 
 T = TypeVar('T', bound='Event')  # pylint: disable=C
-"Generic type for type annotations"
+'Generic type for type annotations'
 
 
 class EventType(enum.IntEnum):
     """Enumeration for the different types of events that can occur."""
+
     RESOURCE_ALLOCATE = 0
     RESOURCE_FREE = 1
     JOB_FINISH = 2
@@ -39,6 +40,7 @@ class Event:
         type : EventType
             What is the type of this event
     """
+
     time: int
     type: EventType
 
@@ -68,11 +70,17 @@ class ResourceEvent(Event):
         resources : Iterable[Interval]
             The resources that are being allocated/free'd by this event
     """
+
     resources: Iterable[Interval]
     resource_type: ResourceType
 
-    def __init__(self, time: int, type: EventType, resource_type: ResourceType,
-                 resources: Iterable[Interval]):
+    def __init__(
+        self,
+        time: int,
+        type: EventType,
+        resource_type: ResourceType,
+        resources: Iterable[Interval],
+    ):
         # pylint: disable=redefined-builtin
         super().__init__(time, type)
         self.resources = resources
@@ -91,6 +99,7 @@ class JobEvent(Event):
         job : Job
             The job to which this event applies
     """
+
     job: Job
 
     def __init__(self, time: int, type: EventType, job: Job):
@@ -123,6 +132,7 @@ class EventQueue(Generic[T]):
         time : int
             The moment in time this event queue begins.
     """
+
     time: int
     past: List[T]
     future: Heap[T]
@@ -145,9 +155,11 @@ class EventQueue(Generic[T]):
         else:
             self.past.append(event)
             self.past.sort(key=lambda e: e.time)
-            warnings.warn('Adding events to the past might change the '
-                          'ordering of events that happened at the same '
-                          'time.')
+            warnings.warn(
+                'Adding events to the past might change the '
+                'ordering of events that happened at the same '
+                'time.'
+            )
 
     def step(self, time: int = 1) -> Iterable[T]:
         """Steps time in the event queue.
@@ -162,7 +174,7 @@ class EventQueue(Generic[T]):
             the current time.
         """
         if time < 0:
-            raise AssertionError("Tried to move into the past.")
+            raise AssertionError('Tried to move into the past.')
         self.time += time
         present: List[T] = []
         first = self.future.first
@@ -180,7 +192,7 @@ class EventQueue(Generic[T]):
         events is not supported.
         """
         if event not in self.future:
-            raise ValueError("Tried to remove non-existant value")
+            raise ValueError('Tried to remove non-existant value')
         self.future.remove(event)
 
     @property

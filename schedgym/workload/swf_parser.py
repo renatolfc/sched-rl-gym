@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)  # pylint: disable=C
 
 
 class SwfFields(IntEnum):
-    "Fields of the Standard Workload Format."
+    """Fields of the Standard Workload Format."""
+
     JOB_ID = 0
     SUBMITTED = 1
     WAIT_TIME = 2
@@ -39,8 +40,9 @@ class SwfFields(IntEnum):
     THINK_TIME = 17
 
 
-CONVERTERS = {key: int if key != SwfFields.AVG_CPU_USAGE else float
-              for key in SwfFields}
+CONVERTERS = {
+    key: int if key != SwfFields.AVG_CPU_USAGE else float for key in SwfFields
+}
 
 
 def parse(filename, processors, memory, ignore_memory=False):
@@ -80,7 +82,7 @@ def parse(filename, processors, memory, ignore_memory=False):
                 fields[SwfFields.PART_NUM],
                 fields[SwfFields.PRECEDING_JOB],
                 fields[SwfFields.THINK_TIME],
-                fields[SwfFields.WAIT_TIME]
+                fields[SwfFields.WAIT_TIME],
             )
 
             if job.requested_memory < 0 < job.memory_use:
@@ -92,9 +94,12 @@ def parse(filename, processors, memory, ignore_memory=False):
             if job.requested_memory < 0 and ignore_memory:
                 job.requested_memory = 0
 
-            if (job.requested_processors < 1 or
-                    (job.requested_memory < 1 and not ignore_memory) or
-                    job.execution_time < 1 or job.submission_time < 0):
+            if (
+                job.requested_processors < 1
+                or (job.requested_memory < 1 and not ignore_memory)
+                or job.execution_time < 1
+                or job.submission_time < 0
+            ):
                 logger.warning(f'Ignoring malformed job {job.id}')
                 continue
 

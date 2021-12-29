@@ -18,10 +18,10 @@ MAX_TIME_TRACKING_SINCE_LAST_JOB = 10
 
 
 class RewardJobs(IntEnum):
-    ALL = 0,
-    JOB_SLOTS = 1,
-    WAITING = 2,
-    RUNNING_JOB_SLOTS = 3,
+    ALL = (0,)
+    JOB_SLOTS = (1,)
+    WAITING = (2,)
+    RUNNING_JOB_SLOTS = (3,)
 
     @staticmethod
     def from_str(reward_range: str):
@@ -73,11 +73,10 @@ class BaseRmEnv(ABC, gym.Env):
             RewardJobs.ALL: lambda: self.scheduler.jobs_in_system,
             RewardJobs.WAITING: lambda: self.scheduler.queue_admission,
             RewardJobs.JOB_SLOTS: lambda: self.scheduler.queue_admission[
-                :self.job_slots
+                : self.job_slots
             ],
-            RewardJobs.RUNNING_JOB_SLOTS: lambda:
-                self.scheduler.queue_running +
-                self.scheduler.queue_admission[:self.job_slots],
+            RewardJobs.RUNNING_JOB_SLOTS: lambda: self.scheduler.queue_running
+            + self.scheduler.queue_admission[: self.job_slots],
         }
 
     def _render_state(self):
@@ -85,9 +84,13 @@ class BaseRmEnv(ABC, gym.Env):
             self.time_horizon, self.job_slots
         )
         s = self._convert_state(
-            state, jobs, backlog,
-            ((self.simulator.current_time - self.simulator.last_job_time)
-                / MAX_TIME_TRACKING_SINCE_LAST_JOB)
+            state,
+            jobs,
+            backlog,
+            (
+                (self.simulator.current_time - self.simulator.last_job_time)
+                / MAX_TIME_TRACKING_SINCE_LAST_JOB
+            ),
         )
         return s
 
@@ -100,24 +103,28 @@ class BaseRmEnv(ABC, gym.Env):
         return ret
 
     def build_job_slots(self, wait):
-        memory = np.zeros((
-            self.job_slots, self.time_horizon, self.scheduler.total_memory
-        ))
-        processors = np.zeros((
-            self.job_slots, self.time_horizon,
-            self.scheduler.number_of_processors
-        ))
+        memory = np.zeros(
+            (self.job_slots, self.time_horizon, self.scheduler.total_memory)
+        )
+        processors = np.zeros(
+            (
+                self.job_slots,
+                self.time_horizon,
+                self.scheduler.number_of_processors,
+            )
+        )
         for i, j in enumerate(wait):
             if j.requested_processors == -1:
                 break
             time_slice = slice(
                 0,
-                self.time_horizon if j.requested_time > self.time_horizon
+                self.time_horizon
+                if j.requested_time > self.time_horizon
                 else j.requested_time,
             )
-            processors[i, time_slice, :j.requested_processors] = 1.0
+            processors[i, time_slice, : j.requested_processors] = 1.0
             if j.requested_memory != -1:
-                memory[i, time_slice, :j.requested_memory] = 1.0
+                memory[i, time_slice, : j.requested_memory] = 1.0
         return (processors,) if self.ignore_memory else (processors, memory)
 
     def _convert_state(self, current, wait, backlog, time):
@@ -127,10 +134,13 @@ class BaseRmEnv(ABC, gym.Env):
         backlog = np.ones(self.time_horizon * backlog_width) * backlog
         unique = set(np.unique(current[0])) - {0.0}
         if len(unique) > self.job_num_cap:
-            raise AssertionError("Number of jobs > number of colors")
-        available_colors = list(set(self.color_index) - set(
-            [self.color_cache[j] for j in unique if j in self.color_cache]
-        ))
+            raise AssertionError('Number of jobs > number of colors')
+        available_colors = list(
+            set(self.color_index)
+            - set(
+                [self.color_cache[j] for j in unique if j in self.color_cache]
+            )
+        )
         need_color = unique - set(self.color_cache.keys())
         for i, j in enumerate(need_color):
             self.color_cache[j] = available_colors[i]
@@ -138,13 +148,17 @@ class BaseRmEnv(ABC, gym.Env):
             for resource in current:
                 resource[resource == j] = self.colormap[self.color_cache[j]]
 
-        return np.array(current), np.array(wait), \
-            backlog.reshape((self.time_horizon, -1)), \
-            np.ones((self.time_horizon, 1)) * min(1.0, time)
+        return (
+            np.array(current),
+            np.array(wait),
+            backlog.reshape((self.time_horizon, -1)),
+            np.ones((self.time_horizon, 1)) * min(1.0, time),
+        )
 
     def render(self, mode='human'):
         if self.renderer is None:
             from .render import DeepRmRenderer
+
             self.renderer = DeepRmRenderer(mode)
         rgb = self.renderer.render(self._render_state())
         return rgb
