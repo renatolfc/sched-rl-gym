@@ -156,8 +156,9 @@ class BaseRmEnv(ABC, gym.Env):
         random.seed(seed)
         return [seed]
 
+    def compute_reward(self, joblist):
+        return -np.sum([1 / j.execution_time for j in joblist])
+
     @property
     def reward(self):
-        return -np.sum([
-            1 / j.execution_time for j in self.reward_mapper[self.reward_jobs]()
-        ])
+        return self.compute_reward(self.reward_mapper[self.reward_jobs]())
