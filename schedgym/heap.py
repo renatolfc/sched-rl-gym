@@ -60,7 +60,9 @@ class Heap(Generic[T]):
         entry[-1][0] = None
 
     def pop(self) -> T:
-        """Remove and return the lowest priority task. Raise KeyError if empty."""
+        """Remove and return the lowest priority task.
+
+        Raises KeyError if empty."""
         while self.priority_queue:
             _, _, (item,) = heapq.heappop(self.priority_queue)
             if item is not None:
@@ -89,7 +91,7 @@ class Heap(Generic[T]):
 
     @property
     def first(self) -> Optional[T]:
-        """Returns the "first" item (the item with highest priority) in the Heap."""
+        """Returns the "first" item (highest priority item) in the Heap."""
         if len(self.entry_finder) == 0:
             return None
         for (_, _, (item,)) in self.priority_queue:

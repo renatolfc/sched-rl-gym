@@ -63,7 +63,8 @@ class Job:
 
     This makes use of the :class:`schedgym.resource.Resource` class to keep
     track of the assigned resources to the job. Resource assignment itself is
-    performed by :func:`schedgym.scheduler.scheduler.Scheduler.assign_schedule`.
+    performed by
+    :func:`schedgym.scheduler.scheduler.Scheduler.assign_schedule`.
 
     The figure below shows the relationship between jobs, resources, and the
     basic data structure for resource management (`IntervalTree`).

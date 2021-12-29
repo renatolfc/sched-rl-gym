@@ -10,8 +10,6 @@ which manages resources in a cluster.
 import copy
 from typing import Tuple, Iterable, Optional
 
-import numpy as np
-
 from . import pool
 
 from .job import Job, Resource
@@ -176,8 +174,10 @@ class Cluster:
             an empty set of resources otherwise. (See
             :func:`schedgym.cluster.Cluster.find`.)
         """
+        def valid(e, time):
+            return time + 1 <= e.time < job.requested_time + time
+
         used = Resource(self.processors.used_pool, self.memory.used_pool)
-        valid = lambda e, time: time + 1 <= e.time < job.requested_time + time
         for event in (
             e
             for e in events

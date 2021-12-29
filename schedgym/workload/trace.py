@@ -53,7 +53,7 @@ class TraceGenerator(WorkloadGenerator):
         jobs = takewhile(
             lambda j: j[1].submission_time <= submission_time,
             enumerate(
-                self.trace[self.current_element :], self.current_element
+                self.trace[self.current_element:], self.current_element
             ),
         )
         self.current_time = submission_time
@@ -146,6 +146,6 @@ class SwfGenerator(TraceGenerator):
         else:
             length = length if length <= len(self.trace) else len(self.trace)
 
-        self.trace = self.trace[offset : offset + length]
+        self.trace = self.trace[offset:offset + length]
 
         self.current_element = 0

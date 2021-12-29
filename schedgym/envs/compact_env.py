@@ -154,7 +154,7 @@ class CompactRmEnv(BaseRmEnv):
             / self.processors
         )
         if not self.ignore_memory:
-            newstate[len(state[0]) * 2 :] = (
+            newstate[len(state[0]) * 2:] = (
                 np.array([(e[0], e[1]) for e in state[1]]).reshape((-1,))
                 / self.memory
             )

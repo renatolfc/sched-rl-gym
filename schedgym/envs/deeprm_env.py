@@ -3,17 +3,16 @@
 
 from __future__ import annotations, division
 
-from typing import Union, cast
+from typing import Union
 
 import numpy as np
 
-from gym import utils, spaces
+from gym import spaces
 
 from .base import BaseRmEnv
 from .simulator import DeepRmSimulator
 from ..scheduler.null_scheduler import NullScheduler
 from .workload import build as build_workload, DeepRmWorkloadGenerator
-from .workload import SyntheticWorkloadGenerator
 
 import logging
 

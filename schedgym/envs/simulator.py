@@ -124,7 +124,7 @@ class EventBasedDeepRmSimulator:
     def rl_step(
         self, action: int, listjobs: Callable[[], List[Job]]
     ) -> List[List[Job]]:
-        """Returns a list of jobs for each successful intermediate time step."""
+        "Returns a list of jobs for each successful intermediate time step."
 
         if self.scheduler.step(action):
             return [[]]
@@ -179,7 +179,7 @@ class TimeBasedDeepRmSimulator:
     def rl_step(
         self, action: int, listjobs: Callable[[], List[Job]]
     ) -> List[List[Job]]:
-        """Returns a list of jobs for each successful intermediate time step."""
+        "Returns a list of jobs for each successful intermediate time step."
 
         if self.scheduler.step(action):
             return [[]]

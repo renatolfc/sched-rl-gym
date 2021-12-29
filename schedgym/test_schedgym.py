@@ -1128,7 +1128,7 @@ class TestSwfGenerator(unittest.TestCase):
         wl.step(int(1e9))
         self.assertEqual(self.TOTAL_JOBS, wl.current_element)
         with self.assertRaises(StopIteration):
-            jobs = wl.step()
+            wl.step()
 
     def test_get_all_restarts(self):
         wl = self.load()
@@ -1149,8 +1149,8 @@ class TestSwfGenerator(unittest.TestCase):
 
     def test_iterating(self):
         wl = self.load(offset=1, length=10)
-        for job in wl:
-            self.assertIsNotNone(job)
+        for j in wl:
+            self.assertIsNotNone(j)
         with self.assertRaises(StopIteration):
             while True:
                 next(wl)
@@ -1213,7 +1213,7 @@ class TestCompactEnv(unittest.TestCase):
         skip = env.time_horizon * 2 * (1 if env.ignore_memory else 2)
         size = len(job.JobState._fields)
         time = job.JobState._fields.index('requested_time')
-        reqs = observation[skip:][time : (env.job_slots * size) : size]
+        reqs = observation[skip:][time:(env.job_slots * size):size]
         reqs[reqs == 0] = 1.1
         action = np.argmin(reqs)
         return action

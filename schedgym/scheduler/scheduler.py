@@ -8,14 +8,13 @@ that interacts with all other components.
 """
 
 from abc import ABC, abstractmethod
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from typing import (
     List,
     Iterable,
     Tuple,
     Dict,
     Any,
-    Sequence,
     Union,
     NamedTuple,
     Optional,
