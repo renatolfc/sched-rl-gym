@@ -224,3 +224,7 @@ def build(workload_config: dict):
         return DeepRmWorkloadGenerator.build(**kwargs)
     elif type == 'lublin':
         return SyntheticWorkloadGenerator(**kwargs)
+    else:
+        raise RuntimeError(
+            f"Unsupported workload model type {type} requested"
+        )
