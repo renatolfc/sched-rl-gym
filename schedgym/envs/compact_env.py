@@ -212,7 +212,3 @@ class CompactRmEnv(BaseRmEnv):
         self.simulator.reset(wl, self.scheduler)
 
         return self.state
-
-    @property
-    def stats(self):
-        return self.scheduler.stats

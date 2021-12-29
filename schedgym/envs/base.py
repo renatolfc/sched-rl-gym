@@ -162,3 +162,7 @@ class BaseRmEnv(ABC, gym.Env):
     @property
     def reward(self):
         return self.compute_reward(self.reward_mapper[self.reward_jobs]())
+
+    @property
+    def stats(self):
+        return self.scheduler.stats

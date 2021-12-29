@@ -219,7 +219,3 @@ class DeepRmEnv(BaseRmEnv):
             )
         self.simulator.reset(wl, scheduler)
         return self.state
-
-    @property
-    def stats(self):
-        return self.scheduler.stats
