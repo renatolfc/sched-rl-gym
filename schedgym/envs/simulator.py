@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 
 from enum import IntEnum
-from typing import Union, Optional
+from typing import Callable, List, Optional, Union
 
+from schedgym.job import Job
 from schedgym.scheduler import NullScheduler
 from schedgym.envs.workload import (
     DeepRmWorkloadGenerator,
@@ -43,8 +44,15 @@ class DeepRmSimulator:
         self.simulator = self.build()
         self.reset(self.workload, scheduler)
 
-    def rl_step(self, action: Optional[int]) -> bool:
-        return self.simulator.rl_step(action)
+    def rl_step(
+        self,
+        action: Optional[int],
+        listjobs: Optional[Callable[[], List[Job]]]
+    ) -> List[List[Job]]:
+        return self.simulator.rl_step(
+            action if action is not None else -1,
+            listjobs if listjobs else lambda: self.scheduler.jobs_in_system
+        )
 
     def build(self):
         if self.simulation_type == SimulationType.EVENT_BASED:
@@ -105,12 +113,17 @@ class EventBasedDeepRmSimulator:
             scheduler.current_time = first_job_time
             self.current_time = first_job_time
 
-    def rl_step(self, action: int) -> bool:
-        "Returns True when an action executes successfully."
+    def rl_step(
+        self,
+        action: int,
+        listjobs: Callable[[], List[Job]]
+    ) -> List[List[Job]]:
+        "Returns a list of jobs for each successful intermediate time step."
 
         if self.scheduler.step(action):
-            return False
+            return [[]]
 
+        jobs: List[List[Job]] = []
         self.current_time += 1
         while True:
             j = self.workload.step()
@@ -119,8 +132,9 @@ class EventBasedDeepRmSimulator:
                 self.last_job_time = self.current_time
             self.scheduler.forward_time()
             if self.scheduler.some_job_fits(self.job_slots):
+                jobs.append(listjobs())
                 break
-        return True
+        return jobs
 
 
 class TimeBasedDeepRmSimulator:
@@ -153,11 +167,15 @@ class TimeBasedDeepRmSimulator:
         "Not implemented in DeepRmSimulator"
         raise NotImplementedError('This simulator cannot follow the base API')
 
-    def rl_step(self, action: int) -> bool:
-        "Returns True when time passes."
+    def rl_step(
+        self,
+        action: int,
+        listjobs: Callable[[], List[Job]]
+    ) -> List[List[Job]]:
+        "Returns a list of jobs for each successful intermediate time step."
 
         if self.scheduler.step(action):
-            return False
+            return [[]]
         else:
             self.current_time += 1
             j = self.workload.step()
@@ -165,4 +183,4 @@ class TimeBasedDeepRmSimulator:
                 self.scheduler.submit(j)
                 self.last_job_time = self.current_time
             self.scheduler.forward_time()
-            return True
+            return [listjobs()]

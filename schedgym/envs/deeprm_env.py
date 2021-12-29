@@ -196,17 +196,31 @@ class DeepRmEnv(BaseRmEnv):
             action = self.find_slot_position(action)
             found = True
         try:
-            time_passed = self.simulator.rl_step(action if found else None)
+            time_passed = self.simulator.rl_step(
+                action if found else None,
+                self.reward_mapper[self.reward_jobs]
+            )
         except StopIteration:
-            time_passed = True
+            time_passed = [True]
             done = True
 
-        reward = self.reward if time_passed else 0
+        reward = self.reward if any(time_passed) else 0
         done = self.time_limit and (
                 self.scheduler.current_time > self.time_limit or done
         )
 
-        return self.state, reward, done, {}
+        intermediate_rewards = {
+            'intermediate_rewards': [reward] if done else
+                [self.compute_reward(js) for js in time_passed]
+        }
+        intermediate_rewards['intermediate_rewards'][0] = reward
+        return (
+            self.state,
+            reward,
+            done,
+            intermediate_rewards if not done
+                                 else {**self.stats, **intermediate_rewards}
+        )
 
     def reset(self):
         scheduler = NullScheduler(

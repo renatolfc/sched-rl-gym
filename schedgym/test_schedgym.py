@@ -1075,7 +1075,7 @@ class TestCompactEnv(unittest.TestCase):
             action = 0
             done = False
             while not done:
-                observation, reward, done, _ = env.step(action)
+                observation, reward, done, extra = env.step(action)
                 action = self.sjf_action(env, observation)
                 submission_times = [
                     j.execution_time
@@ -1085,6 +1085,7 @@ class TestCompactEnv(unittest.TestCase):
                     action,
                     np.argmin(submission_times) if submission_times else 0
                 )
+                self.assertIn('intermediate_rewards', extra)
 
 
 class TestDeepRmEnv(unittest.TestCase):

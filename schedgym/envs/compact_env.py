@@ -3,13 +3,14 @@
 
 from __future__ import annotations, division
 
-import gym
+from typing import cast
+
 import numpy as np
-from gym import utils, spaces
+from gym import spaces
 
 from ..scheduler.null_scheduler import NullScheduler
+from .workload import SyntheticWorkloadGenerator
 from .workload import build as build_workload
-from ..job import JobState
 
 from .base import BaseRmEnv
 from .simulator import DeepRmSimulator
@@ -45,6 +46,7 @@ DEFAULT_WORKLOAD = {
 
 class CompactRmEnv(BaseRmEnv):
     metadata = {'render.modes': ['human', 'rgb_array']}
+    simulator: DeepRmSimulator
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -80,6 +82,7 @@ class CompactRmEnv(BaseRmEnv):
         )
 
         if not self.time_limit and hasattr(wl, 'trace'):
+            wl = cast(SyntheticWorkloadGenerator, wl)
             self.time_limit = (
                 wl.trace[-1].submission_time + wl.trace[-1].execution_time
             )
@@ -103,7 +106,10 @@ class CompactRmEnv(BaseRmEnv):
             found = False
 
         try:
-            time_passed = self.simulator.rl_step(action if found else None)
+            time_passed = self.simulator.rl_step(
+                action if found else None,
+                self.reward_mapper[self.reward_jobs]
+            )
             # XXX: This is technically incorrect. The correct thing to do here
             # is: when we have a trace-based workload generator, we need to
             # maintain a check on whether we want to sample from it or not, and
@@ -111,15 +117,26 @@ class CompactRmEnv(BaseRmEnv):
             # In the current setting, we might potentially "lose" the last jobs
             # of the workload.
         except StopIteration:
-            time_passed = True
+            time_passed = [True]
             done = True
 
-        reward = self.reward if time_passed else 0
+        reward = self.reward if any(time_passed) else 0
         done = self.time_limit and (
                 self.scheduler.current_time > self.time_limit or done
         )
 
-        return self.state, reward, done, {} if not done else self.stats
+        intermediate_rewards = {
+            'intermediate_rewards': [reward] if done else
+                [self.compute_reward(js) for js in time_passed]
+        }
+        intermediate_rewards['intermediate_rewards'][0] = reward
+        return (
+            self.state,
+            reward,
+            done,
+            intermediate_rewards if not done
+                                 else {**self.stats, **intermediate_rewards}
+        )
 
     @property
     def state(self):
