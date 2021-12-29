@@ -26,7 +26,7 @@ class Stats(NamedTuple):
     """A named tuple with scheduling statistics"""
 
     utilization: float
-    offered_load: float
+    load: float
     slowdown: float
     makespan: float
     bsld: float
@@ -119,7 +119,7 @@ class Scheduler(ABC):
         return max([0] + [j.finish_time for j in self.queue_completed])
 
     @property
-    def offered_load(self) -> float:
+    def load(self) -> float:
         """Computes the current load in the system.
 
         The load is the ratio between the number of requested processors and
@@ -500,7 +500,7 @@ class Scheduler(ABC):
         """
         self.stats[self.current_time] = Stats(
             self.utilization,
-            self.offered_load,
+            self.load,
             np.mean(self.slowdown) if self.queue_completed else 0.0,
             self.makespan,
             np.mean(self.bounded_slowdown) if self.queue_completed else 0.
