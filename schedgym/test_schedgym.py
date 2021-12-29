@@ -1180,7 +1180,9 @@ class TestRewardMappers(unittest.TestCase):
                 env.scheduler.submit(jobs)
                 for i in range(scheduled_jobs):
                     env.step(0)
+                    self.assertEqual(env.simulator.current_time, 0)
                 env.step(env.job_slots)  # forward time
+                self.assertEqual(env.simulator.current_time, 1)
                 self.assertAlmostEqual(
                     env.reward,
                     rewards[m],
