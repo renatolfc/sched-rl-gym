@@ -221,14 +221,5 @@ class DeepRmEnv(BaseRmEnv):
         return self.state
 
     @property
-    def slowdown(self):
-        slowdown = self.scheduler.slowdown
-        if slowdown:
-            return slowdown
-        # no job has finished yet, return maximum slowdown possible
-        exec_time = MAXIMUM_JOB_LENGTH
-        return [(exec_time + self.time_limit) / exec_time]
-
-    @property
     def stats(self):
         return self.scheduler.stats
