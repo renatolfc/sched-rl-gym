@@ -31,6 +31,8 @@ class PackerScheduler(Scheduler):
             j : Job
                 The job whose priority is to be calculated.
         """
+        if self.ignore_memory:
+            return self.free_resources[0] * j.requested_processors
         return (
             self.free_resources[0] * j.requested_processors
             + self.free_resources[1] * j.requested_memory
