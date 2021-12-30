@@ -13,9 +13,11 @@ import enum
 import warnings
 from typing import List, Optional, Iterable, TypeVar, Generic, Iterator
 
+from intervaltree import Interval
+
 from .job import Job
 from .heap import Heap
-from .pool import ResourceType, Interval
+from .pool import ResourceType
 
 T = TypeVar('T', bound='Event')  # pylint: disable=C
 'Generic type for type annotations'

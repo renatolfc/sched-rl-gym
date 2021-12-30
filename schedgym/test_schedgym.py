@@ -10,7 +10,7 @@ import itertools
 import urllib.request
 
 from pathlib import Path
-from typing import Union
+from typing import Union, cast
 
 import gym
 import numpy as np
@@ -23,7 +23,7 @@ from .envs import base, deeprm_env, compact_env
 
 
 class MockLugarRL(object):
-    def __getattr__(self, item):
+    def __getattr__(self, _):
         return lambda: None
 
 
@@ -101,7 +101,11 @@ class TestSimulator(unittest.TestCase):
                 self.scheduler,
             )
         with self.assertRaises(RuntimeError):
-            simulator.Simulator.make(42, self.workload, self.scheduler)
+            simulator.Simulator.make(
+                42,  # type: ignore
+                self.workload,
+                self.scheduler,
+            )
 
 
 class TestJobParameters(unittest.TestCase):
@@ -812,7 +816,7 @@ class TestJob(unittest.TestCase):
 
     def test_slowdown_of_unfinished_job_should_fail(self):
         j = self.make_job(0, 1, 2)
-        j.finish_time = None
+        j.finish_time = -1
         with self.assertWarns(UserWarning):
             self.assertEqual(-1, j.slowdown)
 
@@ -931,7 +935,7 @@ class TestSchedulers(unittest.TestCase):
         )
 
     def submit_jobs(self, s: scheduler.Scheduler, n: int):
-        for i in range(n):
+        for _ in range(n):
             j = self.workload.step()
             if j:
                 s.submit(j)
@@ -1157,11 +1161,14 @@ class TestSwfGenerator(unittest.TestCase):
 
     def test_last_event_time(self):
         wl = self.load(offset=1, length=1)
-        self.assertEqual(wl.last_event_time, wl.peek().submission_time)
-        job = wl.step(wl.last_event_time + 1)[0]
+        self.assertEqual(
+            wl.last_event_time,
+            cast(job.Job, wl.peek()).submission_time
+        )
+        j = wl.step(wl.last_event_time + 1)[0]
         with self.assertRaises(StopIteration):
             wl.step()
-        self.assertEqual(wl.last_event_time, job.submission_time)
+        self.assertEqual(wl.last_event_time, j.submission_time)
 
 
 class TestEnvWorkload(unittest.TestCase):
@@ -1174,7 +1181,7 @@ class TestEnvWorkload(unittest.TestCase):
             'max_job_size': 10,
         }
         wl = env_workload.build(config)
-        j = wl.step()[0]
+        j = cast(job.Job, wl.step()[0])
         self.assertLessEqual(j.requested_time, 10)
 
 
@@ -1207,7 +1214,7 @@ class TestBaseEnv(unittest.TestCase):
 
 class TestCompactEnv(unittest.TestCase):
     @staticmethod
-    def sjf_action(env, observation):
+    def sjf_action(env, observation) -> int:
         """Selects the job SJF (Shortest Job First) would select."""
 
         skip = env.time_horizon * 2 * (1 if env.ignore_memory else 2)
@@ -1216,25 +1223,25 @@ class TestCompactEnv(unittest.TestCase):
         reqs = observation[skip:][time:(env.job_slots * size):size]
         reqs[reqs == 0] = 1.1
         action = np.argmin(reqs)
-        return action
+        return int(action)
 
     def test_instantiation_with_gym(self):
         gym.make('CompactRM-v0')
 
     def test_environment_with_sjf_agent_to_completion(self):
         for simulation_type in 'time-based event-based'.split():
-            env: compact_env.CompactRmEnv = gym.make(
+            env: compact_env.CompactRmEnv = gym.make(  # type: ignore
                 'CompactRM-v0', simulation_type=simulation_type
             )
             observation = env.reset()
             action = 0
             done = False
             while not done:
-                observation, reward, done, extra = env.step(action)
+                observation, _, done, extra = env.step(action)
                 action = self.sjf_action(env, observation)
                 submission_times = [
                     j.execution_time
-                    for j in env.scheduler.queue_admission[: env.job_slots]
+                    for j in env._scheduler.queue_admission[: env.job_slots]
                 ]
                 self.assertEqual(
                     action,
@@ -1249,30 +1256,30 @@ class TestDeepRmEnv(unittest.TestCase):
 
     def test_environment_with_trivial_agent(self):
         for simulation_type in 'time-based event-based'.split():
-            env: deeprm_env.DeepRmEnv = gym.make(
+            env: deeprm_env.DeepRmEnv = gym.make(  # type: ignore
                 'DeepRM-v0',
                 **{
                     'use_raw_state': True,
                     'simulation_type': simulation_type,
                 },
             )
-            observation = env.reset()
+            _ = env.reset()
             action = 0
             done = False
             while not done:
-                observation, reward, done, _ = env.step(action)
+                _, _, done, _ = env.step(action)
             self.assertTrue(done)
 
     def test_environment_with_event_based_simulator(self):
-        env: deeprm_env.DeepRmEnv = gym.make(
+        env: deeprm_env.DeepRmEnv = gym.make(  # type: ignore
             'DeepRM-v0',
             **{'use_raw_state': True, 'simulation_type': 'event-based'},
         )
-        observation = env.reset()
+        _ = env.reset()
         action = 0
         done = False
         while not done:
-            observation, reward, done, _ = env.step(action)
+            _, _, done, _ = env.step(action)
         self.assertTrue(done)
 
 
@@ -1347,7 +1354,7 @@ class TestRewardMappers(unittest.TestCase):
                     self.make_job(0, execution_time, 1)
                     for i in range(total_jobs)
                 ]
-                env.scheduler.submit(jobs)
+                env._scheduler.submit(jobs)
                 for i in range(scheduled_jobs):
                     env.step(0)
                     self.assertEqual(env.simulator.current_time, 0)

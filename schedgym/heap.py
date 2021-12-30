@@ -66,7 +66,7 @@ class Heap(Generic[T]):
         while self.priority_queue:
             _, _, (item,) = heapq.heappop(self.priority_queue)
             if item is not None:
-                del self.entry_finder[item]
+                del self.entry_finder[item]  # type: ignore
                 return cast(T, item)
         raise KeyError('pop from an empty priority queue')
 
@@ -96,7 +96,7 @@ class Heap(Generic[T]):
             return None
         for (_, _, (item,)) in self.priority_queue:
             if item is not None:
-                return item
+                return cast(T, item)
         return None
 
     def heapsort(self) -> Generator[T, None, None]:

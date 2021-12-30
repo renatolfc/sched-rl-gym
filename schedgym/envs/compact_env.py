@@ -3,29 +3,20 @@
 
 from __future__ import annotations, division
 
-from typing import cast
-
 import numpy as np
-from gym import spaces
-
-from ..scheduler.null_scheduler import NullScheduler
-from .workload import SyntheticWorkloadGenerator
-from .workload import build as build_workload
+import gym.spaces.box
+import gym.spaces.discrete
 
 from .base import BaseRmEnv
-from .simulator import DeepRmSimulator
 
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-TIME_HORIZON = 20
 MAXIMUM_JOB_LENGTH = 15
 RESOURCE_SLOTS = 10
 MAXIMUM_JOB_SIZE = 10
-BACKLOG_SIZE = 60
-JOB_SLOTS = 5
 
 AMOUNT_OF_MEMORY = 10
 NUMBER_OF_RESOURCES = 2
@@ -47,7 +38,6 @@ DEFAULT_WORKLOAD = {
 
 class CompactRmEnv(BaseRmEnv):
     metadata = {'render.modes': ['human', 'rgb_array']}
-    simulator: DeepRmSimulator
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -58,46 +48,17 @@ class CompactRmEnv(BaseRmEnv):
         self.memory = kwargs.get('memory', AMOUNT_OF_MEMORY)
         self.processors = kwargs.get('processors', NUMBER_OF_PROCESSORS)
 
-        # number of time steps in the graph
-        self.time_horizon = kwargs.get('time_horizon', TIME_HORIZON)
-
-        self.workload_config = kwargs.get('workload', DEFAULT_WORKLOAD)
-
-        # Number of jobs to show
-        self.job_slots = kwargs.get('job_slots', JOB_SLOTS)
-        # backlog queue size
-        self.backlog_size = kwargs.get('backlog_size', BACKLOG_SIZE)
-
-        self.ignore_memory = kwargs.get('ignore_memory', False)
-
         self.renderer = kwargs.get('renderer', None)
 
-        wl = build_workload(self.workload_config)
-        self.scheduler = NullScheduler(
-            self.processors, self.memory, ignore_memory=self.ignore_memory
-        )
-
-        self.simulator = DeepRmSimulator(
-            wl,
-            self.scheduler,
-            simulation_type=self.simulation_type,
-            job_slots=self.job_slots,
-        )
-
-        if not self.time_limit and hasattr(wl, 'trace'):
-            wl = cast(SyntheticWorkloadGenerator, wl)
-            self.time_limit = (
-                wl.trace[-1].submission_time + wl.trace[-1].execution_time
-            )
         self.maximum_work = self.time_limit * self.processors
         self.maximum_work_mem = self.time_limit * self.memory
 
         self._setup_spaces()
 
     def _setup_spaces(self):
-        self.action_space = spaces.discrete.Discrete(self.job_slots + 1)
+        self.action_space = gym.spaces.discrete.Discrete(self.job_slots + 1)
 
-        self.observation_space = spaces.Box(
+        self.observation_space = gym.spaces.box.Box(
             low=0.0, high=1.0, shape=((len(self.state),)), dtype=np.float32
         )
 
@@ -123,7 +84,7 @@ class CompactRmEnv(BaseRmEnv):
 
         reward = self.reward if any(time_passed) else 0
         done = self.time_limit and (
-            self.scheduler.current_time > self.time_limit or done
+            self._scheduler.current_time > self.time_limit or done
         )
 
         intermediate_rewards = {
@@ -143,7 +104,7 @@ class CompactRmEnv(BaseRmEnv):
 
     @property
     def state(self):
-        state, jobs, backlog = self.scheduler.state(
+        state, jobs, backlog = self._scheduler.state(
             self.time_horizon, self.job_slots
         )
         newstate = np.zeros(
@@ -159,13 +120,13 @@ class CompactRmEnv(BaseRmEnv):
                 / self.memory
             )
         jobs = self._normalize_jobs(jobs).reshape((-1,))
-        backlog = backlog * np.ones(1) / BACKLOG_SIZE
+        backlog = backlog * np.ones(1) / self.backlog_size
 
         running = [
             j
-            for j in self.scheduler.queue_running
+            for j in self._scheduler.queue_running
             if j.submission_time + j.requested_time
-            > self.scheduler.current_time
+            > self._scheduler.current_time
         ]
 
         remaining_work = (
@@ -174,7 +135,7 @@ class CompactRmEnv(BaseRmEnv):
                     (
                         j.submission_time
                         + j.requested_time
-                        - self.scheduler.current_time
+                        - self._scheduler.current_time
                     )
                     * j.requested_processors
                     for j in running
@@ -188,7 +149,7 @@ class CompactRmEnv(BaseRmEnv):
                     (
                         j.submission_time
                         + j.requested_time
-                        - self.scheduler.current_time
+                        - self._scheduler.current_time
                     )
                     * j.requested_memory
                     for j in running
@@ -200,8 +161,8 @@ class CompactRmEnv(BaseRmEnv):
         # XXX: this normalization only works while we're sampling at most one
         # job per time step. Once this is not true, we risk having the
         # queue_size feature > 1.0 (which is incorrect)
-        queue_size = len(self.scheduler.queue_admission) / self.time_limit
-        time_left = 1 - self.scheduler.current_time / self.time_limit
+        queue_size = len(self._scheduler.queue_admission) / self.time_limit
+        time_left = 1 - self._scheduler.current_time / self.time_limit
 
         try:
             next_free = min(
@@ -212,7 +173,7 @@ class CompactRmEnv(BaseRmEnv):
                     (
                         next_free.start_time
                         + next_free.requested_time
-                        - self.scheduler.current_time
+                        - self._scheduler.current_time
                     )
                     / self.time_limit,
                     next_free.requested_processors / self.processors,
@@ -254,16 +215,3 @@ class CompactRmEnv(BaseRmEnv):
             )
             _sumdiv(ret[i], 6, job.free_processors, self.processors)
         return ret
-
-    def reset(self):
-        self.scheduler = NullScheduler(
-            self.processors, self.memory, ignore_memory=self.ignore_memory
-        )
-        wl = build_workload(self.workload_config)
-        if self.update_time_limit and hasattr(wl, 'trace'):
-            self.time_limit = (
-                wl.trace[-1].submission_time + wl.trace[-1].execution_time
-            )
-        self.simulator.reset(wl, self.scheduler)
-
-        return self.state

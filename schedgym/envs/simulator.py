@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from enum import IntEnum
-from typing import Callable, List, Optional, Union
+from typing import Callable, List, Optional, Union, cast
 
 from schedgym.job import Job
 from schedgym.scheduler import NullScheduler
@@ -10,6 +10,10 @@ from schedgym.envs.workload import (
     DeepRmWorkloadGenerator,
     SyntheticWorkloadGenerator,
 )
+
+WorkloadGeneratorType = Union[
+    DeepRmWorkloadGenerator, SyntheticWorkloadGenerator
+]
 
 
 class SimulationType(IntEnum):
@@ -33,9 +37,7 @@ class DeepRmSimulator:
 
     def __init__(
         self,
-        workload_generator: Union[
-            DeepRmWorkloadGenerator, SyntheticWorkloadGenerator
-        ],
+        workload_generator: WorkloadGeneratorType,
         scheduler: NullScheduler,
         simulation_type: SimulationType = SimulationType.TIME_BASED,
         job_slots: Optional[int] = None,
@@ -97,7 +99,7 @@ class EventBasedDeepRmSimulator:
 
     def __init__(
         self,
-        workload_generator: DeepRmWorkloadGenerator,
+        workload_generator: WorkloadGeneratorType,
         scheduler: NullScheduler,
         job_slots: slice,
     ):
@@ -115,7 +117,9 @@ class EventBasedDeepRmSimulator:
 
         self.current_time = self.last_job_time = 0
         if isinstance(workload_generator, SyntheticWorkloadGenerator):
-            first_job_time = workload_generator.peek().submission_time - 1
+            first_job_time = cast(
+                Job, workload_generator.peek()
+            ).submission_time - 1
             workload_generator.current_time = first_job_time
             scheduler.job_events.time = first_job_time
             scheduler.current_time = first_job_time
@@ -150,7 +154,7 @@ class TimeBasedDeepRmSimulator:
 
     def __init__(
         self,
-        workload_generator: DeepRmWorkloadGenerator,
+        workload_generator: WorkloadGeneratorType,
         scheduler: NullScheduler,
         job_slots: slice,
     ):
@@ -167,12 +171,14 @@ class TimeBasedDeepRmSimulator:
         self.job_slots = job_slots
 
         if isinstance(workload_generator, SyntheticWorkloadGenerator):
-            first_job_time = workload_generator.peek().submission_time - 1
+            first_job_time = cast(
+                Job, workload_generator.peek()
+            ).submission_time - 1
             workload_generator.current_time = first_job_time
             scheduler.job_events.time = first_job_time
             scheduler.current_time = first_job_time
 
-    def step(self, submit=True):
+    def step(self, _=True):
         """Not implemented in DeepRmSimulator"""
         raise NotImplementedError('This simulator cannot follow the base API')
 

@@ -107,6 +107,10 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
         if self.runtime_estimates and self.runtime_estimates.startswith(
             'gaussian'
         ):
+            if self.estimate_parameters is None:
+                raise RuntimeError(
+                    "Can't sample runtime estimates with undefined parameters"
+                )
             diff = random.gauss(0, self.estimate_parameters * j.execution_time)
             if 'over' in self.runtime_estimates:
                 diff = abs(diff)

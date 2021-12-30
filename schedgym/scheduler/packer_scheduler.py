@@ -19,7 +19,7 @@ class PackerScheduler(Scheduler):
     changes, since they always schedule one job at a time.
     """
 
-    def get_priority(self, j: Job) -> int:
+    def get_priority(self, j: Job) -> float:
         """Computes the priority of a given job.
 
         This computes the priority of a job according to the Packer heuristic,

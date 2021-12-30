@@ -5,7 +5,7 @@
 
 import copy
 import enum
-from typing import Iterable, Optional
+from typing import Iterable, List, Optional
 
 from intervaltree import IntervalTree, Interval
 
@@ -172,7 +172,7 @@ class ResourcePool:
             self.used_resources -= self.measure(i)
 
     @property
-    def intervals(self) -> Iterable[Interval]:
+    def intervals(self) -> List[Interval]:
         """The set of intervals currently used in this resource pool."""
         # pylint: disable=unnecessary-comprehension
         return [i for i in self.used_pool]

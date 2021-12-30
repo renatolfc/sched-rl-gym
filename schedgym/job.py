@@ -117,31 +117,31 @@ class Job:
         wait_time=-1,
         ignore_memory=True,
     ):
-        self.id = job_id
-        self.submission_time = submission_time
-        self.execution_time = execution_time
-        self.requested_time = requested_time
-        self.requested_processors = requested_processors
-        self.processors_allocated = processors_allocated
-        self.average_cpu_use = average_cpu_use
-        self.memory_use = memory_use
-        self.requested_memory = requested_memory
-        self.status = status
-        self.user_id = user_id
-        self.group_id = group_id
-        self.executable = executable
-        self.queue_number = queue_number
-        self.partition_number = partition_number
-        self.preceding_job_id = preceding_job_id
+        self.id: int = job_id
+        self.submission_time: int = submission_time
+        self.execution_time: int = execution_time
+        self.requested_time: int = requested_time
+        self.requested_processors: int = requested_processors
+        self.processors_allocated: int = processors_allocated
+        self.average_cpu_use: int = average_cpu_use
+        self.memory_use: int = memory_use
+        self.requested_memory: int = requested_memory
+        self.status: JobStatus = status
+        self.user_id: int = user_id
+        self.group_id: int = group_id
+        self.executable: int = executable
+        self.queue_number: int = queue_number
+        self.partition_number: int = partition_number
+        self.preceding_job_id: int = preceding_job_id
         self.think_time = think_time
         self.wait_time = wait_time
 
         self.resources = Resource()
-        self.first_scheduling_promise = None
-        self.start_time = None
-        self.finish_time = None
+        self.first_scheduling_promise: int = -1
+        self.start_time: int = -1
+        self.finish_time: int = -1
         self.ignore_memory = ignore_memory
-        self.slot_position = None
+        self.slot_position: int = -1
         self.free_processors = -1
         self.queued_work = -1
         self.queue_size = -1
@@ -171,32 +171,30 @@ class Job:
     @property
     def slowdown(self):
         """Computes the slowdown of the current job."""
-        try:
-            return (
-                self.finish_time - self.submission_time
-            ) / self.execution_time
-        except TypeError:
+        if self.finish_time < 0:
             warnings.warn(
                 f'Failed to obtain slowdown for job {self}. '
                 'It may not have finished yet.'
             )
             return -1
+        return (
+            self.finish_time - self.submission_time
+        ) / self.execution_time
 
     @property
     def bounded_slowdown(self):
         """Gives the bounded slowdown of a job"""
-        try:
-            return max(
-                1,
-                (self.finish_time - self.submission_time)
-                / max(10, self.execution_time),
-            )
-        except TypeError:
+        if self.finish_time < 0:
             warnings.warn(
                 f'Failed to obtain avg bounded slowdown for job {self}.'
                 'It may not have finished yet.'
             )
             return -1
+        return max(
+            1,
+            (self.finish_time - self.submission_time)
+            / max(10, self.execution_time),
+        )
 
     @property
     def swf(self):

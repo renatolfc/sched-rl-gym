@@ -10,11 +10,29 @@ import gym
 
 import numpy as np
 
-from .simulator import SimulationType
+from .simulator import SimulationType, DeepRmSimulator
 from ..scheduler.null_scheduler import NullScheduler
+from .workload import build as build_workload
 
+BACKLOG_SIZE = 60
 MAXIMUM_NUMBER_OF_ACTIVE_JOBS = 40  # Number of colors in image
 MAX_TIME_TRACKING_SINCE_LAST_JOB = 10
+
+TIME_HORIZON = 20
+JOB_SLOTS = 5
+AMOUNT_OF_MEMORY = 10
+NUMBER_OF_PROCESSORS = 10
+MAXIMUM_JOB_LENGTH = 15
+MAXIMUM_JOB_SIZE = 10
+NEW_JOB_RATE = 0.7
+SMALL_JOB_CHANCE = 0.8
+DEFAULT_WORKLOAD = {
+    'type': 'deeprm',
+    'new_job_rate': NEW_JOB_RATE,
+    'max_job_size': MAXIMUM_JOB_SIZE,
+    'max_job_len': MAXIMUM_JOB_LENGTH,
+    'small_job_chance': SMALL_JOB_CHANCE,
+}
 
 
 class RewardJobs(IntEnum):
@@ -44,7 +62,8 @@ class BaseRmEnv(ABC, gym.Env):
     ignore_memory: bool
     color_index: List[int]
     scheduler: NullScheduler
-    color_cache: Dict[int, float]
+    color_cache: Dict[int, int]
+    simulator: DeepRmSimulator
 
     @abstractmethod
     def __init__(self, **kwargs):
@@ -62,6 +81,10 @@ class BaseRmEnv(ABC, gym.Env):
             kwargs.get('reward_jobs', 'all')
         )
 
+        self.time_horizon = kwargs.get(
+            'time_horizon', TIME_HORIZON
+        )  # number of time steps in the graph
+
         step = 1.0 / self.job_num_cap
         # zero is already present and set to "no job there"
         self.colormap = np.arange(start=step, stop=1, step=step)
@@ -69,18 +92,54 @@ class BaseRmEnv(ABC, gym.Env):
             np.random.shuffle(self.colormap)
         self.color_index = list(range(len(self.colormap)))
 
+        # Number of jobs to show
+        self.job_slots = kwargs.get('job_slots', JOB_SLOTS)
+
         self.reward_mapper = {
-            RewardJobs.ALL: lambda: self.scheduler.jobs_in_system,
-            RewardJobs.WAITING: lambda: self.scheduler.queue_admission,
-            RewardJobs.JOB_SLOTS: lambda: self.scheduler.queue_admission[
+            RewardJobs.ALL: lambda: self._scheduler.jobs_in_system,
+            RewardJobs.WAITING: lambda: self._scheduler.queue_admission,
+            RewardJobs.JOB_SLOTS: lambda: self._scheduler.queue_admission[
                 : self.job_slots
             ],
-            RewardJobs.RUNNING_JOB_SLOTS: lambda: self.scheduler.queue_running
-            + self.scheduler.queue_admission[: self.job_slots],
+            RewardJobs.RUNNING_JOB_SLOTS: lambda: self._scheduler.queue_running
+            + self._scheduler.queue_admission[: self.job_slots],
         }
 
+        self.backlog_size = kwargs.get('backlog_size', BACKLOG_SIZE)
+        self.memory = kwargs.get('memory', AMOUNT_OF_MEMORY)
+        self.processors = kwargs.get('processors', NUMBER_OF_PROCESSORS)
+        self.ignore_memory = kwargs.get('ignore_memory', False)
+
+        self.workload_config = kwargs.get('workload', DEFAULT_WORKLOAD)
+        wl = build_workload(self.workload_config)
+        self._scheduler = NullScheduler(
+            self.processors, self.memory, ignore_memory=self.ignore_memory
+        )
+        self.time_limit = kwargs.get('time_limit', 200)
+        self.update_time_limit = False if self.time_limit else True
+
+        self.simulator = DeepRmSimulator(
+            wl,
+            self._scheduler,
+            simulation_type=self.simulation_type,
+            job_slots=self.job_slots,
+        )
+
+    def reset(self):
+        self._scheduler = NullScheduler(
+            self.processors, self.memory, ignore_memory=self.ignore_memory
+        )
+        wl = build_workload(self.workload_config)
+        if self.update_time_limit and hasattr(wl, 'trace'):
+            self.time_limit = (
+                wl.trace[-1].submission_time +  # type: ignore
+                wl.trace[-1].execution_time  # type: ignore
+            )
+        self.simulator.reset(wl, self._scheduler)
+        return self.state
+
     def _render_state(self):
-        state, jobs, backlog = self.scheduler.state(
+        state, jobs, backlog = self._scheduler.state(
             self.time_horizon, self.job_slots
         )
         s = self._convert_state(
@@ -104,13 +163,13 @@ class BaseRmEnv(ABC, gym.Env):
 
     def build_job_slots(self, wait):
         memory = np.zeros(
-            (self.job_slots, self.time_horizon, self.scheduler.total_memory)
+            (self.job_slots, self.time_horizon, self._scheduler.total_memory)
         )
         processors = np.zeros(
             (
                 self.job_slots,
                 self.time_horizon,
-                self.scheduler.number_of_processors,
+                self._scheduler.number_of_processors,
             )
         )
         for i, j in enumerate(wait):
@@ -179,4 +238,9 @@ class BaseRmEnv(ABC, gym.Env):
 
     @property
     def stats(self):
-        return self.scheduler.stats
+        return self._scheduler.stats
+
+    @property
+    @abstractmethod
+    def state(self):
+        raise NotImplementedError

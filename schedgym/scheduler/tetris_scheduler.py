@@ -35,7 +35,7 @@ class TetrisScheduler(PackerScheduler):
         super().__init__(number_of_processors, total_memory)
         self.packer_sjf_ratio = packer_sjf_ratio
 
-    def get_priority(self, j: Job) -> int:
+    def get_priority(self, j: Job) -> float:
         """Gives the packer/sjf mixed priority.
 
         Parameters

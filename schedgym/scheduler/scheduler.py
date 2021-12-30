@@ -115,7 +115,7 @@ class Scheduler(ABC):
         )
 
     @property
-    def slowdown(self) -> List[int]:
+    def slowdown(self) -> List[float]:
         """Returns the slowdown of all completed jobs"""
         return [j.slowdown for j in self.queue_completed]
 
@@ -147,7 +147,7 @@ class Scheduler(ABC):
         return self.used_processors / self.number_of_processors
 
     @property
-    def bounded_slowdown(self) -> List[int]:
+    def bounded_slowdown(self) -> List[float]:
         """Computes the bounded slowdown for all completed jobs"""
         return [j.bounded_slowdown for j in self.queue_completed]
 
