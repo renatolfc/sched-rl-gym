@@ -1241,13 +1241,23 @@ class TestCompactEnv(unittest.TestCase):
                 action = self.sjf_action(env, observation)
                 submission_times = [
                     j.execution_time
-                    for j in env._scheduler.queue_admission[: env.job_slots]
+                    for j in env.scheduler.queue_admission[: env.job_slots]
                 ]
                 self.assertEqual(
                     action,
                     np.argmin(submission_times) if submission_times else 0,
                 )
                 self.assertIn('intermediate_rewards', extra)
+
+    def test_scheduler_identity(self):
+        env: deeprm_env.DeepRmEnv = gym.make(  # type: ignore
+            'CompactRM-v0',
+            **{'use_raw_state': True, 'simulation_type': 'event-based'},
+        )
+        _ = env.reset()
+        self.assertEqual(id(env.scheduler), id(env.simulator.scheduler))
+
+
 
 
 class TestDeepRmEnv(unittest.TestCase):
@@ -1281,6 +1291,15 @@ class TestDeepRmEnv(unittest.TestCase):
         while not done:
             _, _, done, _ = env.step(action)
         self.assertTrue(done)
+
+    def test_scheduler_identity(self):
+        env: deeprm_env.DeepRmEnv = gym.make(  # type: ignore
+            'DeepRM-v0',
+            **{'use_raw_state': True, 'simulation_type': 'event-based'},
+        )
+        _ = env.reset()
+        self.assertEqual(id(env.scheduler), id(env.simulator.scheduler))
+
 
 
 class TestRewardMappers(unittest.TestCase):
@@ -1354,7 +1373,7 @@ class TestRewardMappers(unittest.TestCase):
                     self.make_job(0, execution_time, 1)
                     for i in range(total_jobs)
                 ]
-                env._scheduler.submit(jobs)
+                env.scheduler.submit(jobs)
                 for i in range(scheduled_jobs):
                     env.step(0)
                     self.assertEqual(env.simulator.current_time, 0)

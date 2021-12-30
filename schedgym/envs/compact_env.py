@@ -84,7 +84,7 @@ class CompactRmEnv(BaseRmEnv):
 
         reward = self.reward if any(time_passed) else 0
         done = self.time_limit and (
-            self._scheduler.current_time > self.time_limit or done
+            self.scheduler.current_time > self.time_limit or done
         )
 
         intermediate_rewards = {
@@ -104,7 +104,7 @@ class CompactRmEnv(BaseRmEnv):
 
     @property
     def state(self):
-        state, jobs, backlog = self._scheduler.state(
+        state, jobs, backlog = self.scheduler.state(
             self.time_horizon, self.job_slots
         )
         newstate = np.zeros(
@@ -124,9 +124,9 @@ class CompactRmEnv(BaseRmEnv):
 
         running = [
             j
-            for j in self._scheduler.queue_running
+            for j in self.scheduler.queue_running
             if j.submission_time + j.requested_time
-            > self._scheduler.current_time
+            > self.scheduler.current_time
         ]
 
         remaining_work = (
@@ -135,7 +135,7 @@ class CompactRmEnv(BaseRmEnv):
                     (
                         j.submission_time
                         + j.requested_time
-                        - self._scheduler.current_time
+                        - self.scheduler.current_time
                     )
                     * j.requested_processors
                     for j in running
@@ -149,7 +149,7 @@ class CompactRmEnv(BaseRmEnv):
                     (
                         j.submission_time
                         + j.requested_time
-                        - self._scheduler.current_time
+                        - self.scheduler.current_time
                     )
                     * j.requested_memory
                     for j in running
@@ -161,8 +161,8 @@ class CompactRmEnv(BaseRmEnv):
         # XXX: this normalization only works while we're sampling at most one
         # job per time step. Once this is not true, we risk having the
         # queue_size feature > 1.0 (which is incorrect)
-        queue_size = len(self._scheduler.queue_admission) / self.time_limit
-        time_left = 1 - self._scheduler.current_time / self.time_limit
+        queue_size = len(self.scheduler.queue_admission) / self.time_limit
+        time_left = 1 - self.scheduler.current_time / self.time_limit
 
         try:
             next_free = min(
@@ -173,7 +173,7 @@ class CompactRmEnv(BaseRmEnv):
                     (
                         next_free.start_time
                         + next_free.requested_time
-                        - self._scheduler.current_time
+                        - self.scheduler.current_time
                     )
                     / self.time_limit,
                     next_free.requested_processors / self.processors,

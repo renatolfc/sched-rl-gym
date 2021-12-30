@@ -56,10 +56,6 @@ class DeepRmEnv(BaseRmEnv):
 
         self.setup_spaces()
 
-    @property
-    def scheduler(self):
-        return self.simulator.scheduler
-
     def setup_spaces(self):
         self.action_space = gym.spaces.discrete.Discrete(self.job_slots + 1)
         if self.use_raw_state:
@@ -75,9 +71,9 @@ class DeepRmEnv(BaseRmEnv):
                 self.time_horizon,
                 (
                     (0 if self.ignore_memory else (self.job_slots + 1))
-                    * self._scheduler.total_memory
+                    * self.scheduler.total_memory
                 )
-                + (self.job_slots + 1) * self._scheduler.number_of_processors
+                + (self.job_slots + 1) * self.scheduler.number_of_processors
                 + self.backlog_width
                 + 1,
             ),
@@ -87,12 +83,12 @@ class DeepRmEnv(BaseRmEnv):
         self.memory_space = gym.spaces.box.Box(
             low=0.0,
             high=1.0,
-            shape=(self.time_horizon, self._scheduler.total_memory),
+            shape=(self.time_horizon, self.scheduler.total_memory),
         )
         self.processor_space = gym.spaces.box.Box(
             low=0.0,
             high=1.0,
-            shape=(self.time_horizon, self._scheduler.number_of_processors),
+            shape=(self.time_horizon, self.scheduler.number_of_processors),
         )
         self.backlog_space = gym.spaces.box.Box(
             low=0.0, high=1.0, shape=(self.time_horizon, self.backlog_width)
@@ -103,7 +99,7 @@ class DeepRmEnv(BaseRmEnv):
             shape=(
                 self.job_slots,
                 self.time_horizon,
-                self._scheduler.total_memory,
+                self.scheduler.total_memory,
             ),
         )
         self.processor_slots_space = gym.spaces.box.Box(
@@ -112,7 +108,7 @@ class DeepRmEnv(BaseRmEnv):
             shape=(
                 self.job_slots,
                 self.time_horizon,
-                self._scheduler.number_of_processors,
+                self.scheduler.number_of_processors,
             ),
         )
         self.time_since_space = gym.spaces.discrete.Discrete(self.time_horizon)
@@ -136,7 +132,7 @@ class DeepRmEnv(BaseRmEnv):
 
     @property
     def state(self):
-        state, jobs, backlog = self._scheduler.state(
+        state, jobs, backlog = self.scheduler.state(
             self.time_horizon, self.job_slots
         )
         s = self._convert_state(
@@ -159,7 +155,7 @@ class DeepRmEnv(BaseRmEnv):
         return np.hstack((current, wait, backlog, time))
 
     def find_slot_position(self, action):
-        if action < len(self._scheduler.queue_admission):
+        if action < len(self.scheduler.queue_admission):
             return action
         return self.action_space.n - 1
 
@@ -179,7 +175,7 @@ class DeepRmEnv(BaseRmEnv):
 
         reward = self.reward if any(time_passed) else 0
         done = self.time_limit and (
-            self._scheduler.current_time > self.time_limit or done
+            self.scheduler.current_time > self.time_limit or done
         )
 
         intermediate_rewards = {
