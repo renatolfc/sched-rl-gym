@@ -92,6 +92,7 @@ class BaseRmEnv(ABC, gym.Env):
             self.update_time_limit = True
         else:
             self.time_limit = time_limit
+            self.update_time_limit = False
 
         step = 1.0 / self.job_num_cap
         # zero is already present and set to "no job there"
