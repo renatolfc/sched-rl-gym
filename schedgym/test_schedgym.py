@@ -1257,7 +1257,25 @@ class TestCompactEnv(unittest.TestCase):
         _ = env.reset()
         self.assertEqual(id(env.scheduler), id(env.simulator.scheduler))
 
-
+    def test_synthetic_wl_auto_time_limit(self):
+        env: compact_env.CompactRmEnv = gym.make(  # type: ignore
+            'CompactRM-v0',
+            **{
+                'use_raw_state': True,
+                'time_limit': None,
+                'simulation_type': 'event-based',
+                'ignore_memory': True,
+                'workload': {
+                    'type': 'lublin',
+                    'length': 10,
+                    'nodes': 10,
+                }
+            },
+        )
+        obs = env.reset()
+        self.assertNotIn(None, obs)
+        obs, _, _, _ = env.step(0)
+        self.assertNotIn(None, obs)
 
 
 class TestDeepRmEnv(unittest.TestCase):
