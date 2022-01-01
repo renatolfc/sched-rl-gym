@@ -57,6 +57,7 @@ class BaseRmEnv(ABC, gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
     job_slots: int
+    time_limit: int
     job_num_cap: int
     time_horizon: int
     ignore_memory: bool
@@ -85,6 +86,13 @@ class BaseRmEnv(ABC, gym.Env):
             'time_horizon', TIME_HORIZON
         )  # number of time steps in the graph
 
+        time_limit = kwargs.get('time_limit', 200)
+        if time_limit is None:
+            self.time_limit = 1
+            self.update_time_limit = True
+        else:
+            self.time_limit = time_limit
+
         step = 1.0 / self.job_num_cap
         # zero is already present and set to "no job there"
         self.colormap = np.arange(start=step, stop=1, step=step)
@@ -112,8 +120,6 @@ class BaseRmEnv(ABC, gym.Env):
 
         self.workload_config = kwargs.get('workload', DEFAULT_WORKLOAD)
         wl = build_workload(self.workload_config)
-        self.time_limit = kwargs.get('time_limit', 200)
-        self.update_time_limit = False if self.time_limit else True
 
         scheduler = NullScheduler(
             self.processors, self.memory, ignore_memory=self.ignore_memory
@@ -125,7 +131,7 @@ class BaseRmEnv(ABC, gym.Env):
             job_slots=self.job_slots,
         )
 
-    def reset(self):
+    def reset(self) -> np.ndarray:
         scheduler = NullScheduler(
             self.processors, self.memory, ignore_memory=self.ignore_memory
         )

@@ -42,16 +42,13 @@ class CompactRmEnv(BaseRmEnv):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.time_limit = kwargs.get('time_limit', 200)
-        self.update_time_limit = False if self.time_limit else True
-
         self.memory = kwargs.get('memory', AMOUNT_OF_MEMORY)
         self.processors = kwargs.get('processors', NUMBER_OF_PROCESSORS)
 
         self.renderer = kwargs.get('renderer', None)
 
-        self.maximum_work = self.time_limit * self.processors
-        self.maximum_work_mem = self.time_limit * self.memory
+        self.maximum_work = self.processors
+        self.maximum_work_mem = self.memory
 
         self._setup_spaces()
 
@@ -61,6 +58,12 @@ class CompactRmEnv(BaseRmEnv):
         self.observation_space = gym.spaces.box.Box(
             low=0.0, high=1.0, shape=((len(self.state),)), dtype=np.float32
         )
+
+    def reset(self):
+        super().reset()
+        self.maximum_work = self.time_limit * self.processors
+        self.maximum_work_mem = self.time_limit * self.memory
+        return super().reset()
 
     def step(self, action: int):
         done = False
@@ -111,13 +114,17 @@ class CompactRmEnv(BaseRmEnv):
             (len(state[0]) * (1 if self.ignore_memory else 2) * 2)
         )
         newstate[: len(state[0]) * 2] = (
-            np.array([(e[0], e[1]) for e in state[0]]).reshape((-1,))
-            / self.processors
+            np.array(
+                [(e[0], e[1]) for e in state[0]],
+                dtype=np.float32
+            ).reshape((-1,),) / self.processors
         )
         if not self.ignore_memory:
             newstate[len(state[0]) * 2:] = (
-                np.array([(e[0], e[1]) for e in state[1]]).reshape((-1,))
-                / self.memory
+                np.array(
+                    [(e[0], e[1]) for e in state[1]],
+                    dtype=np.float32
+                ).reshape((-1,)) / self.memory
             )
         jobs = self._normalize_jobs(jobs).reshape((-1,))
         backlog = backlog * np.ones(1) / self.backlog_size
@@ -193,14 +200,14 @@ class CompactRmEnv(BaseRmEnv):
                 np.array(
                     (remaining_work, remaining_work_mem, queue_size, time_left)
                 ),
-            )
+            ),
         )
 
     def _normalize_jobs(self, jobs):
         def _sumdiv(arr, idx, orig, limit):
             arr[idx] = (orig + 1) / (limit + 1)
 
-        ret = np.zeros((len(jobs), len(jobs[0])))
+        ret = np.zeros((len(jobs), len(jobs[0])), dtype=np.float32)
         for i, job in enumerate(jobs):
             _sumdiv(ret[i], 0, job.submission_time, self.time_limit)
             _sumdiv(ret[i], 1, job.requested_time, self.time_limit)
