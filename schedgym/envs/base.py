@@ -62,7 +62,6 @@ class BaseRmEnv(ABC, gym.Env):
     time_horizon: int
     ignore_memory: bool
     color_index: List[int]
-    scheduler: NullScheduler
     color_cache: Dict[int, int]
     simulator: DeepRmSimulator
 
@@ -253,5 +252,5 @@ class BaseRmEnv(ABC, gym.Env):
         raise NotImplementedError
 
     @property
-    def scheduler(self):
+    def scheduler(self) -> NullScheduler:
         return self.simulator.scheduler
