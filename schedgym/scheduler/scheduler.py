@@ -440,7 +440,7 @@ class Scheduler(ABC):
         Parameters
         ----------
             timesteps : int
-                The number of time steps to look into the fugure
+                The number of time steps to look into the future
             job_slots : int
                 The number of job slots to use (the amount of jobs in the
                 admission queue to represent)
