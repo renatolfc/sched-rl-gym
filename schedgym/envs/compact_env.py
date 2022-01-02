@@ -7,6 +7,7 @@ import numpy as np
 import gym.spaces.box
 import gym.spaces.discrete
 
+from ..job import Job
 from .base import BaseRmEnv
 
 import logging
@@ -82,11 +83,11 @@ class CompactRmEnv(BaseRmEnv):
             # In the current setting, we might potentially "lose" the last jobs
             # of the workload.
         except StopIteration:
-            time_passed = [True]
+            time_passed = [[Job()]]
             done = True
 
         reward = self.reward if any(time_passed) else 0
-        done = self.time_limit and (
+        done = bool(self.time_limit) and (
             self.scheduler.current_time > self.time_limit or done
         )
 

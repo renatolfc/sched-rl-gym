@@ -11,6 +11,7 @@ import gym.spaces.box
 import gym.spaces.discrete
 import gym.spaces.tuple
 
+from ..job import Job
 from .base import BaseRmEnv
 from .simulator import DeepRmSimulator
 from .workload import DeepRmWorkloadGenerator
@@ -170,11 +171,11 @@ class DeepRmEnv(BaseRmEnv):
                 action if found else None, self.reward_mapper[self.reward_jobs]
             )
         except StopIteration:
-            time_passed = [True]
+            time_passed = [[Job()]]
             done = True
 
         reward = self.reward if any(time_passed) else 0
-        done = self.time_limit and (
+        done = bool(self.time_limit) and (
             self.scheduler.current_time > self.time_limit or done
         )
 
