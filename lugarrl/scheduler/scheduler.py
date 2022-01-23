@@ -7,6 +7,7 @@ from typing import List, Iterable, Tuple, Dict, Any, Sequence, Union
 
 import numpy as np
 import collections.abc
+from intervaltree import Interval, IntervalTree
 
 from lugarrl.cluster import Cluster
 from lugarrl.job import Job, JobStatus, Resource
@@ -110,7 +111,7 @@ class Scheduler(ABC):
         self.used_processors -= j.processors_allocated
 
     def add_job_events(self, job: Job, time: int) -> Tuple[JobEvent, JobEvent]:
-        if not job.resources or not job.proper:
+        if not job.proper:
             raise AssertionError(
                 "Malformed job submitted either with no processors, "
                 "or with insufficient number of "
@@ -183,24 +184,42 @@ class Scheduler(ABC):
             self.current_time, job, self.job_events
         )
 
-    def find_first_time_for(self, job: Job) -> Tuple[int, Resource]:
-        if (not self.job_events.next) or self.job_events.next.time > self.current_time:
-            resources = self.cluster.find_resources_at_time(self.current_time, job, self.job_events)
-            if resources:
-                return self.current_time, resources
+    def find_first_time_for(self, job: Job) -> int:
+        if not self.job_events.next:
+            return self.current_time
 
-        near_future: Dict[int, List[JobEvent]] = defaultdict(list)
+        processors, memory = self.cluster.free_resources
+        future_procs: Dict[int, int] = defaultdict(int)
+        future_mem: Dict[int, int] = defaultdict(int)
+        future_procs[self.current_time] = future_mem[self.current_time] = 0
         for e in self.job_events:
-            near_future[e.time].append(e)
+            if e.type == EventType.JOB_START:
+                future_procs[e.time] -= e.job.requested_processors
+                future_mem[e.time] -= e.job.requested_memory
+            else:
+                future_procs[e.time] += e.job.requested_processors
+                future_mem[e.time] += e.job.requested_memory
 
-        cluster = self.cluster.clone()
-        for time in sorted(near_future):
-            cluster = self.play_events(near_future[time], cluster)
-            resources = cluster.find_resources_at_time(time, job, self.job_events)
-            if resources:
-                return time, resources
-
-        raise AssertionError('Failed to find time for job, even in the far future.')
+        future_procs = {k: v for k, v in zip(future_procs.keys(), processors + np.cumsum(list(future_procs.values())))}
+        future_mem = {k: v for k, v in zip(future_mem.keys(), memory + np.cumsum(list(future_mem.values())))}
+        times = list(future_procs.keys())
+        for i in range(len(times) - 1):
+            processors = future_procs[times[i]]
+            memory = future_mem[times[i]]
+            if (
+                times[i] >= self.current_time
+                and processors >= job.requested_processors
+                and memory >= job.requested_memory
+                and (
+                    times[i+1] - times[i] >= job.requested_time
+                    or (
+                        future_procs[times[i+1]] >= processors
+                        and future_mem[times[i+1]] >= memory
+                    )
+                )
+            ):
+                return times[i]
+        return times[-1]
 
     def submit(self, job: Union[Job, Sequence[Job]]) -> None:
         if isinstance(job, collections.abc.Iterable):
@@ -264,11 +283,8 @@ class Scheduler(ABC):
 
         return state, jobs, backlog
 
-    def assign_schedule(self, job, resources, time) -> Tuple[JobEvent, JobEvent]:
+    def assign_schedule(self, job, time) -> Tuple[JobEvent, JobEvent]:
         job.status = JobStatus.WAITING
-        job.resources.memory = resources.memory
-        job.resources.processors = resources.processors
-        job.resources.ignore_memory = resources.ignore_memory
         job.start_time = time
         self.queue_waiting.append(job)
         return self.add_job_events(job, time)

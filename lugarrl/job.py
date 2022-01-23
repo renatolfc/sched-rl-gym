@@ -62,8 +62,6 @@ class Resource(object):
 
 
 class Job(object):
-    resources: Resource
-
     def __init__(self, job_id, submission_time, execution_time, processors_allocated, average_cpu_use, memory_use,
                  requested_processors, requested_time, requested_memory, status, user_id, group_id, executable,
                  queue_number, partition_number, preceding_job_id, think_time, wait_time, ignore_memory=True):
@@ -86,7 +84,6 @@ class Job(object):
         self.think_time = think_time
         self.wait_time = wait_time
 
-        self.resources = Resource()
         self.first_scheduling_promise = None
         self.start_time = None
         self.finish_time = None
@@ -101,9 +98,14 @@ class Job(object):
     __repr__ = __str__
 
     @property
+    def resources(self):
+        raise NotImplementedError
+
+    @property
     def proper(self):
-        processors, memory = self.resources.measure()
-        return processors == self.requested_processors and (self.ignore_memory or memory == self.requested_memory)
+        return (
+            (self.ignore_memory or self.requested_memory > 0) and self.requested_processors > 0 and self.requested_time > 0
+        )
 
     @property
     def slowdown(self):

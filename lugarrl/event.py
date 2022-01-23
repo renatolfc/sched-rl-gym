@@ -50,10 +50,6 @@ class JobEvent(Event):
         self.job = job
 
     @property
-    def processors(self) -> Iterable[Interval]:
-        return self.job.resources.processors
-
-    @property
     def memory(self) -> Iterable[Interval]:
         return self.job.resources.memory
 

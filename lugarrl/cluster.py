@@ -27,6 +27,10 @@ class Cluster(object):
     def free_resources(self) -> Tuple[int, int]:
         return self.processors.free_resources, self.memory.free_resources
 
+    @property
+    def used_resources(self) -> Tuple[int, int]:
+        return self.processors.used_resources, self.memory.used_resources
+
     def fits(self, job) -> bool:
         return self.processors.fits(job.requested_processors) and \
                (self.ignore_memory or self.memory.fits(job.requested_memory))
@@ -34,8 +38,9 @@ class Cluster(object):
     def allocate(self, job: Job) -> None:
         if not self.fits(job):
             raise AssertionError(f"Unable to allocate resources for {job} in {self}")
-        self.processors.allocate(job.resources.processors)
-        self.memory.allocate(job.resources.memory)
+        resources = self.find(job)
+        self.processors.allocate(resources.processors)
+        self.memory.allocate(resources.memory)
 
     def clone(self):
         return copy.deepcopy(self)
@@ -50,17 +55,18 @@ class Cluster(object):
         return Resource(p, m)
 
     def free(self, job: Job) -> None:
-        self.processors.free(job.resources.processors)
+        self.processors.free(self.processors.find_intervals(job.id))
         if not self.ignore_memory:
-            self.memory.free(job.resources.memory)
+            self.memory.free(self.memory.find_intervals(job.id))
 
     def find_resources_at_time(self, time: int, job: Job, events: Iterable[JobEvent]) -> Resource:
         used = Resource(self.processors.used_pool, self.memory.used_pool)
-        for event in (e for e in events if (time + 1 <= e.time < job.requested_time + time and
+        for event in (e for e in events if (time <= e.time < job.requested_time + time and
                                             e.type == EventType.JOB_START)):
-            for i in event.processors:
+            new = self.find(event.job)
+            for i in new.processors:
                 used.processors.add(i)
-            for i in event.memory:
+            for i in new.memory:
                 used.memory.add(i)
         used.processors.merge_overlaps()
         used.memory.merge_overlaps()

@@ -63,6 +63,13 @@ class ResourcePool(object):
                 break
         return used
 
+    def find_intervals(self, data: int) -> IntervalTree:
+        intervals = []
+        for interval in self.used_pool:
+            if interval.data == data:
+                intervals.append(interval)
+        return IntervalTree(intervals)
+
     def allocate(self, intervals: Iterable[Interval]) -> None:
         for i in intervals:
             if self.used_resources + self.measure(i) > self.size:

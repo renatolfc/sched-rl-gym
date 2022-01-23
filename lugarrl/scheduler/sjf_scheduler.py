@@ -18,7 +18,7 @@ class SjfScheduler(Scheduler):
         for job in sorted(self.queue_admission, key=lambda j: (j.requested_time, j.submission_time)):
             resources = self.can_schedule_now(job)
             if resources:
-                self.assign_schedule(job, resources, self.current_time)
+                self.assign_schedule(job, self.current_time)
             else:
                 ignored_jobs.append(job)
         self.queue_admission = ignored_jobs

@@ -163,9 +163,7 @@ class TestScheduler(unittest.TestCase):
     events: event.EventQueue[event.JobEvent]
 
     @staticmethod
-    def build_event(type, j, interval, time=0):
-        p = pool.IntervalTree([pool.Interval(interval[0], interval[1])])
-        j.resources.processors = p
+    def build_event(type, j, time=0):
         return event.JobEvent(
             time, type, j
         )
@@ -176,10 +174,10 @@ class TestScheduler(unittest.TestCase):
         j.requested_time = time
         return j
 
-    def build_event_pair(self, time, interval, j):
+    def build_event_pair(self, time, j):
         return (
-            self.build_event(event.EventType.JOB_START, j, interval, time),
-            self.build_event(event.EventType.JOB_FINISH, j, interval, time + j.requested_time)
+            self.build_event(event.EventType.JOB_START, j, time),
+            self.build_event(event.EventType.JOB_FINISH, j, time + j.requested_time)
         )
 
     def setUp(self):
@@ -197,7 +195,7 @@ class TestScheduler(unittest.TestCase):
         j = self.jp.sample()
         j.requested_processors = 10
         j.requested_time = 5
-        alloc, free = self.build_event_pair(5, (0, 10), j)
+        alloc, free = self.build_event_pair(5, j)
         self.events.add(alloc)
         self.events.add(free)
 
@@ -224,7 +222,7 @@ class TestScheduler(unittest.TestCase):
         j = self.jp.sample()
         j.requested_processors = 10
         j.requested_time = 5
-        alloc, free = self.build_event_pair(0, (0, 10), j)
+        alloc, free = self.build_event_pair(0, j)
         self.events.add(alloc)
         self.events.add(free)
 
@@ -237,13 +235,13 @@ class TestScheduler(unittest.TestCase):
     def play_events(self, time):
         for e in (e for e in self.events if e.time <= time):
             if e.type == event.EventType.JOB_START:
-                self.scheduler.cluster.processors.allocate(e.job.resources.processors)
+                self.scheduler.cluster.allocate(e.job)
             else:
-                self.scheduler.cluster.processors.free(e.job.resources.processors)
+                self.scheduler.cluster.free(e.job)
 
     def test_eventually_fits_partially_filled_pool(self):
         for i in range(5):
-            alloc, free = self.build_event_pair(i, (i * 2, (i + 1) * 2), self.new_job(2, 6))
+            alloc, free = self.build_event_pair(i, self.new_job(2, 6))
             self.events.add(alloc)
             self.events.add(free)
         j = self.new_job(2, 3)
@@ -265,7 +263,7 @@ class TestScheduler(unittest.TestCase):
         j.requested_processors = 10
         j.requested_time = 5
 
-        alloc, free = self.build_event_pair(5, (0, 10), j)
+        alloc, free = self.build_event_pair(5, j)
         alloc.type = event.EventType.RESOURCE_ALLOCATE
 
         with self.assertRaises(RuntimeError):
@@ -277,7 +275,7 @@ class TestScheduler(unittest.TestCase):
         j = self.new_job(17, 0)
         self.assertFalse(self.scheduler.cluster.find(j))
 
-        alloc, free = self.build_event_pair(0, (0, 17), j)
+        alloc, free = self.build_event_pair(0, j)
         self.assertFalse(self.scheduler.fits(
             0, j, self.scheduler.cluster, [alloc, free]
         ))
@@ -359,7 +357,7 @@ class TestFifoScheduler(unittest.TestCase):
 
     def test_should_find_time_for_job_when_cluster_empty(self):
         j = self.small_job_parameters.sample(1)
-        self.assertEqual(self.scheduler.current_time, self.scheduler.find_first_time_for(j)[0])
+        self.assertEqual(self.scheduler.current_time, self.scheduler.find_first_time_for(j))
 
     def test_should_find_time_in_future_when_cluster_busy(self):
         for i in range(100):
@@ -374,10 +372,10 @@ class TestFifoScheduler(unittest.TestCase):
         j1 = self.make_job(0, 2, 2)
         j2 = self.make_job(1, 2, 1)
         j3 = self.make_job(1, 3, 1)
-        j4 = self.make_job(2, 1, 1)
-        j5 = self.make_job(1, 4, 2)
-        j6 = self.make_job(1, 4, 1)
-        j7 = self.make_job(1, 2, 2)
+        j4 = self.make_job(1, 4, 2)
+        j5 = self.make_job(1, 4, 1)
+        j6 = self.make_job(1, 2, 2)
+        j7 = self.make_job(2, 1, 1)
 
         s = fifo_scheduler.FifoScheduler(3, 999999)
 
@@ -387,34 +385,30 @@ class TestFifoScheduler(unittest.TestCase):
 
         s.submit(j2)
         s.submit(j3)
+        s.submit(j4)
         s.submit(j5)
         s.submit(j6)
-        s.submit(j7)
 
-        import pdb; pdb.set_trace()
         s.schedule()
-        s.submit(j4)
+        s.step()
+
+        s.submit(j7)
+        s.step()
         s.schedule()
 
         self.assertEqual(0, j1.start_time)
         self.assertEqual(1, j2.start_time)
         self.assertEqual(2, j3.start_time)
-        self.assertEqual(2, j4.start_time)
-        self.assertEqual(3, j5.start_time)
-        self.assertEqual(5, j6.start_time)
-        self.assertEqual(7, j7.start_time)
+        self.assertEqual(3, j4.start_time)
+        self.assertEqual(5, j5.start_time)
+        self.assertEqual(7, j6.start_time)
+        self.assertEqual(9, j7.start_time)
 
-        for j in [j1, j2, j3, j4, j5, j6, j7]:
-            for i in j.resources.processors:
-                self.assertEqual(j.id, i.data)
-            for i in j.resources.memory:
-                self.assertEqual(j.id, i.data)
-
-        s.step(8)
-        self.assertEqual(7, s.makespan)
+        s.step(7)
+        self.assertEqual(9, s.makespan)
 
         s.step(1)
-        self.assertEqual(9, s.makespan)
+        self.assertEqual(10, s.makespan)
 
     def test_submitting_invalid_job_fails(self):
         j = self.make_job(0, 2, 256)
@@ -705,8 +699,6 @@ class TestCluster(unittest.TestCase):
     def test_allocation(self):
         cluster = clstr.Cluster(self.processors, self.memory)
         j = self.make_job(0, 10, 1, 1024)
-        j.resources.processors = pool.IntervalTree([pool.Interval(0, 1)])
-        j.resources.memory = pool.IntervalTree([pool.Interval(0, 1024)])
         cluster.allocate(j)
         self.assertEqual(cluster.free_resources[0], self.processors - 1)
         self.assertEqual(cluster.free_resources[1], self.memory - 1024)
@@ -717,8 +709,6 @@ class TestCluster(unittest.TestCase):
         with self.assertRaises(AssertionError):
             cluster.allocate(j)
         j = self.make_job(0, 10, self.processors, self.memory)
-        j.resources.processors = pool.IntervalTree([pool.Interval(0, self.processors)])
-        j.resources.memory = pool.IntervalTree([pool.Interval(0, self.memory)])
         j.ignore_memory = False
         cluster.allocate(j)
         self.assertEqual(cluster.free_resources, (0, 0))

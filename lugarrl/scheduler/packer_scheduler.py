@@ -25,7 +25,7 @@ class PackerScheduler(Scheduler):
         for job in reversed(sorted(self.queue_admission, key=lambda j: self.get_priority(j))):
             resources = self.can_schedule_now(job)
             if resources:
-                self.assign_schedule(job, resources, self.current_time)
+                self.assign_schedule(job, self.current_time)
             else:
                 ignored_jobs.append(job)
         self.queue_admission = ignored_jobs
