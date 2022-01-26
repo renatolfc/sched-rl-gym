@@ -16,32 +16,21 @@ class Heap(Generic[T]):
     """A Priority Queue that is backed by a heap data structure.
 
     To reduce the computational cost of key removal, this class wastes a bit
-    memory by *not* actually deleting items. Therefore, it will "vacuum"
-    itself after a certain number of operations, which can be configured by
-    setting the `auto_vacuum` argument to the initializer function.
+    memory by *not* actually deleting items.
     """
 
     entry_finder: Dict[Optional[T], ENTRY_T]
     'Cache to check in O(1) whether an entry exists in the heap.'
     priority_queue: List[ENTRY_T]
     'The actual priority queue, implemented as a list with heap ordering.'
-    auto_vacuum: int
-    'int: number of operations to perform before cleaning the heap.'
 
-    def __init__(self, auto_vacuum=1000):
+    def __init__(self):
         """Initializes the heap.
 
-        Parameters
-        ----------
-        auto_vacuum : int
-            Number of operations to be performed on the heap before a vacuum
-            operation is called automatically, actually removing any leftover
-            keys that may have been deleted.
         """
         self.priority_queue = []
         self.entry_finder = {}
         self.counter = itertools.count()
-        self.auto_vacuum = auto_vacuum
 
     def add(self, item, priority=0) -> None:
         """Add a new item or update the priority of an existing item"""
@@ -51,8 +40,6 @@ class Heap(Generic[T]):
         entry = (priority, count, [item])
         self.entry_finder[item] = entry
         heapq.heappush(self.priority_queue, entry)
-        if (count % self.auto_vacuum) == 0:
-            self.vacuum()
 
     def remove(self, item) -> None:
         """Mark an existing item as removed. Raise KeyError if not found."""
@@ -69,16 +56,6 @@ class Heap(Generic[T]):
                 del self.entry_finder[item]  # type: ignore
                 return cast(T, item)
         raise KeyError('pop from an empty priority queue')
-
-    def vacuum(self) -> None:
-        """Reclaims space by clearing the heap and removing already deleted
-        entries.
-        """
-        tmp: List = []
-        for (priority, count, (item,)) in self.priority_queue:
-            if item is not None:
-                heapq.heappush(tmp, (priority, count, [item]))
-        self.priority_queue = tmp
 
     def __iter__(self) -> Iterator[T]:
         return iter(self.heapsort())
