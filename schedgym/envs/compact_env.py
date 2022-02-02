@@ -73,7 +73,7 @@ class CompactRmEnv(BaseRmEnv):
             found = False
 
         try:
-            time_passed = self.simulator.rl_step(
+            intermediate = self.simulator.rl_step(
                 action if found else None, self.reward_mapper[self.reward_jobs]
             )
             # XXX: This is technically incorrect. The correct thing to do here
@@ -83,27 +83,26 @@ class CompactRmEnv(BaseRmEnv):
             # In the current setting, we might potentially "lose" the last jobs
             # of the workload.
         except StopIteration:
-            time_passed = [[Job()]]
+            intermediate = [[Job()]]
             done = True
 
-        reward = self.reward if any(time_passed) else 0
+        reward = self.reward if any(intermediate) else 0
         done = bool(self.time_limit) and (
             self.scheduler.current_time > self.time_limit or done
         )
 
-        intermediate_rewards = {
-            'intermediate_rewards': [reward]
-            if done
-            else [self.compute_reward(js) for js in time_passed]
-        }
-        intermediate_rewards['intermediate_rewards'][0] = reward
+        if not done and self.smdp and any(intermediate):
+            rewards = [self.compute_reward(js) for js in intermediate]
+            rewards[0] = 0
+            reward = (
+                self.gamma ** np.arange(len(intermediate))
+            ).dot(rewards)
+
         return (
             self.state,
             reward,
             done,
-            intermediate_rewards
-            if not done
-            else {**self.stats, **intermediate_rewards},
+            self.stats if done else None
         )
 
     @property

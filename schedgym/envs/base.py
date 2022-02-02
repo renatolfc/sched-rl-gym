@@ -81,6 +81,9 @@ class BaseRmEnv(ABC, gym.Env):
             kwargs.get('reward_jobs', 'all')
         )
 
+        self.smdp = self.simulation_type == SimulationType.EVENT_BASED
+        self.gamma = kwargs.get('gamma', 1.0)
+
         self.time_horizon = kwargs.get(
             'time_horizon', TIME_HORIZON
         )  # number of time steps in the graph
