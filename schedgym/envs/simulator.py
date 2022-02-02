@@ -141,8 +141,8 @@ class EventBasedDeepRmSimulator:
                 self.scheduler.submit(j)
                 self.last_job_time = self.current_time
             self.scheduler.forward_time()
+            jobs.append(listjobs())
             if self.scheduler.some_job_fits(self.job_slots):
-                jobs.append(listjobs())
                 break
         return jobs
 
