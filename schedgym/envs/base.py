@@ -149,7 +149,7 @@ class BaseRmEnv(ABC, gym.Env):
 
     def _render_state(self):
         state, jobs, backlog = self.scheduler.state(
-            self.time_horizon, self.job_slots
+            self.time_horizon, self.job_slots, self.smdp
         )
         s = self._convert_state(
             state,
@@ -165,8 +165,8 @@ class BaseRmEnv(ABC, gym.Env):
     def build_current_state(self, current):
         ret = [np.zeros((self.time_horizon, sum(e[0][:-1]))) for e in current]
         for i, _ in enumerate(current):
-            for t in range(self.time_horizon):
-                for k, v in current[i][t][-1].items():
+            for t, c in enumerate(current[i]):
+                for k, v in c[-1].items():
                     ret[i][t][slice(*k)] = v
         return ret
 
@@ -196,7 +196,7 @@ class BaseRmEnv(ABC, gym.Env):
         return (processors,) if self.ignore_memory else (processors, memory)
 
     def _convert_state(self, current, wait, backlog, time):
-        current = self.build_current_state(current)
+        current = self.build_current_state(current[1:])
         wait = self.build_job_slots(wait)
         backlog_width = self.backlog_size // self.time_horizon
         backlog = np.ones(self.time_horizon * backlog_width) * backlog
