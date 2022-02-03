@@ -108,21 +108,26 @@ class CompactRmEnv(BaseRmEnv):
     @property
     def state(self):
         state, jobs, backlog = self.scheduler.state(
-            self.time_horizon, self.job_slots
+            self.time_horizon, self.job_slots, self.smdp
         )
+        snapshots = len(state[0])
         newstate = np.zeros(
-            (len(state[0]) * (1 if self.ignore_memory else 2) * 2)
+            snapshots + snapshots * (1 if self.ignore_memory else 2) * 2
         )
-        newstate[: len(state[0]) * 2] = (
+
+        newstate[snapshots * 4:] = state[0]
+        newstate[snapshots * 4:] /= self.time_limit
+
+        newstate[: snapshots * 2] = (
             np.array(
-                [(e[0], e[1]) for e in state[0]],
+                [(e[0], e[1]) for e in state[1]],
                 dtype=np.float32
             ).reshape((-1,),) / self.processors
         )
         if not self.ignore_memory:
-            newstate[len(state[0]) * 2:] = (
+            newstate[snapshots * 2:snapshots * 4] = (
                 np.array(
-                    [(e[0], e[1]) for e in state[1]],
+                    [(e[0], e[1]) for e in state[2]],
                     dtype=np.float32
                 ).reshape((-1,)) / self.memory
             )
@@ -184,7 +189,7 @@ class CompactRmEnv(BaseRmEnv):
                     )
                     / self.time_limit,
                     next_free.requested_processors / self.processors,
-                    (state[0][0][0] + next_free.requested_processors)
+                    (state[1][0][0] + next_free.requested_processors)
                     / self.processors,
                 )
             )
