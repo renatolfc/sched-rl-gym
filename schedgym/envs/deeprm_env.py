@@ -134,7 +134,7 @@ class DeepRmEnv(BaseRmEnv):
     @property
     def state(self):
         state, jobs, backlog = self.scheduler.state(
-            self.time_horizon, self.job_slots
+            self.time_horizon, self.job_slots, self.smdp
         )
         s = self._convert_state(
             state,
