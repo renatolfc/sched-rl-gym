@@ -480,7 +480,7 @@ class Scheduler(ABC):
                 cluster = self.play_events(near_future[t], cluster)
             tmp.append((t, *cluster.state))
         state = list(zip(*tmp))
-        if self.ignore_memory:
+        if self.ignore_memory and not cluster.ignore_memory:
             state = state[:-1]
         # }}}
 

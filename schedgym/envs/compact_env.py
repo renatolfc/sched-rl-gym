@@ -115,8 +115,9 @@ class CompactRmEnv(BaseRmEnv):
             snapshots + snapshots * (1 if self.ignore_memory else 2) * 2
         )
 
-        newstate[snapshots * 4:] = state[0]
-        newstate[snapshots * 4:] /= self.time_limit
+        stateslice = slice(snapshots * (2 if self.ignore_memory else 4), None)
+        newstate[stateslice] = state[0]
+        newstate[stateslice] /= self.time_limit
 
         newstate[: snapshots * 2] = (
             np.array(
