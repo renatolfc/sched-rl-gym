@@ -277,6 +277,8 @@ class Scheduler(ABC):
                 are found.
         """
         for event in events:
+            if not event:
+                continue
             if event.type == EventType.JOB_START:
                 cluster.allocate(event.job)
                 if update_queues:
@@ -426,7 +428,7 @@ class Scheduler(ABC):
 
         self.queue_admission.append(job)
 
-    def state(self, timesteps: int, job_slots: int):
+    def state(self, timesteps: int, job_slots: int, smdp: bool = False):
         """Returns the current state of the cluster as viewed by the scheduler.
 
         The state representation used here is deeply inspired by the DeepRM
@@ -444,26 +446,42 @@ class Scheduler(ABC):
             job_slots : int
                 The number of job slots to use (the amount of jobs in the
                 admission queue to represent)
+            smdp : bool
+                Whether this is an SMDP and steps should be based on events,
+                not time
         """
         # Gets all events between now and `timesteps` {{{
         near_future: Dict[int, List[JobEvent]] = defaultdict(list)
-        for e in filter(
-            lambda e: e.time < self.current_time + timesteps + 1,
-            self.job_events,
-        ):
-            near_future[e.time - self.current_time].append(e)
+        if smdp:
+            last_time = 0
+            for e in self.job_events:
+                if e.time < self.current_time:
+                    continue
+                last_time = e.time - self.current_time
+                near_future[last_time].append(e)
+                if len(near_future) > timesteps:
+                    break
+            if len(near_future) < timesteps:
+                for i in range(last_time + 1, last_time + 1 + timesteps - len(near_future)):
+                    near_future[last_time + i].append([])  # type: ignore
+        else:
+            for e in filter(
+                lambda e: e.time < self.current_time + timesteps + 1,
+                self.job_events
+            ):
+                near_future[e.time - self.current_time].append(e)
         # }}}
 
         # Gets the state representation of currently in use resources {{{
         tmp = []
         cluster = self.cluster.clone()
-        for t in range(timesteps):
+        for t in (near_future.keys() if smdp else range(timesteps)):
             if t in near_future:
                 cluster = self.play_events(near_future[t], cluster)
-            tmp.append(cluster.state)
+            tmp.append((t, *cluster.state))
         state = list(zip(*tmp))
         if self.ignore_memory:
-            state = state[:1]
+            state = state[:-1]
         # }}}
 
         # Gets the representation of jobs in `job_slots` {{{
