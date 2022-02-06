@@ -464,6 +464,10 @@ class Scheduler(ABC):
             if len(near_future) < timesteps:
                 for i in range(last_time + 1, last_time + 1 + timesteps - len(near_future)):
                     near_future[last_time + i].append([])  # type: ignore
+            elif len(near_future) > timesteps:
+                near_future = {
+                    k: v for i, (k, v) in enumerate(near_future.items()) if i < timesteps
+                }
         else:
             for e in filter(
                 lambda e: e.time < self.current_time + timesteps + 1,
