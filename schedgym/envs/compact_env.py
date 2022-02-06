@@ -93,7 +93,8 @@ class CompactRmEnv(BaseRmEnv):
 
         if not done and self.smdp and any(intermediate):
             rewards = [self.compute_reward(js) for js in intermediate]
-            rewards[0] = 0
+            if len(rewards) > 1:
+                rewards[0] = 0
             reward = (
                 self.gamma ** np.arange(len(intermediate))
             ).dot(rewards)
