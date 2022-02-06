@@ -90,7 +90,7 @@ class BaseRmEnv(ABC, gym.Env):
 
         time_limit = kwargs.get('time_limit', 200)
         if time_limit is None:
-            self.time_limit = 1
+            self.time_limit = np.e
             self.update_time_limit = True
         else:
             self.time_limit = time_limit

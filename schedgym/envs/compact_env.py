@@ -62,8 +62,8 @@ class CompactRmEnv(BaseRmEnv):
 
     def reset(self) -> np.ndarray:
         super().reset()
-        self.maximum_work = self.time_limit * self.processors
-        self.maximum_work_mem = self.time_limit * self.memory
+        self.maximum_work = np.log(self.time_limit) * self.processors
+        self.maximum_work_mem = np.log(self.time_limit) * self.memory
         return super().reset()
 
     def step(self, action: int):
@@ -116,8 +116,8 @@ class CompactRmEnv(BaseRmEnv):
         )
 
         stateslice = slice(snapshots * (2 if self.ignore_memory else 4), None)
-        newstate[stateslice] = state[0]
-        newstate[stateslice] /= self.time_limit
+        newstate[stateslice] = np.log(np.array(state[0]) + 1.0)
+        newstate[stateslice] /= np.log(self.time_limit)
 
         newstate[: snapshots * 2] = (
             np.array(
@@ -145,7 +145,7 @@ class CompactRmEnv(BaseRmEnv):
         remaining_work = (
             sum(
                 [
-                    (
+                    np.log(
                         j.submission_time
                         + j.requested_time
                         - self.scheduler.current_time
@@ -159,7 +159,7 @@ class CompactRmEnv(BaseRmEnv):
         remaining_work_mem = (
             sum(
                 [
-                    (
+                    np.log(
                         j.submission_time
                         + j.requested_time
                         - self.scheduler.current_time
@@ -171,11 +171,8 @@ class CompactRmEnv(BaseRmEnv):
             / self.maximum_work_mem
         )
 
-        # XXX: this normalization only works while we're sampling at most one
-        # job per time step. Once this is not true, we risk having the
-        # queue_size feature > 1.0 (which is incorrect)
-        queue_size = len(self.scheduler.queue_admission) / self.time_limit
-        time_left = 1 - self.scheduler.current_time / self.time_limit
+        queue_size = min(len(self.scheduler.queue_admission) / 1000., 1.0)
+        time_left = 1 - np.log(self.scheduler.current_time) / np.log(self.time_limit)
 
         try:
             next_free = min(
@@ -183,12 +180,12 @@ class CompactRmEnv(BaseRmEnv):
             )
             next_free = np.array(
                 (
-                    (
+                    np.log(
                         next_free.start_time
                         + next_free.requested_time
                         - self.scheduler.current_time
                     )
-                    / self.time_limit,
+                    / np.log(self.time_limit),
                     next_free.requested_processors / self.processors,
                     (state[1][0][0] + next_free.requested_processors)
                     / self.processors,
