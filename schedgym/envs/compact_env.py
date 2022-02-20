@@ -147,9 +147,11 @@ class CompactRmEnv(BaseRmEnv):
             sum(
                 [
                     np.log(
-                        j.submission_time
-                        + j.requested_time
-                        - self.scheduler.current_time
+                        max(
+                            j.start_time + j.requested_time
+                            - self.scheduler.current_time,
+                            1
+                        )
                     )
                     * j.requested_processors
                     for j in running
@@ -161,9 +163,11 @@ class CompactRmEnv(BaseRmEnv):
             sum(
                 [
                     np.log(
-                        j.submission_time
-                        + j.requested_time
-                        - self.scheduler.current_time
+                        max(
+                            j.start_time + j.requested_time
+                            - self.scheduler.current_time,
+                            1
+                        )
                     )
                     * j.requested_memory
                     for j in running
