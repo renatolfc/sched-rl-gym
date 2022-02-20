@@ -217,16 +217,29 @@ class CompactRmEnv(BaseRmEnv):
 
         ret = np.zeros((len(jobs), len(jobs[0])), dtype=np.float32)
         for i, job in enumerate(jobs):
-            _sumdiv(ret[i], 0, job.submission_time, self.time_limit)
-            _sumdiv(ret[i], 1, job.requested_time, self.time_limit)
+            _sumdiv(
+                ret[i],
+                0,
+                np.sign(job.submission_time)
+                * np.log(np.abs(job.submission_time) + np.e) - 1,
+                np.log(self.time_limit)
+            )
+            _sumdiv(
+                ret[i],
+                1,
+                np.sign(job.requested_time)
+                * np.log(np.abs(job.requested_time) + np.e) - 1,
+                np.log(self.time_limit)
+            )
             _sumdiv(ret[i], 2, job.requested_memory, self.memory)
             _sumdiv(ret[i], 3, job.requested_processors, self.processors)
             _sumdiv(ret[i], 4, job.queue_size, self.time_limit)
             _sumdiv(
                 ret[i],
                 5,
-                job.queued_work,
-                self.time_limit * self.time_limit * self.processors,
+                np.sign(job.queued_work)
+                * np.log(np.abs(job.queued_work + np.e) - 1),
+                np.log(self.time_limit * self.processors),
             )
             _sumdiv(ret[i], 6, job.free_processors, self.processors)
         return ret
