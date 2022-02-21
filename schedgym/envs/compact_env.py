@@ -197,9 +197,7 @@ class CompactRmEnv(BaseRmEnv):
                 jobs,
                 backlog,
                 next_free,
-                np.asarray(
-                    (remaining_work, remaining_work_mem, queue_size, time_left)
-                ),
+                (remaining_work, remaining_work_mem, queue_size, time_left)
             ),
         )
 
