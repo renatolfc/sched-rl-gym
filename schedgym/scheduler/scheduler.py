@@ -25,7 +25,7 @@ import collections.abc
 import numpy as np
 
 from schedgym.cluster import Cluster
-from schedgym.job import Job, JobStatus, Resource
+from schedgym.job import Job, JobState, JobStatus, Resource
 from schedgym.event import JobEvent, EventType, EventQueue
 
 
@@ -498,6 +498,10 @@ class Scheduler(ABC):
             if i >= job_slots:
                 break
             job.slot_position = i
+            if self.can_schedule_now(job):
+                tmp = list(jobs[i])
+                tmp[-1] = 1
+                jobs[i] = JobState(*tmp)
         jobs += [Job().state for _ in range(job_slots - len(jobs))]
         # }}}
 
