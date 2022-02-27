@@ -23,6 +23,7 @@ JobState = namedtuple(
         'queue_size',
         'queued_work',
         'free_processors',
+        'can_schedule_now',
     ],
 )
 
@@ -243,6 +244,7 @@ class Job:
             self.queue_size,
             self.queued_work,
             self.free_processors,
+            0,
         )
 
 
