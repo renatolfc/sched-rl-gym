@@ -9,10 +9,11 @@ from schedgym.scheduler import NullScheduler
 from schedgym.envs.workload import (
     DeepRmWorkloadGenerator,
     SyntheticWorkloadGenerator,
+    SwfWorkloadGenerator,
 )
 
 WorkloadGeneratorType = Union[
-    DeepRmWorkloadGenerator, SyntheticWorkloadGenerator
+    DeepRmWorkloadGenerator, SyntheticWorkloadGenerator, SwfWorkloadGenerator
 ]
 
 
@@ -106,6 +107,7 @@ class EventBasedDeepRmSimulator:
         if (
             not isinstance(workload_generator, DeepRmWorkloadGenerator)
             and not isinstance(workload_generator, SyntheticWorkloadGenerator)
+            and not isinstance(workload_generator, SwfWorkloadGenerator)
         ) or not isinstance(scheduler, NullScheduler):
             raise AssertionError('Invalid arguments received.')
 

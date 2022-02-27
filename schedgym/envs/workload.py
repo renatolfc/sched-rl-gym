@@ -13,6 +13,7 @@ from parallelworkloads.lublin99 import Lublin99
 from parallelworkloads.tsafrir05 import Tsafrir05
 
 from schedgym import workload as wl, job
+from schedgym.workload.swf_parser import parse as parse_swf
 
 JobParameters = namedtuple('JobParameters', ['small', 'large'])
 
@@ -150,6 +151,21 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
         )
 
 
+class SwfWorkloadGenerator(wl.TraceGenerator):
+    def __init__(
+        self,
+        tracefile,
+        processors,
+        length,
+    ):
+        self.orig_swf = list(parse_swf(tracefile, processors, processors, True))
+        self.length = length
+        if length < len(self.orig_swf):
+            # sample from it
+            start = random.randint(0, len(self.orig_swf) - length)
+        super().__init__(trace=self.orig_swf[start:start + length])
+
+
 class SyntheticWorkloadGenerator(wl.TraceGenerator):
     """A synthetic workload generator based on realistic models."""
 
@@ -267,5 +283,7 @@ def build(workload_config: dict):
         return DeepRmWorkloadGenerator.build(**kwargs)
     elif type == 'lublin':
         return SyntheticWorkloadGenerator(**kwargs)
+    elif type == 'swf':
+        return SwfWorkloadGenerator(**kwargs)
     else:
         raise RuntimeError(f'Unsupported workload model type {type} requested')
