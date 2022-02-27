@@ -118,22 +118,23 @@ class CompactRmEnv(BaseRmEnv):
 
         stateslice = slice(snapshots * (2 if self.ignore_memory else 4), None)
         newstate[stateslice] = np.log(np.array(state[0]) + 1.0)
+        newstate[stateslice] /= np.log(self.time_limit)
 
         newstate[: snapshots * 2] = (
             np.array(
                 [(e[0], e[1]) for e in state[1]],
                 dtype=np.float32
-            ).reshape((-1,),)
+            ).reshape((-1,),) / self.processors
         )
         if not self.ignore_memory:
             newstate[snapshots * 2:snapshots * 4] = (
                 np.array(
                     [(e[0], e[1]) for e in state[2]],
                     dtype=np.float32
-                ).reshape((-1,))
+                ).reshape((-1,)) / self.memory
             )
-        jobs = np.asarray(jobs).reshape((-1,))
-        backlog = backlog * np.ones(1)
+        jobs = self._normalize_jobs(jobs).reshape((-1,))
+        backlog = backlog * np.ones(1) / self.backlog_size
 
         running = [
             j
@@ -142,36 +143,41 @@ class CompactRmEnv(BaseRmEnv):
             > self.scheduler.current_time
         ]
 
-        remaining_work = sum(
-            [
-                np.log(
-                    max(
-                        j.start_time + j.requested_time
-                        - self.scheduler.current_time,
-                        1
+        remaining_work = (
+            sum(
+                [
+                    np.log(
+                        max(
+                            j.start_time + j.requested_time
+                            - self.scheduler.current_time,
+                            1
+                        )
                     )
-                )
-                * j.requested_processors
-                for j in running
-            ]
+                    * j.requested_processors
+                    for j in running
+                ]
+            )
+            / self.maximum_work
         )
-        remaining_work_mem = sum(
-            [
-                np.log(
-                    max(
-                        j.start_time + j.requested_time
-                        - self.scheduler.current_time,
-                        1
+        remaining_work_mem = (
+            sum(
+                [
+                    np.log(
+                        max(
+                            j.start_time + j.requested_time
+                            - self.scheduler.current_time,
+                            1
+                        )
                     )
-                )
-                * j.requested_memory
-                for j in running
-            ]
+                    * j.requested_memory
+                    for j in running
+                ]
+            )
+            / self.maximum_work_mem
         )
 
-        queue_size = len(self.scheduler.queue_admission)
-        time_left = np.log(self.time_limit) \
-            - np.log(self.scheduler.current_time)
+        queue_size = min(len(self.scheduler.queue_admission) / 1000., 1.0)
+        time_left = 1 - np.log(self.scheduler.current_time) / np.log(self.time_limit)
 
         try:
             next_free = min(
@@ -183,9 +189,11 @@ class CompactRmEnv(BaseRmEnv):
                         next_free.start_time
                         + next_free.requested_time
                         - self.scheduler.current_time
-                    ),
-                    next_free.requested_processors,
+                    )
+                    / np.log(self.time_limit),
+                    next_free.requested_processors / self.processors,
                     (state[1][0][0] + next_free.requested_processors)
+                    / self.processors,
                 )
             )
         except ValueError:
