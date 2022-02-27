@@ -107,13 +107,10 @@ class BaseRmEnv(ABC, gym.Env):
         self.job_slots = kwargs.get('job_slots', JOB_SLOTS)
 
         self.reward_mapper = {
-            RewardJobs.ALL: lambda: self.scheduler.jobs_in_system,
-            RewardJobs.WAITING: lambda: self.scheduler.queue_admission,
-            RewardJobs.JOB_SLOTS: lambda: self.scheduler.queue_admission[
-                : self.job_slots
-            ],
-            RewardJobs.RUNNING_JOB_SLOTS: lambda: self.scheduler.queue_running
-            + self.scheduler.queue_admission[: self.job_slots],
+            RewardJobs.ALL: self.jobs_in_system,
+            RewardJobs.WAITING: self.queue_admission,
+            RewardJobs.JOB_SLOTS: self.queue_job_slots,
+            RewardJobs.RUNNING_JOB_SLOTS: self.queue_running_job_slots,
         }
 
         self.backlog_size = kwargs.get('backlog_size', BACKLOG_SIZE)
@@ -133,6 +130,26 @@ class BaseRmEnv(ABC, gym.Env):
             simulation_type=self.simulation_type,
             job_slots=self.job_slots,
         )
+        self.reward_range = (-np.inf, 0)
+
+    def jobs_in_system(self):
+        return self.scheduler.jobs_in_system
+
+    def queue_admission(self):
+        return self.scheduler.queue_admission
+
+    def queue_job_slots(self):
+        return self.scheduler.queue_admission[:self.job_slots]
+
+    def queue_running_job_slots(self):
+        return self.scheduler.queue_running + self.scheduler.queue_admission[:self.job_slots]
+
+    def action_masks(self):
+        mask = np.array([False] * self.action_space.n)
+        mask[:len(self.scheduler.queue_admission)] = True
+        if len(self.scheduler.queue_admission) > 1:
+            mask[-1] = True
+        return mask
 
     def reset(self) -> np.ndarray:
         scheduler = NullScheduler(
