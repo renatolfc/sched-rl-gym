@@ -33,6 +33,7 @@ DEFAULT_WORKLOAD = {
     'max_job_len': MAXIMUM_JOB_LENGTH,
     'small_job_chance': SMALL_JOB_CHANCE,
 }
+TOLERANCE_FACTOR = 100  # to prevent infinite simulations
 
 
 class RewardJobs(IntEnum):
@@ -79,6 +80,10 @@ class BaseRmEnv(ABC, gym.Env):
 
         self.reward_jobs = RewardJobs.from_str(
             kwargs.get('reward_jobs', 'all')
+        )
+
+        self.tolerance_factor = kwargs.get(
+            'tolerance_factor', TOLERANCE_FACTOR
         )
 
         self.smdp = self.simulation_type == SimulationType.EVENT_BASED
@@ -157,7 +162,7 @@ class BaseRmEnv(ABC, gym.Env):
         )
         wl = build_workload(self.workload_config)
         if self.update_time_limit and hasattr(wl, 'trace'):
-            self.time_limit = (
+            self.time_limit = self.tolerance_factor * (
                 wl.trace[-1].submission_time +  # type: ignore
                 wl.trace[-1].execution_time  # type: ignore
             )
