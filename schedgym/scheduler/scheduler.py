@@ -203,7 +203,7 @@ class Scheduler(ABC):
             )
         start = JobEvent(time, EventType.JOB_START, job)
         finish = start.clone()
-        finish.time += job.execution_time
+        finish.time += min(job.execution_time, job.requested_time)
         finish.type = EventType.JOB_FINISH
         self.job_events.add(start)
         self.job_events.add(finish)
