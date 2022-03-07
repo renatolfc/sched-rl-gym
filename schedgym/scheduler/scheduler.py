@@ -499,9 +499,9 @@ class Scheduler(ABC):
                 break
             job.slot_position = i
             if self.can_schedule_now(job):
-                tmp = list(jobs[i])
-                tmp[-1] = 1
-                jobs[i] = JobState(*tmp)
+                tmpstate: List[int] = list(jobs[i][:-1])
+                tmpstate.append(1)
+                jobs[i] = JobState(*tmpstate)
         jobs += [Job().state for _ in range(job_slots - len(jobs))]
         # }}}
 
