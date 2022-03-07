@@ -34,7 +34,7 @@ class SimulationType(IntEnum):
 
 class DeepRmSimulator:
     scheduler: NullScheduler
-    workload: Union[DeepRmWorkloadGenerator, SyntheticWorkloadGenerator]
+    workload: WorkloadGeneratorType
 
     def __init__(
         self,
