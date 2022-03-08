@@ -329,8 +329,8 @@ class TestScheduler(unittest.TestCase):
         state, jobs, backlog = self.scheduler.state(10, 10)
         self.assertEqual(-1, jobs[0].requested_processors)
         self.assertEqual(-1, jobs[1].requested_processors)
-        self.assertEqual(0, state[0][0][1])
         self.assertEqual(0, state[1][0][1])
+        self.assertEqual(0, state[2][0][1])
         self.assertEqual(0, backlog)
 
 
@@ -405,7 +405,7 @@ class TestFifoBasedSchedulers(unittest.TestCase):
 
     def test_two_jobs_until_completion(self):
         j = self.small_job_parameters.sample(1)
-        j.execution_time = 5
+        j.execution_time = j.requested_time = 5
         self.scheduler.submit(j)
         self.assertQueuesSane(0, 0, 0, 0, 1)
         self.scheduler.step()
@@ -415,7 +415,7 @@ class TestFifoBasedSchedulers(unittest.TestCase):
         )
         self.assertQueuesSane(1, 0, 1, 0, 0)
         j = self.small_job_parameters.sample(1)
-        j.execution_time = 5
+        j.execution_time = j.requested_time = 5
         self.scheduler.submit(j)
         self.assertQueuesSane(1, 0, 1, 0, 1)
         self.scheduler.step(3)
@@ -1041,14 +1041,14 @@ class TestSchedulers(unittest.TestCase):
         state, jobs, backlog = s.state(timesteps, job_slots)
 
         self.assertEqual(timesteps, len(state[0]))
-        self.assertEqual(total_processors, state[0][0][0])
-        self.assertEqual(total_memory, state[1][0][0])
+        self.assertEqual(total_processors, state[1][0][0])
+        self.assertEqual(total_memory, state[2][0][0])
 
         self.assertEqual(job_slots, len(jobs))
 
         # state is empty because we haven't stepped the simulator
-        self.assertEqual(0, state[0][0][1])
         self.assertEqual(0, state[1][0][1])
+        self.assertEqual(0, state[2][0][1])
 
         # Everything must be in the backlog + job slots
         self.assertEqual(len(s.all_jobs) - job_slots, backlog)
@@ -1213,41 +1213,38 @@ class TestBaseEnv(unittest.TestCase):
 
 
 class TestCompactEnv(unittest.TestCase):
-    @staticmethod
-    def sjf_action(env, observation) -> int:
-        """Selects the job SJF (Shortest Job First) would select."""
-
-        skip = env.time_horizon * 2 * (1 if env.ignore_memory else 2)
-        size = len(job.JobState._fields)
-        time = job.JobState._fields.index('requested_time')
-        reqs = observation[skip:][time:(env.job_slots * size):size]
-        reqs[reqs == 0] = 1.1
-        action = np.argmin(reqs)
-        return int(action)
-
     def test_instantiation_with_gym(self):
         gym.make('CompactRM-v0')
 
     def test_environment_with_sjf_agent_to_completion(self):
         for simulation_type in 'time-based event-based'.split():
             env: compact_env.CompactRmEnv = gym.make(  # type: ignore
-                'CompactRM-v0', simulation_type=simulation_type
+                'CompactRM-v0', simulation_type=simulation_type,
+                ignore_memory=True
             )
             observation = env.reset()
             action = 0
             done = False
             while not done:
                 observation, _, done, extra = env.step(action)
-                action = self.sjf_action(env, observation)
-                submission_times = [
-                    j.execution_time
-                    for j in env.scheduler.queue_admission[: env.job_slots]
-                ]
-                self.assertEqual(
-                    action,
-                    np.argmin(submission_times) if submission_times else 0,
+                action = env.scheduler.sjf_action(env.job_slots)
+                free_procs = (
+                    env.scheduler.number_of_processors
+                    - env.scheduler.used_processors
                 )
-                self.assertIn('intermediate_rewards', extra)
+                submission_times = [
+                    (j.requested_time, i)
+                    for i, j in enumerate(
+                        env.scheduler.queue_admission[: env.job_slots]
+                    )
+                    if j.requested_processors <= free_procs
+                ]
+                print(free_procs, submission_times, env.scheduler.queue_admission)
+                for j, i in sorted(submission_times):
+                    self.assertEqual(action, i)
+                    break
+                else:
+                    self.assertEqual(action, env.job_slots)
 
     def test_scheduler_identity(self):
         env: deeprm_env.DeepRmEnv = gym.make(  # type: ignore
