@@ -177,7 +177,7 @@ class CompactRmEnv(BaseRmEnv):
         )
 
         queue_size = min(len(self.scheduler.queue_admission) / 1000., 1.0)
-        time_left = 1 - np.log(self.scheduler.current_time) / np.log(self.time_limit)
+        time_left = 1 - np.log(self.scheduler.current_time + 1) / np.log(self.time_limit)
 
         try:
             next_free = min(
