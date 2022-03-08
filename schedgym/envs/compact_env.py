@@ -66,9 +66,16 @@ class CompactRmEnv(BaseRmEnv):
         self.maximum_work_mem = np.log(self.time_limit) * self.memory
         return super().reset()
 
+    def really_done(self) -> bool:
+        return (
+            len(self.scheduler.queue_admission) == 0 and
+            len(self.scheduler.queue_waiting) == 0
+        )
+
     def step(self, action: int):
         done = False
         found = True
+        should_be_done = False
         if not (0 <= action < self.action_space.n - 1):
             found = False
 
@@ -83,21 +90,25 @@ class CompactRmEnv(BaseRmEnv):
             # In the current setting, we might potentially "lose" the last jobs
             # of the workload.
         except StopIteration:
+            intermediate = []
+            should_be_done = True
             intermediate = [[Job()]]
-            done = True
 
         reward = self.reward if any(intermediate) else 0
-        done = bool(self.time_limit) and (
-            self.scheduler.current_time > self.time_limit or done
+        time_exceeded = bool(self.time_limit) and (
+            self.scheduler.current_time > self.time_limit
         )
+        done = time_exceeded or self.really_done()
 
-        if not done and self.smdp and any(intermediate):
+        if not done and self.smdp and any(intermediate) and not should_be_done:
             rewards = [self.compute_reward(js) for js in intermediate]
             if len(rewards) > 1:
                 rewards[0] = 0
             reward = (
                 self.gamma ** np.arange(len(intermediate))
             ).dot(rewards)
+
+        assert reward <= 0, (rewards, reward)
 
         return (
             self.state,
