@@ -137,15 +137,29 @@ class EventBasedDeepRmSimulator:
 
         jobs: List[List[Job]] = []
         self.current_time += 1
+        workload_done = False
+        done_exc = StopIteration()
         while True:
-            j = self.workload.step()
-            if j:
-                self.scheduler.submit(j)
-                self.last_job_time = self.current_time
+            try:
+                j = self.workload.step()
+                if j:
+                    self.scheduler.submit(j)
+                    self.last_job_time = self.current_time
+            except StopIteration as e:
+                workload_done = True
+                done_exc = e
             self.scheduler.forward_time()
             jobs.append(listjobs())
-            if self.scheduler.some_job_fits(self.job_slots):
+            if (
+                self.scheduler.some_job_fits(self.job_slots) or
+                (
+                    len(self.scheduler.queue_admission) == 0 and
+                    workload_done
+                )
+            ):
                 break
+        if workload_done:
+            raise done_exc
         return jobs
 
 
