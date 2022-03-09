@@ -73,8 +73,13 @@ setup(
 
     keywords='gym, reinforcement learning, artificial intelligence',
 
-    package_dir={'': 'schedgym'},
-    packages=find_packages(where='schedgym'),
+    packages=[
+        'schedgym',
+        'schedgym.envs',
+        'schedgym.workload',
+        'schedgym.scheduler',
+    ],
+
     python_requires='>=3.6, <4',
 
     # This field lists other packages that your project depends on to run.
