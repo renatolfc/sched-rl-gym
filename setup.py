@@ -10,7 +10,6 @@ https://github.com/pypa/sampleproject
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
 import pathlib
-import schedgym
 
 here = pathlib.Path(__file__).parent.resolve()
 
@@ -73,12 +72,7 @@ setup(
 
     keywords='gym, reinforcement learning, artificial intelligence',
 
-    packages=[
-        'schedgym',
-        'schedgym.envs',
-        'schedgym.workload',
-        'schedgym.scheduler',
-    ],
+    packages=find_packages(),
 
     python_requires='>=3.6, <4',
 
