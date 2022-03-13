@@ -1105,7 +1105,9 @@ class TestSwfGenerator(unittest.TestCase):
         )
 
     def test_parsing(self):
-        jobs = list(swf_parser.parse(self.tracefile, 1024, 1024))
+        jobs = list(
+            swf_parser.parse(self.tracefile, 1024, 1024, ignore_memory=False)
+        )
         self.assertEqual(self.TOTAL_JOBS, len(jobs))
 
     def test_workload_length(self):
