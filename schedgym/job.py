@@ -151,7 +151,7 @@ class Job:
         return (
             f'Job<{self.id}, {self.status.name}, start={self.start_time}, '
             f'processors={self.requested_processors}, '
-            f'memory={self.requested_memory} '
+            f'memory={self.requested_memory}, '
             f'duration={self.execution_time}>'
         )
 
