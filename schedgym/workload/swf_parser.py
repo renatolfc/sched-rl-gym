@@ -8,9 +8,9 @@ A full description of the format, with meanings for each field is available on
 the web at http://www.cs.huji.ac.il/labs/parallel/workload/swf.html.
 """
 
-from enum import IntEnum
-
 import logging
+from enum import IntEnum
+from typing import Dict, Generator, Optional, Type, Union, cast
 
 from ..job import Job, SwfJobStatus
 
@@ -40,12 +40,21 @@ class SwfFields(IntEnum):
     THINK_TIME = 17
 
 
-CONVERTERS = {
+CONVERTERS: Dict[SwfFields, Union[Type[int], Type[float]]] = {
     key: int if key != SwfFields.AVG_CPU_USAGE else float for key in SwfFields
 }
 
 
-def parse(filename, processors, memory, ignore_memory=False):
+def parse_int(line: str) -> int:
+    return int(line.split(':')[-1].strip())
+
+
+def parse(
+        filename,
+        processors: Optional[int] = None,
+        memory: int = 0,
+        ignore_memory: bool = True
+) -> Generator[Job, None, None]:
     """Parser for SWF job files.
 
     The SWF is a simple format with commented lines starting with the ';'
@@ -55,13 +64,32 @@ def parse(filename, processors, memory, ignore_memory=False):
     column of the file with a field.
     """
 
+    max_procs: int = 0
+    max_nodes: int = 0
     with open(filename, 'r') as fp:  # pylint: disable=C
         for line in fp:
-            if ';' in line:
+            if line.startswith(';'):
+                if line.startswith('; MaxNodes:'):
+                    max_nodes = parse_int(line)
+                elif line.startswith('; MaxProcs:'):
+                    max_procs = parse_int(line)
                 continue
-            fields = line.strip().split()
+
+            if processors is None:
+                if max_procs == 0:
+                    if max_nodes == 0:
+                        raise ValueError(
+                            f"Unable to load trace {filename} "
+                            "without a number of processors"
+                        )
+                    else:
+                        processors = max_nodes
+                else:
+                    processors = max_procs
+
             fields = [  # Converts all fields according to our rules
-                CONVERTERS[SwfFields(i)](f) for i, f in enumerate(fields)
+                CONVERTERS[SwfFields(i)](f)
+                for i, f in enumerate(line.strip().split())
             ]
 
             job = Job(
@@ -74,7 +102,7 @@ def parse(filename, processors, memory, ignore_memory=False):
                 fields[SwfFields.REQ_PROCS],
                 fields[SwfFields.REQ_TIME],
                 fields[SwfFields.REQ_MEM],
-                SwfJobStatus(fields[SwfFields.STATUS]),
+                SwfJobStatus(cast(int, fields[SwfFields.STATUS])),
                 fields[SwfFields.USER_ID],
                 fields[SwfFields.GROUP_ID],
                 fields[SwfFields.EXECUTABLE],
