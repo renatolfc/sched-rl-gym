@@ -155,14 +155,15 @@ class SwfWorkloadGenerator(wl.TraceGenerator):
     def __init__(
         self,
         tracefile,
-        processors,
-        length,
+        length: Optional[int] = None,
     ):
-        self.orig_swf = list(parse_swf(tracefile, processors, processors, True))
-        self.length = length
+        self.orig_swf = list(parse_swf(tracefile, ignore_memory=True))
+        self.length = len(self.orig_swf) if length is None else length
         if length < len(self.orig_swf):
             # sample from it
             start = random.randint(0, len(self.orig_swf) - length)
+        else:
+            start = 0
         super().__init__(trace=self.orig_swf[start:start + length])
 
 
