@@ -122,14 +122,17 @@ def parse(
             if job.requested_memory < 0 and ignore_memory:
                 job.requested_memory = 0
 
-            if (
-                job.requested_processors < 1
-                or (job.requested_memory < 1 and not ignore_memory)
-                or job.execution_time < 1
-                or job.submission_time < 0
-            ):
-                logger.warning(f'Ignoring malformed job {job.id}')
-                continue
+            if job.requested_processors < 1:
+                job.requested_processors = 1
+
+            if job.requested_memory < 1:
+                job.requested_memory = 1
+
+            if job.execution_time < 1:
+                job.execution_time = 1
+
+            if job.submission_time < 0:
+                job.submission_time = 0
 
             if job.requested_time < job.execution_time:
                 job.requested_time = job.execution_time

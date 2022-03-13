@@ -1074,7 +1074,7 @@ class TestSchedulers(unittest.TestCase):
 
 
 class TestSwfGenerator(unittest.TestCase):
-    TOTAL_JOBS = 122052
+    TOTAL_JOBS = 122060
     TEST_DIR = 'test'
     TRACE_FILE = 'LANL-CM5-1994-4.1-cln.swf.gz'
 
@@ -1102,6 +1102,7 @@ class TestSwfGenerator(unittest.TestCase):
             1024,
             length=length,
             offset=offset,
+            ignore_memory=False,
         )
 
     def test_parsing(self):
