@@ -122,9 +122,10 @@ class BaseRmEnv(ABC, gym.Env):
         self.memory = kwargs.get('memory', AMOUNT_OF_MEMORY)
         self.processors = kwargs.get('processors', NUMBER_OF_PROCESSORS)
         self.ignore_memory = kwargs.get('ignore_memory', False)
+        self.seed()
 
         self.workload_config = kwargs.get('workload', DEFAULT_WORKLOAD)
-        wl = build_workload(self.workload_config)
+        wl = build_workload(self.workload_config, self.random_seed[0])
 
         scheduler = NullScheduler(
             self.processors, self.memory, ignore_memory=self.ignore_memory
@@ -160,7 +161,7 @@ class BaseRmEnv(ABC, gym.Env):
         scheduler = NullScheduler(
             self.processors, self.memory, ignore_memory=self.ignore_memory
         )
-        wl = build_workload(self.workload_config)
+        wl = build_workload(self.workload_config, self.random_seed[0])
         if self.update_time_limit and hasattr(wl, 'trace'):
             self.time_limit = self.tolerance_factor * (
                 wl.trace[-1].submission_time +  # type: ignore
@@ -258,7 +259,8 @@ class BaseRmEnv(ABC, gym.Env):
             seed = random.randint(0, 99999999)
         np.random.seed(seed)
         random.seed(seed)
-        return [seed]
+        self.random_seed = [seed]
+        return self.random_seed
 
     def compute_reward(self, joblist):
         return -np.sum([1 / j.execution_time for j in joblist])

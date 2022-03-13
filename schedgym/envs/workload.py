@@ -277,13 +277,13 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
         return self.trace
 
 
-def build(workload_config: dict):
+def build(workload_config: dict, random_seed: int = 0):
     type = workload_config['type']
     kwargs = {k: v for k, v in workload_config.items() if k != 'type'}
     if type == 'deeprm':
         return DeepRmWorkloadGenerator.build(**kwargs)
     elif type == 'lublin':
-        return SyntheticWorkloadGenerator(**kwargs)
+        return SyntheticWorkloadGenerator(**kwargs, random_seed=random_seed)
     elif type == 'swf':
         return SwfWorkloadGenerator(**kwargs)
     else:
