@@ -175,7 +175,7 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
         length,
         nodes,
         start_time=8,
-        random_seed=0,
+        random_seed=None,
         restart=False,
         uniform_proportion=0.95,
         cdf_break=0.5,
@@ -221,7 +221,8 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
                 floating-point pairs specifying a histogram (time, number of
                 jobs) of job runtime popularity.
         """
-        random.seed(random_seed)
+        if random_seed is None:
+            random_seed = random.randint(0, 9999999)
 
         self.lublin = Lublin99(False, random_seed, length)
         self.lublin.start = start_time
