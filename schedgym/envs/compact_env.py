@@ -61,7 +61,6 @@ class CompactRmEnv(BaseRmEnv):
         )
 
     def reset(self) -> np.ndarray:
-        super().reset()
         self.maximum_work = np.log(self.time_limit) * self.processors
         self.maximum_work_mem = np.log(self.time_limit) * self.memory
         return super().reset()
