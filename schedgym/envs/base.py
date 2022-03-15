@@ -65,6 +65,7 @@ class BaseRmEnv(ABC, gym.Env):
     color_index: List[int]
     color_cache: Dict[int, int]
     simulator: DeepRmSimulator
+    has_reset: bool
 
     @abstractmethod
     def __init__(self, **kwargs):
@@ -137,6 +138,7 @@ class BaseRmEnv(ABC, gym.Env):
             job_slots=self.job_slots,
         )
         self.reward_range = (-np.inf, 0)
+        self.has_reset = False
 
     def jobs_in_system(self):
         return self.scheduler.jobs_in_system
@@ -161,13 +163,17 @@ class BaseRmEnv(ABC, gym.Env):
         scheduler = NullScheduler(
             self.processors, self.memory, ignore_memory=self.ignore_memory
         )
-        wl = build_workload(self.workload_config, self.random_seed[0])
+        wl = build_workload(
+            self.workload_config,
+            self.random_seed[0] if not self.has_reset else None
+        )
         if self.update_time_limit and hasattr(wl, 'trace'):
             self.time_limit = self.tolerance_factor * (
                 wl.trace[-1].submission_time +  # type: ignore
                 wl.trace[-1].execution_time  # type: ignore
             )
         self.simulator.reset(wl, scheduler)
+        self.has_reset = True
         return self.state
 
     def _render_state(self):
