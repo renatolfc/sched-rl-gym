@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import annotations, division
-
 import numpy as np
 import gym.spaces.box
 import gym.spaces.discrete
