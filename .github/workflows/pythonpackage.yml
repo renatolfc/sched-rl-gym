@@ -7,7 +7,6 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 4
@@ -41,7 +40,7 @@ jobs:
       with:
         github-token: ${{ secrets.github_token }}
         parallel: true
-  finish:
+  finish_build:
     name: Finish Coveralls
     needs: build
     runs-on: ubuntu-latest
@@ -51,3 +50,29 @@ jobs:
       with:
         github-token: ${{ secrets.github_token }}
         parallel-finished: true
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, macOS-10.15]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.3.1
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build sdist
+      run: pip install cython && pipx run --system-site-packages build --sdist
+
+    - uses: actions/upload-artifact@v2
+      with:
+        path: dist/*.tar.gz
