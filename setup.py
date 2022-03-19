@@ -8,9 +8,14 @@ https://github.com/pypa/sampleproject
 """
 
 # Always prefer setuptools over distutils
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 import pathlib
-import schedgym
+import schedgym  # noqa
+try:
+    from Cython.Build import cythonize
+except (NameError, ModuleNotFoundError):
+    def cythonize(*args, **kwargs):
+        pass
 
 here = pathlib.Path(__file__).parent.resolve()
 
@@ -73,8 +78,8 @@ setup(
 
     keywords='gym, reinforcement learning, artificial intelligence',
 
-    package_dir={'': 'schedgym'},
-    packages=find_packages(where='schedgym'),
+    package_dir={'schedgym': 'schedgym'},
+    packages=find_packages(),
     python_requires='>=3.6, <4',
 
     # This field lists other packages that your project depends on to run.
@@ -86,24 +91,37 @@ setup(
     install_requires=[
         'gym',
         'numpy',
+        'cython',
         'intervaltree>=3.0',
         'parallelworkloads',
     ],
 
     extras_require=extras,
 
-    # If there are data files included in your packages that need to be
-    # installed, specify them here.
-    package_data={  # Optional
-        'sample': ['package_data.dat'],
-    },
-
-    # Although 'package_data' is the preferred approach, in some case you may
-    # need to place data files outside of your packages. See:
-    # http://docs.python.org/distutils/setupscript.html#installing-additional-files
-    #
-    # In this case, 'data_file' will be installed into '<sys.prefix>/my_data'
-    data_files=[('my_data', ['data/data_file'])],  # Optional
+    ext_modules=cythonize([
+        Extension('schedgym.job', ['schedgym/job.py']),
+        Extension('schedgym.pool', ['schedgym/pool.py']),
+        Extension('schedgym.simulator', ['schedgym/simulator.py']),
+        Extension('schedgym.resource', ['schedgym/resource.py']),
+        Extension('schedgym.cluster', ['schedgym/cluster.py']),
+        Extension('schedgym.envs.workload', ['schedgym/envs/workload.py']),
+        Extension('schedgym.envs.simulator', ['schedgym/envs/simulator.py']),
+        Extension('schedgym.envs.compact_env', ['schedgym/envs/compact_env.py']),
+        Extension('schedgym.envs.base', ['schedgym/envs/base.py']),
+        Extension('schedgym.envs.deeprm_env', ['schedgym/envs/deeprm_env.py']),
+        Extension('schedgym.scheduler.backfilling_scheduler', ['schedgym/scheduler/backfilling_scheduler.py']),
+        Extension('schedgym.scheduler.null_scheduler', ['schedgym/scheduler/null_scheduler.py']),
+        Extension('schedgym.scheduler.easy_scheduler', ['schedgym/scheduler/easy_scheduler.py']),
+        Extension('schedgym.scheduler.fifo_scheduler', ['schedgym/scheduler/fifo_scheduler.py']),
+        Extension('schedgym.scheduler.packer_scheduler', ['schedgym/scheduler/packer_scheduler.py']),
+        Extension('schedgym.scheduler.random_scheduler', ['schedgym/scheduler/random_scheduler.py']),
+        Extension('schedgym.scheduler.sjf_scheduler', ['schedgym/scheduler/sjf_scheduler.py']),
+        Extension('schedgym.scheduler.tetris_scheduler', ['schedgym/scheduler/tetris_scheduler.py']),
+        Extension('schedgym.workload.base', ['schedgym/workload/base.py']),
+        Extension('schedgym.workload.trace', ['schedgym/workload/trace.py']),
+        Extension('schedgym.workload.distribution', ['schedgym/workload/distribution.py']),
+        Extension('schedgym.workload.swf_parser', ['schedgym/workload/swf_parser.py']),
+    ], language_level=3),
 
     # List additional URLs that are relevant to your project as a dict.
     #
@@ -116,7 +134,7 @@ setup(
     # what's used to render the link text on PyPI.
     project_urls={  # Optional
         'Bug Reports': 'https://github.com/renatolfc/sched-rl-gym/issues',
-        'Say Thanks!': 'https://saythanks.io/to/renatocunha%40acm.org',
+        'Say Thanks!': 'https://saythanks.io/to/renatolfc',
         'Source': 'https://github.com/renatolfc/sched-rl-gym',
     },
 )
