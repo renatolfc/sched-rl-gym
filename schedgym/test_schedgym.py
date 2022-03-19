@@ -1247,7 +1247,6 @@ class TestCompactEnv(unittest.TestCase):
                     action,
                     np.argmin(submission_times) if submission_times else 0,
                 )
-                self.assertIn('intermediate_rewards', extra)
 
     def test_scheduler_identity(self):
         env: deeprm_env.DeepRmEnv = gym.make(  # type: ignore
