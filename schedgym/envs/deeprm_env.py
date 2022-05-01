@@ -188,5 +188,5 @@ class DeepRmEnv(BaseRmEnv):
             self.state,
             reward,
             done,
-            self.stats if done else None
+            self.stats if done else {}
         )
