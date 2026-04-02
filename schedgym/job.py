@@ -1,30 +1,43 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-"""job - Classes for jobs in the simulator.
-"""
+"""job - Classes for jobs in the simulator."""
 
 import enum
-
 import random
 import warnings
-
-from collections import namedtuple
+from dataclasses import dataclass, field
 
 from .resource import Resource, PrimaryResource
 
-JobState = namedtuple(
-    'JobState',
-    [
-        'submission_time',
-        'requested_time',
-        'requested_memory',
-        'requested_processors',
-        'queue_size',
-        'queued_work',
-        'free_processors',
-    ],
-)
+
+@dataclass(frozen=True)
+class JobState:
+    """Immutable snapshot of job metadata for state representation."""
+
+    submission_time: int = -1
+    requested_time: int = -1
+    requested_memory: int = -1
+    requested_processors: int = -1
+    queue_size: int = -1
+    queued_work: int = -1
+    free_processors: int = -1
+
+    def __iter__(self):
+        return iter(
+            (
+                self.submission_time,
+                self.requested_time,
+                self.requested_memory,
+                self.requested_processors,
+                self.queue_size,
+                self.queued_work,
+                self.free_processors,
+            )
+        )
+
+    def __len__(self):
+        return 7
+
+    def __getitem__(self, idx):
+        return tuple(self)[idx]
 
 
 class JobStatus(enum.IntEnum):
@@ -74,48 +87,48 @@ class Job:
 
     resources: Resource
 
-    SWF_JOB_MAP = {
-        'jobId': 'id',
-        'submissionTime': 'submission_time',
-        'waitTime': 'wait_time',
-        'runTime': 'execution_time',
-        'allocProcs': 'processors_allocated',
-        'avgCpuUsage': 'average_cpu_use',
-        'usedMem': 'memory_use',
-        'reqProcs': 'requested_processors',
-        'reqTime': 'requested_time',
-        'reqMem': 'requested_memory',
-        'status': 'status',
-        'userId': 'user_id',
-        'groupId': 'group_id',
-        'executable': 'executable',
-        'queueNum': 'queue_number',
-        'partNum': 'partition_number',
-        'precedingJob': 'preceding_job_id',
-        'thinkTime': 'think_time',
+    SWF_JOB_MAP: dict[str, str] = {
+        "jobId": "id",
+        "submissionTime": "submission_time",
+        "waitTime": "wait_time",
+        "runTime": "execution_time",
+        "allocProcs": "processors_allocated",
+        "avgCpuUsage": "average_cpu_use",
+        "usedMem": "memory_use",
+        "reqProcs": "requested_processors",
+        "reqTime": "requested_time",
+        "reqMem": "requested_memory",
+        "status": "status",
+        "userId": "user_id",
+        "groupId": "group_id",
+        "executable": "executable",
+        "queueNum": "queue_number",
+        "partNum": "partition_number",
+        "precedingJob": "preceding_job_id",
+        "thinkTime": "think_time",
     }
 
     def __init__(
         self,
-        job_id=-1,
-        submission_time=-1,
-        execution_time=-1,
-        processors_allocated=-1,
-        average_cpu_use=-1,
-        memory_use=-1,
-        requested_processors=-1,
-        requested_time=-1,
-        requested_memory=-1,
-        status=-1,
-        user_id=-1,
-        group_id=-1,
-        executable=-1,
-        queue_number=-1,
-        partition_number=-1,
-        preceding_job_id=-1,
-        think_time=-1,
-        wait_time=-1,
-        ignore_memory=True,
+        job_id: int = -1,
+        submission_time: int = -1,
+        execution_time: int = -1,
+        processors_allocated: int = -1,
+        average_cpu_use: int = -1,
+        memory_use: int = -1,
+        requested_processors: int = -1,
+        requested_time: int = -1,
+        requested_memory: int = -1,
+        status: int = -1,
+        user_id: int = -1,
+        group_id: int = -1,
+        executable: int = -1,
+        queue_number: int = -1,
+        partition_number: int = -1,
+        preceding_job_id: int = -1,
+        think_time: int = -1,
+        wait_time: int = -1,
+        ignore_memory: bool = True,
     ):
         self.id: int = job_id
         self.submission_time: int = submission_time
@@ -146,18 +159,18 @@ class Job:
         self.queued_work = -1
         self.queue_size = -1
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
-            f'Job<{self.id}, {self.status.name}, start={self.start_time}, '
-            f'processors={self.requested_processors}, '
-            f'memory={self.requested_memory} '
-            f'duration={self.execution_time}>'
+            f"Job<{self.id}, {self.status.name}, start={self.start_time}, "
+            f"processors={self.requested_processors}, "
+            f"memory={self.requested_memory} "
+            f"duration={self.execution_time}>"
         )
 
     __repr__ = __str__
 
     @property
-    def proper(self):
+    def proper(self) -> bool:
         """Checks whether this job is a proper job with assigned resources.
 
         Returns:
@@ -169,62 +182,61 @@ class Job:
         )
 
     @property
-    def slowdown(self):
+    def slowdown(self) -> float:
         """Computes the slowdown of the current job."""
         if self.finish_time < 0:
             warnings.warn(
-                f'Failed to obtain slowdown for job {self}. '
-                'It may not have finished yet.'
+                f"Failed to obtain slowdown for job {self}. "
+                "It may not have finished yet."
             )
             return -1
-        return (
-            self.finish_time - self.submission_time
-        ) / self.execution_time
+        if self.execution_time == 0:
+            return 1.0
+        return (self.finish_time - self.submission_time) / self.execution_time
 
     @property
-    def bounded_slowdown(self):
+    def bounded_slowdown(self) -> float:
         """Gives the bounded slowdown of a job"""
         if self.finish_time < 0:
             warnings.warn(
-                f'Failed to obtain avg bounded slowdown for job {self}.'
-                'It may not have finished yet.'
+                f"Failed to obtain avg bounded slowdown for job {self}. "
+                "It may not have finished yet."
             )
             return -1
         return max(
             1,
-            (self.finish_time - self.submission_time)
-            / max(10, self.execution_time),
+            (self.finish_time - self.submission_time) / max(10, self.execution_time),
         )
 
     @property
-    def swf(self):
+    def swf(self) -> str:
         """Returns an SWF representation of this job"""
         return (
-            f'{self.id} {self.submission_time} {self.wait_time} '
-            f'{self.execution_time} {self.processors_allocated} '
-            f'{self.average_cpu_use} '
-            f'{self.memory_use} {self.requested_processors} '
-            f'{self.requested_time} {self.requested_memory} '
-            f'{self.swfstatus} {self.user_id} {self.group_id} '
-            f'{self.executable} {self.queue_number} '
-            f'{self.partition_number} {self.preceding_job_id} '
-            f'{self.think_time}'
+            f"{self.id} {self.submission_time} {self.wait_time} "
+            f"{self.execution_time} {self.processors_allocated} "
+            f"{self.average_cpu_use} "
+            f"{self.memory_use} {self.requested_processors} "
+            f"{self.requested_time} {self.requested_memory} "
+            f"{self.swfstatus} {self.user_id} {self.group_id} "
+            f"{self.executable} {self.queue_number} "
+            f"{self.partition_number} {self.preceding_job_id} "
+            f"{self.think_time}"
         )
 
     @property
-    def swfstatus(self):
+    def swfstatus(self) -> SwfJobStatus:
         """Returns the job status in the format expected by the SWF."""
         if self.status == JobStatus.COMPLETED:
             return SwfJobStatus.COMPLETED
         return SwfJobStatus.MEANINGLESS
 
     @staticmethod
-    def from_swf_job(swf_job):
+    def from_swf_job(swf_job: object) -> "Job":
         """Converts an SWF job to our internal job format."""
         new_job = Job()
         for key, value in Job.SWF_JOB_MAP.items():
             tmp = getattr(swf_job, key)
-            setattr(new_job, value, int(tmp) if 'time' in value else tmp)
+            setattr(new_job, value, int(tmp) if "time" in value else tmp)
 
         new_job.status = JobStatus.SUBMITTED
         new_job.requested_processors = new_job.processors_allocated
@@ -234,7 +246,7 @@ class Job:
         return new_job
 
     @property
-    def state(self):
+    def state(self) -> JobState:
         return JobState(
             self.submission_time,
             self.requested_time,
@@ -286,12 +298,10 @@ class JobParameters:
     upper_resource_bound: int
 
     @staticmethod
-    def _validate_parameters(*args):
+    def _validate_parameters(*args: int) -> None:
         for param in args:
             if param <= 0:
-                raise AssertionError(
-                    'Unable to work with non-positive bounds.'
-                )
+                raise AssertionError("Unable to work with non-positive bounds.")
 
     def __init__(
         self,
@@ -345,9 +355,7 @@ class JobParameters:
                 The time at which the new sampled job would have been
                 submitted. If omitted, the current times step is used.
         """
-        time_duration = random.randint(
-            self.lower_time_bound, self.upper_time_bound
-        )
+        time_duration = random.randint(self.lower_time_bound, self.upper_time_bound)
 
         cpu = self.resource_samplers[PrimaryResource.CPU]()
         mem = self.resource_samplers[PrimaryResource.MEMORY]()

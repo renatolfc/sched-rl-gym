@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """
 swf_parser - Parser for the Standard Workload Format (SWF)
 
@@ -55,9 +52,9 @@ def parse(filename, processors, memory, ignore_memory=False):
     column of the file with a field.
     """
 
-    with open(filename, 'r') as fp:  # pylint: disable=C
+    with open(filename, "r") as fp:  # pylint: disable=C
         for line in fp:
-            if ';' in line:
+            if ";" in line:
                 continue
             fields = line.strip().split()
             fields = [  # Converts all fields according to our rules
@@ -100,7 +97,7 @@ def parse(filename, processors, memory, ignore_memory=False):
                 or job.execution_time < 1
                 or job.submission_time < 0
             ):
-                logger.warning(f'Ignoring malformed job {job.id}')
+                logger.warning(f"Ignoring malformed job {job.id}")
                 continue
 
             if job.requested_time < job.execution_time:

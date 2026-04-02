@@ -1,10 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-"""easy_scheduler - A scheduler that uses easy backfilling.
-"""
-
-from typing import List, Tuple, Optional
+"""easy_scheduler - A scheduler that uses easy backfilling."""
 
 from schedgym.job import Job, JobStatus
 from schedgym.scheduler import Scheduler
@@ -22,7 +16,7 @@ class EasyScheduler(Scheduler):
     they do not delay the one with a reservation.
     """
 
-    reservation: Optional[Tuple[JobEvent, JobEvent]]
+    reservation: tuple[JobEvent, JobEvent] | None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -33,10 +27,7 @@ class EasyScheduler(Scheduler):
             return
 
         start, finish = self.reservation
-        if (
-            start.time == self.current_time
-            or start.job.status != JobStatus.WAITING
-        ):
+        if start.time == self.current_time or start.job.status != JobStatus.WAITING:
             # Reservation will be fulfilled
             self.reservation = None
             return
@@ -52,7 +43,7 @@ class EasyScheduler(Scheduler):
             self.reservation = None
 
     def schedule(self) -> None:
-        ignored_jobs: List[Job] = []
+        ignored_jobs: list[Job] = []
 
         self._handle_reservation()
         for job in self.queue_admission:
@@ -66,10 +57,8 @@ class EasyScheduler(Scheduler):
                     # reservation for this one job and keep going
                     time, resources = self.find_first_time_for(job)
                     if not resources:
-                        raise AssertionError('Something is terribly wrong')
-                    self.reservation = self.assign_schedule(
-                        job, resources, time
-                    )
+                        raise AssertionError("Something is terribly wrong")
+                    self.reservation = self.assign_schedule(job, resources, time)
                 else:
                     # We already have a reservation, so we skip this job
                     ignored_jobs.append(job)

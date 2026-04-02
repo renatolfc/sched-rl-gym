@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # flake8: noqa E501
 
 import math
@@ -7,14 +5,13 @@ import random
 import warnings
 import itertools
 from math import log2
-from typing import Optional, List
 from collections import namedtuple
 from parallelworkloads.lublin99 import Lublin99
 from parallelworkloads.tsafrir05 import Tsafrir05
 
 from schedgym import workload as wl, job
 
-JobParameters = namedtuple('JobParameters', ['small', 'large'])
+JobParameters = namedtuple("JobParameters", ["small", "large"])
 
 
 class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
@@ -27,10 +24,8 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
         for generator in self.generators:
             generator.counter = self.counter
 
-    def step(self, offset=1) -> List[Optional[job.Job]]:
-        return self.generators[
-            random.randint(0, len(self.generators) - 1)
-        ].step()
+    def step(self, offset=1) -> list[job.Job | None]:
+        return self.generators[random.randint(0, len(self.generators) - 1)].step()
 
     def __len__(self):
         return self.generators[0].length
@@ -53,15 +48,10 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
         max_other_job_size=None,
         runtime_estimates=None,
         estimate_parameters=None,
-    ) -> 'DeepRmWorkloadGenerator':
-        # Time-related job parameters {{{
-        small_job_time_lower = (
-            1 if min_small_job_len is None else min_small_job_len
-        )
+    ) -> "DeepRmWorkloadGenerator":
+        small_job_time_lower = 1 if min_small_job_len is None else min_small_job_len
         small_job_time_upper = (
-            max(max_job_len // 5, 1)
-            if max_small_job_len is None
-            else max_small_job_len
+            max(max_job_len // 5, 1) if max_small_job_len is None else max_small_job_len
         )
         large_job_time_lower = (
             int(max_job_len * (2 / 3))
@@ -69,26 +59,19 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
             else min_large_job_len
         )
         large_job_time_upper = max_job_len
-        # }}}
 
-        # Resource-related job parameters {{{
         dominant_resource_lower = (
             max_job_size // 2
             if min_dominant_job_size is None
             else min_dominant_job_size
         )
         dominant_resource_upper = max_job_size
-        other_resource_lower = (
-            1 if min_other_job_size is None else min_other_job_size
-        )
+        other_resource_lower = 1 if min_other_job_size is None else min_other_job_size
         other_resource_upper = (
-            max_job_size // 5
-            if max_other_job_size is None
-            else max_other_job_size
+            max_job_size // 5 if max_other_job_size is None else max_other_job_size
         )
-        # }}}
 
-        cpu_dominant_parameters = JobParameters(  # {{{
+        cpu_dominant_parameters = JobParameters(
             job.JobParameters(
                 small_job_time_lower,
                 small_job_time_upper,
@@ -105,9 +88,9 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
                 other_resource_lower,
                 other_resource_upper,
             ),
-        )  # }}}
+        )
 
-        mem_dominant_parameters = JobParameters(  # {{{
+        mem_dominant_parameters = JobParameters(
             job.JobParameters(
                 small_job_time_lower,
                 small_job_time_upper,
@@ -124,7 +107,7 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
                 dominant_resource_lower,
                 dominant_resource_upper,
             ),
-        )  # }}}
+        )
 
         generators = (
             wl.BinomialWorkloadGenerator(
@@ -145,9 +128,7 @@ class DeepRmWorkloadGenerator(wl.DistributionalWorkloadGenerator):
             ),
         )
 
-        return DeepRmWorkloadGenerator(
-            *generators[: (1 if ignore_memory else None)]
-        )
+        return DeepRmWorkloadGenerator(*generators[: (1 if ignore_memory else None)])
 
 
 class SyntheticWorkloadGenerator(wl.TraceGenerator):
@@ -235,37 +216,31 @@ class SyntheticWorkloadGenerator(wl.TraceGenerator):
         """Refreshes the underlying job list."""
         jobs = self.lublin.generate()
         if self.runtime_estimates:
-            if self.runtime_estimates == 'tsafrir':
+            if self.runtime_estimates == "tsafrir":
                 if self.estimate_parameters is not None:
-                    warnings.warn(
-                        'Setting tsafrir parameters is currently unsupported'
-                    )
+                    warnings.warn("Setting tsafrir parameters is currently unsupported")
                 tsafrir = Tsafrir05(jobs)
                 jobs = tsafrir.generate(jobs)
-            elif self.runtime_estimates == 'gaussian':
+            elif self.runtime_estimates == "gaussian":
                 for j in jobs:
                     j.reqTime = math.ceil(
-                        random.gauss(
-                            j.runTime, self.estimate_parameters * j.runTime
-                        )
+                        random.gauss(j.runTime, self.estimate_parameters * j.runTime)
                     )
                     if j.reqTime < 1:
                         j.reqTime = 1
             else:
-                raise ValueError(
-                    f'Unsupported estimate type {self.runtime_estimates}'
-                )
+                raise ValueError(f"Unsupported estimate type {self.runtime_estimates}")
 
         self.trace = [job.Job.from_swf_job(j) for j in jobs]
         return self.trace
 
 
 def build(workload_config: dict):
-    type = workload_config['type']
-    kwargs = {k: v for k, v in workload_config.items() if k != 'type'}
-    if type == 'deeprm':
+    type = workload_config["type"]
+    kwargs = {k: v for k, v in workload_config.items() if k != "type"}
+    if type == "deeprm":
         return DeepRmWorkloadGenerator.build(**kwargs)
-    elif type == 'lublin':
+    elif type == "lublin":
         return SyntheticWorkloadGenerator(**kwargs)
     else:
-        raise RuntimeError(f'Unsupported workload model type {type} requested')
+        raise RuntimeError(f"Unsupported workload model type {type} requested")

@@ -1,10 +1,11 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+"""SJF (Shortest Job First) agent for the DeepRM gymnasium environment."""
 
 import os
-import gym
 import json
+
+import gymnasium
 import numpy as np
+
 import schedgym.envs as deeprm
 
 EPISODES = 1
@@ -12,8 +13,7 @@ MAX_EPISODE_LENGTH = 200
 
 
 def sjf_action(observation):
-    "Selects the job SJF (Shortest Job First) would select."
-
+    """Selects the job SJF (Shortest Job First) would select."""
     current, wait, _, _ = observation
     best = wait.shape[2] + 1  # infinity
     best_idx = wait.shape[1]
@@ -43,24 +43,27 @@ def pack_observation(ob, time_horizon):
     current = current.reshape(time_horizon, -1)
     return np.hstack((current, wait, backlog, time))
 
+
 def main():
-    kwargs = {'use_raw_state': True}
-    if os.path.exists('config/test.json'):
-        with open('config/test.json', 'r') as fp:
+    kwargs = {"use_raw_state": True}
+    if os.path.exists("config/test.json"):
+        with open("config/test.json") as fp:
             kwargs = json.load(fp)
-    env: deeprm.DeepRmEnv = gym.make('DeepRM-v0', **kwargs)
-    time_horizon = env.reset()[0].shape[1]
+    env: deeprm.DeepRmEnv = gymnasium.make("DeepRM-v0", **kwargs)
+    ob, _info = env.reset()
+    time_horizon = ob[0].shape[1]
     for episode in range(EPISODES):
-        ob = env.reset()
+        ob, _info = env.reset()
         action = sjf_action(ob)
         while True:
-            ob, reward, done, _ = env.step(action)
+            ob, reward, terminated, truncated, info = env.step(action)
             action = sjf_action(ob)
             ob = pack_observation(ob, time_horizon)
             env.render()
-            if done:
+            if terminated or truncated:
                 break
     env.close()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

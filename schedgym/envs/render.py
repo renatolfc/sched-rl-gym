@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import matplotlib
 import numpy as np
 
@@ -14,26 +11,26 @@ HEIGHT = 600
 RESOLUTION = (WIDTH, HEIGHT)
 
 SUPPORTED_MODES = {
-    'human': lambda: DeepRmHumanRenderer,
-    'rgb_array': lambda: DeepRmRgbRenderer,
+    "human": lambda: DeepRmHumanRenderer,
+    "rgb_array": lambda: DeepRmRgbRenderer,
 }
 
 
-class DeepRmRgbRenderer(object):
+class DeepRmRgbRenderer:
     def __init__(self, resolution=RESOLUTION, dpi=DPI):
         self.resolution = resolution
         self.dpi = DPI
 
     @staticmethod
     def plot_substate(ax, title, state, colorbar=False):
-        cmap = matplotlib.cm.get_cmap('rainbow')
-        cmap.set_under('w')
+        cmap = matplotlib.cm.get_cmap("rainbow")
+        cmap.set_under("w")
         im = ax.imshow(state, cmap=cmap, vmin=0.001, vmax=1)
         if colorbar:
             ax.figure.colorbar(im, ax=ax)
         ax.set_title(title)
-        ax.set_xlabel('Slots')
-        ax.set_ylabel('Time horizon (timesteps)')
+        ax.set_xlabel("Slots")
+        ax.set_ylabel("Time horizon (timesteps)")
         ax.set_xticks([])
         ax.set_yticks([])
         ax.grid()
@@ -46,22 +43,16 @@ class DeepRmRgbRenderer(object):
         current, wait, backlog, time = state
         lines = current.shape[0]
 
-        # Axes {{{
-        axs_current = [
-            plt.subplot2grid((lines, 3), (i, 0)) for i in range(lines)
-        ]
+        axs_current = [plt.subplot2grid((lines, 3), (i, 0)) for i in range(lines)]
         axs_wait = [plt.subplot2grid((lines, 3), (i, 1)) for i in range(lines)]
         ax_backlog = plt.subplot2grid((lines, 3), (0, 2), rowspan=lines)
-        # End of Axes }}}
 
         for i, (ax_current, ax_wait) in enumerate(zip(axs_current, axs_wait)):
+            self.plot_substate(ax_current, f"Current resources {i}", current[i])
             self.plot_substate(
-                ax_current, f'Current resources {i}', current[i]
+                ax_wait, f"Waiting jobs stack {i}", np.mean(wait[i], axis=0)
             )
-            self.plot_substate(
-                ax_wait, f'Waiting jobs stack {i}', np.mean(wait[i], axis=0)
-            )
-        self.plot_substate(ax_backlog, 'Backlog', backlog, True)
+        self.plot_substate(ax_backlog, "Backlog", backlog, True)
 
         fig.tight_layout()
         canvas = agg.FigureCanvasAgg(fig)
@@ -71,9 +62,7 @@ class DeepRmRgbRenderer(object):
         size = canvas.get_width_height()
         plt.close(fig)
 
-        return np.frombuffer(raw_data, dtype=np.uint8).reshape(
-            (size[0], size[1], 3)
-        )
+        return np.frombuffer(raw_data, dtype=np.uint8).reshape((size[0], size[1], 3))
 
 
 class DeepRmHumanRenderer(DeepRmRgbRenderer, pyglet.window.Window):
@@ -83,7 +72,7 @@ class DeepRmHumanRenderer(DeepRmRgbRenderer, pyglet.window.Window):
         self.rendering = None
         width, height = resolution
         self.window = pyglet.window.Window(width, height, visible=False)
-        self.window.set_caption('Scheduler State')
+        self.window.set_caption("Scheduler State")
         self.window.set_visible()
         self.window.on_draw = self.on_draw
 
@@ -94,7 +83,7 @@ class DeepRmHumanRenderer(DeepRmRgbRenderer, pyglet.window.Window):
             img = pyglet.image.ImageData(
                 height,
                 width,
-                'RGB',
+                "RGB",
                 self.rendering.data.tobytes(),
                 -3 * height,
             )
@@ -107,16 +96,16 @@ class DeepRmHumanRenderer(DeepRmRgbRenderer, pyglet.window.Window):
         pyglet.clock.tick()
         self.window.switch_to()
         self.window.dispatch_events()
-        self.window.dispatch_event('on_draw')
+        self.window.dispatch_event("on_draw")
         self.window.flip()
 
         return self.rendering
 
 
-class DeepRmRenderer(object):
+class DeepRmRenderer:
     def __init__(self, mode, *args, **kwargs):
         if mode not in SUPPORTED_MODES:
-            raise RuntimeError('Requested unsupported mode %s' % mode)
+            raise RuntimeError("Requested unsupported mode %s" % mode)
         self.renderer = SUPPORTED_MODES[mode]()(*args, **kwargs)
 
     def render(self, state):

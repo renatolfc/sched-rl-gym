@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """null_scheduler - a module that doesn't do any scheduling
 
 The purposed of this module is to provide a way for clients of the simulator to
@@ -9,8 +6,6 @@ implement different scheduling strategies.
 Most notably, this can be used by learning agents to select which jobs to
 schedule in an iterative way.
 """
-
-from typing import Optional
 
 from ..job import Job
 from ..scheduler import Scheduler
@@ -39,17 +34,15 @@ class NullScheduler(Scheduler):
             The total amount of memory in the cluster managed by this scheduler
     """
 
-    current_slot: Optional[int]
+    current_slot: int | None
 
-    def __init__(
-        self, number_of_processors, total_memory, ignore_memory=False
-    ):
-        self.current_slot: Optional[int] = None
+    def __init__(self, number_of_processors, total_memory, ignore_memory=False):
+        self.current_slot: int | None = None
         super().__init__(
             number_of_processors, total_memory, ignore_memory=ignore_memory
         )
 
-    def step(self, offset: int = None) -> bool:
+    def step(self, offset: int | None = None) -> bool:
         """Steps the scheduler by setting which job to choose.
 
         Uses the offset to select a position in the admission queue. If the
@@ -66,7 +59,7 @@ class NullScheduler(Scheduler):
                 negative number represents a no-op.
         """
         if self.current_slot is not None:
-            raise AssertionError('current_slot invariant not true')
+            raise AssertionError("current_slot invariant not true")
 
         self.current_slot = offset if offset is not None else -1
         return self.schedule()
@@ -78,9 +71,7 @@ class NullScheduler(Scheduler):
         """
 
         present = self.job_events.step(1)
-        self.cluster = self.play_events(
-            present, self.cluster, update_queues=True
-        )
+        self.cluster = self.play_events(present, self.cluster, update_queues=True)
         self.current_time += 1
         self.schedule()
 
@@ -122,9 +113,7 @@ class NullScheduler(Scheduler):
         finally:
             self.current_slot = None
 
-    def sjf_lt(
-        self, a: Job, b: Optional[Job]
-    ):  # pylint: disable=C, no-self-use
+    def sjf_lt(self, a: Job, b: Job | None):  # pylint: disable=C, no-self-use
         """Comparison function that gives the same ordering SJF would give.
 
         Parameters

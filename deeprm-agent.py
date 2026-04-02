@@ -1,16 +1,14 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""DeepRM training agent using REINFORCE with policy gradient."""
 
 from collections import namedtuple, defaultdict
 
 import argparse
 
 import os
-import gym
+import gymnasium
 import json
 import pickle
 import numpy as np
-from typing import List
 from pathlib import Path
 from collections import OrderedDict
 
@@ -35,15 +33,14 @@ TIME_HORIZON: int = 20
 PARALLEL_WORKERS: int = 20
 TRAINING_ITERATIONS: int = 6
 OPTIMIZERS = {
-    'adam': lambda model, args: optim.Adam(model.parameters(), lr=args.lr),
-    'rmsprop': lambda model, args: optim.RMSprop(model.parameters(), lr=args.lr, momentum=args.momentum),
+    "adam": lambda model, args: optim.Adam(model.parameters(), lr=args.lr),
+    "rmsprop": lambda model, args: optim.RMSprop(
+        model.parameters(), lr=args.lr, momentum=args.momentum
+    ),
 }
 
-TMPDIR = Path(f'/run/user/{os.getuid()}')
-Experience = namedtuple(
-    'Experience',
-    field_names='state action reward'.split()
-)
+TMPDIR = Path(f"/run/user/{os.getuid()}")
+Experience = namedtuple("Experience", field_names="state action reward".split())
 
 
 class PGNet(nn.Module):
@@ -54,12 +51,16 @@ class PGNet(nn.Module):
         self.input_width = env.observation_space.shape[1]
         self.output_size = env.action_space.n
 
-        self.nn = nn.Sequential(OrderedDict([
-            ('fc1', nn.Linear(self.input_height * self.input_width, 512)),
-            ('relu1', nn.ReLU()),
-            ('fc2', nn.Linear(512, 256)),
-            ('relu2', nn.ReLU()),
-        ]))
+        self.nn = nn.Sequential(
+            OrderedDict(
+                [
+                    ("fc1", nn.Linear(self.input_height * self.input_width, 512)),
+                    ("relu1", nn.ReLU()),
+                    ("fc2", nn.Linear(512, 256)),
+                    ("relu2", nn.ReLU()),
+                ]
+            )
+        )
         self.out = nn.Linear(256, self.output_size)
 
     def forward(self, x):
@@ -68,19 +69,20 @@ class PGNet(nn.Module):
         scores = self.out(x)
         return F.softmax(scores, dim=1)
 
-    def select_action(self, state, device='cpu'):
+    def select_action(self, state, device="cpu"):
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
         probs = self(state)
         mass = Categorical(probs)
         action = mass.sample()
         return action.item()
 
-    def log_prob(self, state, action, device='cpu'):
+    def log_prob(self, state, action, device="cpu"):
         state = state.float()
         action = action.float()
         probs = self(state).view((action.shape[0], action.shape[1], -1))
         mass = Categorical(probs)
         return mass.log_prob(action), mass.entropy()
+
 
 class Callback(object):
     def __call__(self, score) -> None:
@@ -107,9 +109,9 @@ class ReduceLROnPlateau(Callback):
             if self.counter >= self.patience:
                 self.counter = 0
                 print(
-                    f'Reducing learning rate from {self.args.lr} '
-                    f'to {self.args.lr * self.rate} '
-                    f'(best score was {self.best_score})'
+                    f"Reducing learning rate from {self.args.lr} "
+                    f"to {self.args.lr * self.rate} "
+                    f"(best score was {self.best_score})"
                 )
                 tmp = self.args.lr * self.rate
                 if self.minimum and tmp < self.minimum:
@@ -122,33 +124,33 @@ class ReduceLROnPlateau(Callback):
 
 def make_discount_array(gamma, timesteps):
     vals = np.zeros(2 * timesteps - 1)
-    vals[timesteps - 1:] = gamma ** np.arange(timesteps)
+    vals[timesteps - 1 :] = gamma ** np.arange(timesteps)
     return as_strided(
-        vals[timesteps - 1:],
+        vals[timesteps - 1 :],
         shape=(timesteps, timesteps),
         strides=(-vals.strides[0], vals.strides[0]),
-        writeable=False
+        writeable=False,
     )
 
 
 def setup_environment(envname, wlkwargs) -> deeprm.DeepRmEnv:
-    env: deeprm.DeepRmEnv = gym.make(envname, **wlkwargs)
+    env: deeprm.DeepRmEnv = gymnasium.make(envname, **wlkwargs)
     env.reset()
 
     return env
 
 
-def run_episode(env, model, max_episode_length, device='cpu'):
+def run_episode(env, model, max_episode_length, device="cpu"):
     trajectory = []
     total_reward = 0
-    state = env.reset()
+    state, _info = env.reset()
     for _ in range(max_episode_length):
         action = model.select_action(state, device)
-        next_state, reward, done, _ = env.step(action)
+        next_state, reward, terminated, truncated, _info = env.step(action)
         exp = Experience(state, action, reward)
         trajectory.append(exp)
         total_reward += reward
-        if done:
+        if terminated or truncated:
             break
         state = next_state
     return trajectory
@@ -158,22 +160,24 @@ def compute_baselines(trajectories):
     returns = np.zeros((len(trajectories), max((len(traj) for traj in trajectories))))
     for i in range(len(trajectories)):
         tmp = np.array([e.reward for e in trajectories[i]])
-        returns[i, :len(tmp)] = tmp
+        returns[i, : len(tmp)] = tmp
     return returns, returns.mean(axis=0)
 
 
-def run_episodes(rank, args, model, device, wlkwargs) -> List[List[Experience]]:
+def run_episodes(rank, args, model, device, wlkwargs) -> list[list[Experience]]:
     np.random.seed(args.seed + rank)
     torch.manual_seed(args.seed + rank)
     env = setup_environment(args.envname, wlkwargs)
 
-    return [run_episode(env, model, args.max_episode_length, device)
-            for _ in range(args.trajectories_per_batch)]
+    return [
+        run_episode(env, model, args.max_episode_length, device)
+        for _ in range(args.trajectories_per_batch)
+    ]
 
 
 def run_episodes_pickle(rank, args, model, device, wlkwargs):
     trajectories = run_episodes(rank, args, model, device, wlkwargs)
-    with open(TMPDIR / f'{rank}.pkl', 'wb') as fp:
+    with open(TMPDIR / f"{rank}.pkl", "wb") as fp:
         pickle.dump(trajectories, fp, pickle.HIGHEST_PROTOCOL)
 
 
@@ -201,8 +205,7 @@ def train_one_epoch(rank, args, model, device, loss_queue, wlkwargs) -> None:
     trajectories = run_episodes(rank, args, model, device, wlkwargs)
 
     rewards, baselines = compute_baselines(trajectories)
-    baselines_mat = np.array([baselines
-                              for _ in range(args.trajectories_per_batch)])
+    baselines_mat = np.array([baselines for _ in range(args.trajectories_per_batch)])
     baselines_mat = baselines_mat * (rewards != 0)
     discounts = make_discount_array(args.gamma, rewards.shape[1])
     discounted_returns = (discounts @ rewards.T).T
@@ -219,46 +222,98 @@ def train_one_epoch(rank, args, model, device, loss_queue, wlkwargs) -> None:
     optimizer.step()
 
     lengths = [len(t) for t in trajectories]
-    loss_queue.put((
-        rank, policy_loss.clone().cpu().data.numpy(),
-        advantages.mean(), advantages.std(),
-        rewards.mean(), rewards.std(),
-        discounted_returns.mean(), discounted_returns.std(),
-        np.mean(lengths), np.std(lengths)
-    ))
+    loss_queue.put(
+        (
+            rank,
+            policy_loss.clone().cpu().data.numpy(),
+            advantages.mean(),
+            advantages.std(),
+            rewards.mean(),
+            rewards.std(),
+            discounted_returns.mean(),
+            discounted_returns.std(),
+            np.mean(lengths),
+            np.std(lengths),
+        )
+    )
 
 
 def build_argument_parser():
-    parser = argparse.ArgumentParser(description='DeepRM training')
-    parser.add_argument('--epochs', type=int, default=TRAINING_ITERATIONS,
-                        metavar='N', help='number of epochs to train')
-    parser.add_argument('--workers', type=int, default=PARALLEL_WORKERS,
-                        metavar='N', help='number of workers to train')
-    parser.add_argument('--seed', type=int, default=42,
-                        metavar='S', help='random seed to use')
-    parser.add_argument('--lr', type=float, default=1e-2, metavar='LR',
-                        help='Learning rate for gradient ascent')
-    parser.add_argument('--momentum', type=float, default=0.99, metavar='LR',
-                        help='momentum for gradient ascent')
-    parser.add_argument('--cuda', action='store_true', default=False,
-                        help='enables training with CUDA')
-    parser.add_argument('--envname', type=str, default='DeepRM-v0',
-                        help='OpenAI Gym environment to use')
-    parser.add_argument('--max-episode-length', type=int, default=200,
-                        metavar='N', help='Maximum number of timesteps in episode')
-    parser.add_argument('--trajectories-per-batch', type=int, default=200,
-                        metavar='N', help='Number of trajectories in a batch')
-    parser.add_argument('--gamma', type=float, default=0.99, metavar='γ',
-                        help='Discount factor')
-    parser.add_argument('--debug', action='store_true', default=False)
-    parser.add_argument('--load', type=str, default=None, metavar='PATH',
-                        help='Loads a previously-trained model')
-    parser.add_argument('--optimizer', type=str, default='adam',
-                        help='optimizer to use')
-    parser.add_argument('--workload', type=str, default=None,
-                        help='Path to a workload configuration file')
-    parser.add_argument('--entropy', type=float, default=0.,
-                        help='entropy regularization factor')
+    parser = argparse.ArgumentParser(description="DeepRM training")
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=TRAINING_ITERATIONS,
+        metavar="N",
+        help="number of epochs to train",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=PARALLEL_WORKERS,
+        metavar="N",
+        help="number of workers to train",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=42, metavar="S", help="random seed to use"
+    )
+    parser.add_argument(
+        "--lr",
+        type=float,
+        default=1e-2,
+        metavar="LR",
+        help="Learning rate for gradient ascent",
+    )
+    parser.add_argument(
+        "--momentum",
+        type=float,
+        default=0.99,
+        metavar="LR",
+        help="momentum for gradient ascent",
+    )
+    parser.add_argument(
+        "--cuda", action="store_true", default=False, help="enables training with CUDA"
+    )
+    parser.add_argument(
+        "--envname", type=str, default="DeepRM-v0", help="OpenAI Gym environment to use"
+    )
+    parser.add_argument(
+        "--max-episode-length",
+        type=int,
+        default=200,
+        metavar="N",
+        help="Maximum number of timesteps in episode",
+    )
+    parser.add_argument(
+        "--trajectories-per-batch",
+        type=int,
+        default=200,
+        metavar="N",
+        help="Number of trajectories in a batch",
+    )
+    parser.add_argument(
+        "--gamma", type=float, default=0.99, metavar="γ", help="Discount factor"
+    )
+    parser.add_argument("--debug", action="store_true", default=False)
+    parser.add_argument(
+        "--load",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Loads a previously-trained model",
+    )
+    parser.add_argument(
+        "--optimizer", type=str, default="adam", help="optimizer to use"
+    )
+    parser.add_argument(
+        "--workload",
+        type=str,
+        default=None,
+        help="Path to a workload configuration file",
+    )
+    parser.add_argument(
+        "--entropy", type=float, default=0.0, help="entropy regularization factor"
+    )
     return parser
 
 
@@ -266,10 +321,10 @@ def main():
     args = build_argument_parser().parse_args()
 
     use_cuda = args.cuda and torch.cuda.is_available()
-    device = torch.device('cuda' if use_cuda else 'cpu')
+    device = torch.device("cuda" if use_cuda else "cpu")
 
     torch.manual_seed(args.seed)
-    mp.set_start_method('spawn')
+    mp.set_start_method("spawn")
 
     if args.workload is None:
         wlkwargs = {}
@@ -285,16 +340,20 @@ def main():
     writer = SummaryWriter()
     loss_queue = mp.Queue()
 
-    callbacks = [ReduceLROnPlateau(500, .5, args, 1e-5, negate_score=True)]
-    train_synchronous_parallel(args, callbacks, device, loss_queue, model, writer, wlkwargs)
+    callbacks = [ReduceLROnPlateau(500, 0.5, args, 1e-5, negate_score=True)]
+    train_synchronous_parallel(
+        args, callbacks, device, loss_queue, model, writer, wlkwargs
+    )
 
     writer.close()
-    torch.save(model.state_dict(), 'policy.pth')
+    torch.save(model.state_dict(), "policy.pth")
 
 
-def train_synchronous_parallel(args, callbacks, device, loss_queue, model, writer, wlkwargs):
+def train_synchronous_parallel(
+    args, callbacks, device, loss_queue, model, writer, wlkwargs
+):
     for epoch in range(args.epochs):
-        print(f'Current epoch: {epoch}')
+        print(f"Current epoch: {epoch}")
         losses = []
         if args.debug:
             train_one_epoch(0, args, model, device, loss_queue)
@@ -303,10 +362,10 @@ def train_synchronous_parallel(args, callbacks, device, loss_queue, model, write
                 pool.starmap_async(
                     run_episodes_pickle,
                     [(i, args, model, device, wlkwargs) for i in range(args.workers)],
-                    1
+                    1,
                 ).get()
 
-                fps = [open(TMPDIR / f'{i}.pkl', 'rb') for i in range(args.workers)]
+                fps = [open(TMPDIR / f"{i}.pkl", "rb") for i in range(args.workers)]
                 ret = [pickle.load(fp) for fp in fps]
                 [fp.close() for fp in fps]
 
@@ -315,8 +374,7 @@ def train_synchronous_parallel(args, callbacks, device, loss_queue, model, write
 
                 trajectories = [e for l in ret for e in l]
                 rewards, baselines = compute_baselines(trajectories)
-                baselines_mat = np.array([baselines
-                                          for _ in range(len(trajectories))])
+                baselines_mat = np.array([baselines for _ in range(len(trajectories))])
                 baselines_mat = baselines_mat * (rewards != 0)
                 discounts = make_discount_array(args.gamma, rewards.shape[1])
                 discounted_returns = (discounts @ rewards.T).T
@@ -330,13 +388,11 @@ def train_synchronous_parallel(args, callbacks, device, loss_queue, model, write
                     a += [np.zeros_like(a[0])] * (maxlen - len(a))
 
                 def compute_loss(model, states, actions, advantages, device):
-                    states, actions, advantages = [torch.from_numpy(t) for t in (states, actions, advantages)]
-                    dataset = data.TensorDataset(
-                        states, actions, advantages
-                    )
-                    loader = data.DataLoader(
-                        dataset, batch_size=64, shuffle=False
-                    )
+                    states, actions, advantages = [
+                        torch.from_numpy(t) for t in (states, actions, advantages)
+                    ]
+                    dataset = data.TensorDataset(states, actions, advantages)
+                    loader = data.DataLoader(dataset, batch_size=64, shuffle=False)
                     loss = 0
                     for state, action, advantage in loader:
                         l, e = model.log_prob(
@@ -351,50 +407,61 @@ def train_synchronous_parallel(args, callbacks, device, loss_queue, model, write
                     np.array(states),
                     np.array(actions),
                     np.array(advantages),
-                    device
+                    device,
                 )
                 (-policy_loss).backward()
                 optimizer.step()
 
                 lengths = [len(t) for t in trajectories]
-                loss_queue.put((
-                    0, policy_loss.clone().cpu().data.numpy(),
-                    advantages.mean(), advantages.std(),
-                    rewards.mean(), rewards.std(),
-                    discounted_returns.mean(), discounted_returns.std(),
-                    np.mean(lengths), np.std(lengths)
-                ))
+                loss_queue.put(
+                    (
+                        0,
+                        policy_loss.clone().cpu().data.numpy(),
+                        advantages.mean(),
+                        advantages.std(),
+                        rewards.mean(),
+                        rewards.std(),
+                        discounted_returns.mean(),
+                        discounted_returns.std(),
+                        np.mean(lengths),
+                        np.std(lengths),
+                    )
+                )
 
                 for name, param in model.named_parameters():
                     writer.add_histogram(name, param.clone().cpu().data.numpy(), epoch)
 
                 losses, extras = [], defaultdict(list)
-                features = 'ardl'
+                features = "ardl"
                 while not loss_queue.empty():
                     rank, loss, *extra = loss_queue.get()
-                    print(
-                        f'Loss for worker {rank} on epoch {epoch}: {loss}'
-                    )
+                    print(f"Loss for worker {rank} on epoch {epoch}: {loss}")
                     losses.append(loss)
                     for i, feature in enumerate(features):
-                        extras[f'{feature}μ'].append(extra[i * 2])
-                        extras[f'{feature}σ'].append(extra[i * 2 + 1])
-                        writer.add_scalar(f'{feature}μ/{rank}', extra[i * 2], epoch)
-                        writer.add_scalar(f'{feature}σ/{rank}', extra[i * 2 + 1], epoch)
+                        extras[f"{feature}μ"].append(extra[i * 2])
+                        extras[f"{feature}σ"].append(extra[i * 2 + 1])
+                        writer.add_scalar(f"{feature}μ/{rank}", extra[i * 2], epoch)
+                        writer.add_scalar(f"{feature}σ/{rank}", extra[i * 2 + 1], epoch)
                 print(
-                    'Loss for epoch {}: {}±{}'.format(epoch, np.mean(losses), np.std(losses))
+                    "Loss for epoch {}: {}±{}".format(
+                        epoch, np.mean(losses), np.std(losses)
+                    )
                 )
-                writer.add_scalar('loss', np.mean(losses), epoch)
+                writer.add_scalar("loss", np.mean(losses), epoch)
                 for i, feature in enumerate(features):
-                    writer.add_scalar(f'{feature}μ', np.mean(extras[f'{feature}μ']), epoch)
-                    writer.add_scalar(f'{feature}σ', np.mean(extras[f'{feature}σ']), epoch)
-                writer.add_scalar('α', args.lr, epoch)
+                    writer.add_scalar(
+                        f"{feature}μ", np.mean(extras[f"{feature}μ"]), epoch
+                    )
+                    writer.add_scalar(
+                        f"{feature}σ", np.mean(extras[f"{feature}σ"]), epoch
+                    )
+                writer.add_scalar("α", args.lr, epoch)
         for callback in callbacks:
             callback(np.mean(losses))
 
         writer.flush()
-        torch.save(model.state_dict(), f'checkpoint/policy-{epoch}.pth')
+        torch.save(model.state_dict(), f"checkpoint/policy-{epoch}.pth")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

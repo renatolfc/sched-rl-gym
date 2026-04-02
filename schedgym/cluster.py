@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """cluster - Classes for cluster management
 
 The workhorse of this module is the :class:`schedgym.cluster.Cluster` class,
@@ -8,15 +5,14 @@ which manages resources in a cluster.
 """
 
 import copy
-from typing import Tuple, Iterable, Optional
+from collections.abc import Iterable
 
 from . import pool
 
 from .job import Job, Resource
 from .event import JobEvent, EventType
 
-# pylint: disable=C
-RESOURCE_TYPE = Tuple[Iterable[pool.Interval], Iterable[pool.Interval]]
+RESOURCE_TYPE = tuple[Iterable[pool.Interval], Iterable[pool.Interval]]
 
 
 class Cluster:
@@ -48,9 +44,9 @@ class Cluster:
             The amount of memory in this cluster
         ignore_memory : bool
             Whether memory should be considered for decisions or not
-        used_processors : Optional[Resource]
+        used_processors : Resource | None
             Processors already in use in this cluster
-        used_memory : Optional[Resource]
+        used_memory : Resource | None
             Amount of memory already used in this cluster
     """
 
@@ -63,19 +59,17 @@ class Cluster:
         processors: int,
         memory: int,
         ignore_memory: bool = False,
-        used_processors: Optional[Resource] = None,
-        used_memory: Optional[Resource] = None,
+        used_processors: Resource | None = None,
+        used_memory: Resource | None = None,
     ):
         self.ignore_memory = ignore_memory
-        self.memory = pool.ResourcePool(
-            pool.ResourceType.MEMORY, memory, used_memory
-        )
+        self.memory = pool.ResourcePool(pool.ResourceType.MEMORY, memory, used_memory)
         self.processors = pool.ResourcePool(
             pool.ResourceType.CPU, processors, used_processors
         )
 
     @property
-    def free_resources(self) -> Tuple[int, int]:
+    def free_resources(self) -> tuple[int, int]:
         """The set of resources *not* in use in this cluster."""
         return self.processors.free_resources, self.memory.free_resources
 
@@ -104,9 +98,7 @@ class Cluster:
                 The job to allocate resources to.
         """
         if not self.fits(job):
-            raise AssertionError(
-                f'Unable to allocate resources for {job} in {self}'
-            )
+            raise AssertionError(f"Unable to allocate resources for {job} in {self}")
         self.processors.allocate(job.resources.processors)
         self.memory.allocate(job.resources.memory)
 
@@ -174,14 +166,13 @@ class Cluster:
             an empty set of resources otherwise. (See
             :func:`schedgym.cluster.Cluster.find`.)
         """
+
         def valid(e, time):
-            return time + 1 <= e.time < job.requested_time + time
+            return time <= e.time < job.requested_time + time
 
         used = Resource(self.processors.used_pool, self.memory.used_pool)
         for event in (
-            e
-            for e in events
-            if (valid(e, time) and e.type == EventType.JOB_START)
+            e for e in events if (valid(e, time) and e.type == EventType.JOB_START)
         ):
             for i in event.processors:
                 used.processors.add(i)
@@ -198,7 +189,7 @@ class Cluster:
         ).find(job)
 
     @property
-    def state(self) -> Tuple[Tuple[int, int, dict], ...]:
+    def state(self) -> tuple[tuple[int, int, dict], ...]:
         """Gets the current state of the cluster as numpy arrays.
 
         Returns:
@@ -221,17 +212,12 @@ class Cluster:
             return processors, memory
 
     def __bool__(self):
-        return (
-            self.processors.free_resources != 0
-            and self.memory.free_resources != 0
-        )
+        if self.ignore_memory:
+            return self.processors.free_resources != 0
+        return self.processors.free_resources != 0 and self.memory.free_resources != 0
 
     def __repr__(self):
-        return (
-            f'Cluster({self.processors}, {self.memory}, {self.ignore_memory})'
-        )
+        return f"Cluster({self.processors}, {self.memory}, {self.ignore_memory})"
 
     def __str__(self):
-        return (
-            f'Cluster({self.processors}, {self.memory}, {self.ignore_memory})'
-        )
+        return f"Cluster({self.processors}, {self.memory}, {self.ignore_memory})"

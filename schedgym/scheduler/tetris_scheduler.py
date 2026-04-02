@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """tetris_scheduler - A scheduler that mixes Packer and SJF"""
 
 from schedgym.job import Job
@@ -43,12 +40,7 @@ class TetrisScheduler(PackerScheduler):
             j : Job
                 The job for which we're computing priority.
         """
-        return (
-            self.packer_sjf_ratio
-            * (
-                self.free_resources[0] * j.requested_processors
-                + self.free_resources[1]
-                + j.requested_memory
-            )
-            + (1 - self.packer_sjf_ratio) * 1.0 / j.requested_time
-        )
+        return self.packer_sjf_ratio * (
+            self.free_resources[0] * j.requested_processors
+            + self.free_resources[1] * j.requested_memory
+        ) + (1 - self.packer_sjf_ratio) * 1.0 / max(1, j.requested_time)

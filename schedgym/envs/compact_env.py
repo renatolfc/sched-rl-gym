@@ -1,9 +1,5 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import numpy as np
-import gym.spaces.box
-import gym.spaces.discrete
+import gymnasium.spaces
 
 from ..job import Job
 from .base import BaseRmEnv
@@ -27,24 +23,24 @@ NEW_JOB_RATE = 0.7
 SMALL_JOB_CHANCE = 0.8
 
 DEFAULT_WORKLOAD = {
-    'type': 'deeprm',
-    'new_job_rate': NEW_JOB_RATE,
-    'max_job_size': MAXIMUM_JOB_SIZE,
-    'max_job_len': MAXIMUM_JOB_LENGTH,
-    'small_job_chance': SMALL_JOB_CHANCE,
+    "type": "deeprm",
+    "new_job_rate": NEW_JOB_RATE,
+    "max_job_size": MAXIMUM_JOB_SIZE,
+    "max_job_len": MAXIMUM_JOB_LENGTH,
+    "small_job_chance": SMALL_JOB_CHANCE,
 }
 
 
 class CompactRmEnv(BaseRmEnv):
-    metadata = {'render.modes': ['human', 'rgb_array']}
+    metadata = {"render_modes": ["human", "rgb_array"]}
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.memory = kwargs.get('memory', AMOUNT_OF_MEMORY)
-        self.processors = kwargs.get('processors', NUMBER_OF_PROCESSORS)
+        self.memory = kwargs.get("memory", AMOUNT_OF_MEMORY)
+        self.processors = kwargs.get("processors", NUMBER_OF_PROCESSORS)
 
-        self.renderer = kwargs.get('renderer', None)
+        self.renderer = kwargs.get("renderer", None)
 
         self.maximum_work = self.processors
         self.maximum_work_mem = self.memory
@@ -52,17 +48,17 @@ class CompactRmEnv(BaseRmEnv):
         self._setup_spaces()
 
     def _setup_spaces(self):
-        self.action_space = gym.spaces.discrete.Discrete(self.job_slots + 1)
+        self.action_space = gymnasium.spaces.Discrete(self.job_slots + 1)
 
-        self.observation_space = gym.spaces.box.Box(
+        self.observation_space = gymnasium.spaces.Box(
             low=0.0, high=1.0, shape=((len(self.state),)), dtype=np.float32
         )
 
-    def reset(self) -> np.ndarray:
-        super().reset()
+    def reset(self, *, seed=None, options=None) -> tuple[np.ndarray, dict]:
+        super().reset(seed=seed, options=options)
         self.maximum_work = self.time_limit * self.processors
         self.maximum_work_mem = self.time_limit * self.memory
-        return super().reset()
+        return super().reset(seed=seed, options=options)
 
     def step(self, action: int):
         done = False
@@ -92,37 +88,26 @@ class CompactRmEnv(BaseRmEnv):
         if not done and self.smdp and any(intermediate):
             rewards = [self.compute_reward(js) for js in intermediate]
             rewards[0] = 0
-            reward = (
-                self.gamma ** np.arange(len(intermediate))
-            ).dot(rewards)
+            reward = (self.gamma ** np.arange(len(intermediate))).dot(rewards)
 
-        return (
-            self.state,
-            reward,
-            done,
-            self.stats if done else {}
-        )
+        return (self.state, reward, done, False, self.stats if done else {})
 
     @property
     def state(self):
-        state, jobs, backlog = self.scheduler.state(
-            self.time_horizon, self.job_slots
-        )
-        newstate = np.zeros(
-            (len(state[0]) * (1 if self.ignore_memory else 2) * 2)
-        )
+        state, jobs, backlog = self.scheduler.state(self.time_horizon, self.job_slots)
+        newstate = np.zeros((len(state[0]) * (1 if self.ignore_memory else 2) * 2))
         newstate[: len(state[0]) * 2] = (
-            np.array(
-                [(e[0], e[1]) for e in state[0]],
-                dtype=np.float32
-            ).reshape((-1,),) / self.processors
+            np.array([(e[0], e[1]) for e in state[0]], dtype=np.float32).reshape(
+                (-1,),
+            )
+            / self.processors
         )
         if not self.ignore_memory:
-            newstate[len(state[0]) * 2:] = (
-                np.array(
-                    [(e[0], e[1]) for e in state[1]],
-                    dtype=np.float32
-                ).reshape((-1,)) / self.memory
+            newstate[len(state[0]) * 2 :] = (
+                np.array([(e[0], e[1]) for e in state[1]], dtype=np.float32).reshape(
+                    (-1,)
+                )
+                / self.memory
             )
         jobs = self._normalize_jobs(jobs).reshape((-1,))
         backlog = backlog * np.ones(1) / self.backlog_size
@@ -130,18 +115,13 @@ class CompactRmEnv(BaseRmEnv):
         running = [
             j
             for j in self.scheduler.queue_running
-            if j.submission_time + j.requested_time
-            > self.scheduler.current_time
+            if j.start_time + j.execution_time > self.scheduler.current_time
         ]
 
         remaining_work = (
             sum(
                 [
-                    (
-                        j.submission_time
-                        + j.requested_time
-                        - self.scheduler.current_time
-                    )
+                    (j.start_time + j.execution_time - self.scheduler.current_time)
                     * j.requested_processors
                     for j in running
                 ]
@@ -151,11 +131,7 @@ class CompactRmEnv(BaseRmEnv):
         remaining_work_mem = (
             sum(
                 [
-                    (
-                        j.submission_time
-                        + j.requested_time
-                        - self.scheduler.current_time
-                    )
+                    (j.start_time + j.execution_time - self.scheduler.current_time)
                     * j.requested_memory
                     for j in running
                 ]
@@ -170,20 +146,17 @@ class CompactRmEnv(BaseRmEnv):
         time_left = 1 - self.scheduler.current_time / self.time_limit
 
         try:
-            next_free = min(
-                running, key=lambda x: x.start_time + x.requested_time
-            )
+            next_free = min(running, key=lambda x: x.start_time + x.execution_time)
             next_free = np.array(
                 (
                     (
                         next_free.start_time
-                        + next_free.requested_time
+                        + next_free.execution_time
                         - self.scheduler.current_time
                     )
                     / self.time_limit,
                     next_free.requested_processors / self.processors,
-                    (state[0][0][0] + next_free.requested_processors)
-                    / self.processors,
+                    (state[0][0][0] + next_free.requested_processors) / self.processors,
                 )
             )
         except ValueError:
@@ -195,9 +168,7 @@ class CompactRmEnv(BaseRmEnv):
                 jobs,
                 backlog,
                 next_free,
-                np.array(
-                    (remaining_work, remaining_work_mem, queue_size, time_left)
-                ),
+                np.array((remaining_work, remaining_work_mem, queue_size, time_left)),
             ),
         )
 

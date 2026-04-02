@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """scheduler - basic scheduling algorithms for the *simulation* layer."""
 
 from .scheduler import Scheduler
@@ -14,13 +11,13 @@ from .tetris_scheduler import TetrisScheduler
 from .easy_scheduler import EasyScheduler
 
 __all__ = [
-    'Scheduler',
-    'SjfScheduler',
-    'BackfillingScheduler',
-    'NullScheduler',
-    'PackerScheduler',
-    'RandomScheduler',
-    'TetrisScheduler',
-    'EasyScheduler',
-    'FifoScheduler',
+    "Scheduler",
+    "SjfScheduler",
+    "BackfillingScheduler",
+    "NullScheduler",
+    "PackerScheduler",
+    "RandomScheduler",
+    "TetrisScheduler",
+    "EasyScheduler",
+    "FifoScheduler",
 ]

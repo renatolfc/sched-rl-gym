@@ -1,9 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """sjf_scheduler - Shortest job first scheduler"""
-
-from typing import List
 
 from schedgym.job import Job
 from schedgym.scheduler import Scheduler
@@ -18,7 +13,7 @@ class SjfScheduler(Scheduler):
         This does so by re-sorting the queue by requested time and iterating
         through it until a job can be scheduled.
         """
-        ignored_jobs: List[Job] = []
+        ignored_jobs: list[Job] = []
         # XXX: We always re-sort the queue. If we ever want to learn from
         # demonstration, we'd probably have to do something like:
         # candidates = sorted(

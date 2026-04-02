@@ -1,13 +1,9 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """distribution - Generative models for workload generation"""
 
 import math
 import random
 import itertools
 from abc import ABC, abstractmethod
-from typing import List, Optional
 
 from schedgym.job import Job, JobParameters
 from schedgym.workload.base import WorkloadGenerator
@@ -31,7 +27,7 @@ class DistributionalWorkloadGenerator(WorkloadGenerator, ABC):
         self.current_element = 0
 
     @abstractmethod
-    def step(self, offset=1) -> List[Optional[Job]]:
+    def step(self, offset=1) -> list[Job | None]:
         """Steps the workload generator by :param offset:.
 
         This may, or may not, return new jobs, depending on the internal
@@ -87,16 +83,16 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
         self.large_job = large_job_parameters
 
         if runtime_estimates is not None and runtime_estimates not in [
-            'gaussian',
-            'gaussian-over',
-            'gaussian-under',
+            "gaussian",
+            "gaussian-over",
+            "gaussian-under",
         ]:
-            raise ValueError(f'Unsupported estimate type {runtime_estimates}')
+            raise ValueError(f"Unsupported estimate type {runtime_estimates}")
 
         self.runtime_estimates = runtime_estimates
         self.estimate_parameters = estimate_parameters
 
-    def step(self, offset=1) -> List[Optional[Job]]:
+    def step(self, offset=1) -> list[Job | None]:
         self.current_time += offset
         if random.random() > self.new_job_rate:
             return []
@@ -104,17 +100,15 @@ class BinomialWorkloadGenerator(DistributionalWorkloadGenerator):
             j = self.small_job.sample(self.current_time)
         else:
             j = self.large_job.sample(self.current_time)
-        if self.runtime_estimates and self.runtime_estimates.startswith(
-            'gaussian'
-        ):
+        if self.runtime_estimates and self.runtime_estimates.startswith("gaussian"):
             if self.estimate_parameters is None:
                 raise RuntimeError(
                     "Can't sample runtime estimates with undefined parameters"
                 )
             diff = random.gauss(0, self.estimate_parameters * j.execution_time)
-            if 'over' in self.runtime_estimates:
+            if "over" in self.runtime_estimates:
                 diff = abs(diff)
-            elif 'under' in self.runtime_estimates:
+            elif "under" in self.runtime_estimates:
                 diff = -abs(diff)
             j.requested_time = max(math.ceil(j.execution_time + diff), 1)
         j.id = next(self.counter)

@@ -1,12 +1,7 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-import random
 from enum import IntEnum
-from typing import List, Dict
 from abc import ABC, abstractmethod
 
-import gym
+import gymnasium
 
 import numpy as np
 
@@ -27,68 +22,64 @@ MAXIMUM_JOB_SIZE = 10
 NEW_JOB_RATE = 0.7
 SMALL_JOB_CHANCE = 0.8
 DEFAULT_WORKLOAD = {
-    'type': 'deeprm',
-    'new_job_rate': NEW_JOB_RATE,
-    'max_job_size': MAXIMUM_JOB_SIZE,
-    'max_job_len': MAXIMUM_JOB_LENGTH,
-    'small_job_chance': SMALL_JOB_CHANCE,
+    "type": "deeprm",
+    "new_job_rate": NEW_JOB_RATE,
+    "max_job_size": MAXIMUM_JOB_SIZE,
+    "max_job_len": MAXIMUM_JOB_LENGTH,
+    "small_job_chance": SMALL_JOB_CHANCE,
 }
 
 
 class RewardJobs(IntEnum):
-    ALL = (0,)
-    JOB_SLOTS = (1,)
-    WAITING = (2,)
-    RUNNING_JOB_SLOTS = (3,)
+    ALL = 0
+    JOB_SLOTS = 1
+    WAITING = 2
+    RUNNING_JOB_SLOTS = 3
 
     @staticmethod
     def from_str(reward_range: str):
-        reward_range = reward_range.upper().replace('-', '_')
+        reward_range = reward_range.upper().replace("-", "_")
         if reward_range in RewardJobs.__members__:
             return RewardJobs[reward_range]
         else:
             raise ValueError(
-                f'{reward_range} is not a valid RewardJobs range. '
-                f'Valid options are: {list(RewardJobs.__members__.keys())}.'
+                f"{reward_range} is not a valid RewardJobs range. "
+                f"Valid options are: {list(RewardJobs.__members__.keys())}."
             )
 
 
-class BaseRmEnv(ABC, gym.Env):
-    metadata = {'render.modes': ['human', 'rgb_array']}
+class BaseRmEnv(ABC, gymnasium.Env):
+    metadata = {"render_modes": ["human", "rgb_array"]}
 
     job_slots: int
     time_limit: int
     job_num_cap: int
     time_horizon: int
     ignore_memory: bool
-    color_index: List[int]
-    color_cache: Dict[int, int]
+    color_index: list[int]
+    color_cache: dict[int, int]
     simulator: DeepRmSimulator
 
     @abstractmethod
     def __init__(self, **kwargs):
         self.color_cache = {}
-        self.renderer = kwargs.get('renderer', None)
-        self.shuffle_colors = kwargs.get('shuffle_colors', False)
-        self.job_num_cap = kwargs.get(
-            'job_num_cap', MAXIMUM_NUMBER_OF_ACTIVE_JOBS
-        )
+        self.renderer = kwargs.get("renderer", None)
+        self.shuffle_colors = kwargs.get("shuffle_colors", False)
+        self.job_num_cap = kwargs.get("job_num_cap", MAXIMUM_NUMBER_OF_ACTIVE_JOBS)
         self.simulation_type = SimulationType.from_str(
-            kwargs.get('simulation_type', 'time_based')
+            kwargs.get("simulation_type", "time_based")
         )
 
-        self.reward_jobs = RewardJobs.from_str(
-            kwargs.get('reward_jobs', 'all')
-        )
+        self.reward_jobs = RewardJobs.from_str(kwargs.get("reward_jobs", "all"))
 
         self.smdp = self.simulation_type == SimulationType.EVENT_BASED
-        self.gamma = kwargs.get('gamma', 1.0)
+        self.gamma = kwargs.get("gamma", 1.0)
 
         self.time_horizon = kwargs.get(
-            'time_horizon', TIME_HORIZON
+            "time_horizon", TIME_HORIZON
         )  # number of time steps in the graph
 
-        time_limit = kwargs.get('time_limit', 200)
+        time_limit = kwargs.get("time_limit", 200)
         if time_limit is None:
             self.time_limit = 1
             self.update_time_limit = True
@@ -104,7 +95,7 @@ class BaseRmEnv(ABC, gym.Env):
         self.color_index = list(range(len(self.colormap)))
 
         # Number of jobs to show
-        self.job_slots = kwargs.get('job_slots', JOB_SLOTS)
+        self.job_slots = kwargs.get("job_slots", JOB_SLOTS)
 
         self.reward_mapper = {
             RewardJobs.ALL: lambda: self.scheduler.jobs_in_system,
@@ -116,12 +107,12 @@ class BaseRmEnv(ABC, gym.Env):
             + self.scheduler.queue_admission[: self.job_slots],
         }
 
-        self.backlog_size = kwargs.get('backlog_size', BACKLOG_SIZE)
-        self.memory = kwargs.get('memory', AMOUNT_OF_MEMORY)
-        self.processors = kwargs.get('processors', NUMBER_OF_PROCESSORS)
-        self.ignore_memory = kwargs.get('ignore_memory', False)
+        self.backlog_size = kwargs.get("backlog_size", BACKLOG_SIZE)
+        self.memory = kwargs.get("memory", AMOUNT_OF_MEMORY)
+        self.processors = kwargs.get("processors", NUMBER_OF_PROCESSORS)
+        self.ignore_memory = kwargs.get("ignore_memory", False)
 
-        self.workload_config = kwargs.get('workload', DEFAULT_WORKLOAD)
+        self.workload_config = kwargs.get("workload", DEFAULT_WORKLOAD)
         wl = build_workload(self.workload_config)
 
         scheduler = NullScheduler(
@@ -134,23 +125,22 @@ class BaseRmEnv(ABC, gym.Env):
             job_slots=self.job_slots,
         )
 
-    def reset(self) -> np.ndarray:
+    def reset(self, *, seed=None, options=None) -> tuple[np.ndarray, dict]:
+        super().reset(seed=seed, options=options)
         scheduler = NullScheduler(
             self.processors, self.memory, ignore_memory=self.ignore_memory
         )
         wl = build_workload(self.workload_config)
-        if self.update_time_limit and hasattr(wl, 'trace'):
+        if self.update_time_limit and hasattr(wl, "trace") and wl.trace:
             self.time_limit = (
-                wl.trace[-1].submission_time +  # type: ignore
-                wl.trace[-1].execution_time  # type: ignore
+                wl.trace[-1].submission_time  # type: ignore
+                + wl.trace[-1].execution_time  # type: ignore
             )
         self.simulator.reset(wl, scheduler)
-        return self.state
+        return self.state, {}
 
     def _render_state(self):
-        state, jobs, backlog = self.scheduler.state(
-            self.time_horizon, self.job_slots
-        )
+        state, jobs, backlog = self.scheduler.state(self.time_horizon, self.job_slots)
         s = self._convert_state(
             state,
             jobs,
@@ -202,12 +192,10 @@ class BaseRmEnv(ABC, gym.Env):
         backlog = np.ones(self.time_horizon * backlog_width) * backlog
         unique = set(np.unique(current[0])) - {0.0}
         if len(unique) > self.job_num_cap:
-            raise AssertionError('Number of jobs > number of colors')
+            raise AssertionError("Number of jobs > number of colors")
         available_colors = list(
             set(self.color_index)
-            - set(
-                [self.color_cache[j] for j in unique if j in self.color_cache]
-            )
+            - set([self.color_cache[j] for j in unique if j in self.color_cache])
         )
         need_color = unique - set(self.color_cache.keys())
         for i, j in enumerate(need_color):
@@ -223,23 +211,16 @@ class BaseRmEnv(ABC, gym.Env):
             np.ones((self.time_horizon, 1)) * min(1.0, time),
         )
 
-    def render(self, mode='human'):
+    def render(self):
         if self.renderer is None:
             from .render import DeepRmRenderer
 
-            self.renderer = DeepRmRenderer(mode)
+            self.renderer = DeepRmRenderer(self.render_mode or "human")
         rgb = self.renderer.render(self._render_state())
         return rgb
 
-    def seed(self, seed=None):
-        if seed is None:
-            seed = random.randint(0, 99999999)
-        np.random.seed(seed)
-        random.seed(seed)
-        return [seed]
-
     def compute_reward(self, joblist):
-        return -np.sum([1 / j.execution_time for j in joblist])
+        return -np.sum([1 / j.execution_time for j in joblist if j.execution_time > 0])
 
     @property
     def reward(self):

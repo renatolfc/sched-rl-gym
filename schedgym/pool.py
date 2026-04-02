@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """pool - Resource Pool management (see :class:`schedgym.cluster.Cluster`)."""
 
 import copy
 import enum
-from typing import Iterable, List, Optional
+from collections.abc import Iterable
 
 from intervaltree import IntervalTree, Interval
 
@@ -38,7 +35,7 @@ class ResourcePool:
         self,
         resource_type: ResourceType,
         size: int,
-        used_pool: IntervalTree = None,
+        used_pool: IntervalTree | None = None,
     ):
         self.size = size
         self.used_resources = 0
@@ -47,9 +44,7 @@ class ResourcePool:
             self.used_pool = IntervalTree()
         else:
             self.used_pool = used_pool
-            self.used_resources = sum(
-                [ResourcePool.measure(i) for i in used_pool]
-            )
+            self.used_resources = sum(ResourcePool.measure(i) for i in used_pool)
 
     def clone(self):
         """Duplicates this ResourcePool in memory."""
@@ -86,7 +81,7 @@ class ResourcePool:
         """
         return interval.end - interval.begin
 
-    def find(self, size: int, data: Optional[int] = None) -> IntervalTree:
+    def find(self, size: int, data: int | None = None) -> IntervalTree:
         """Finds an interval tree of a given size in this resource pool.
 
         This is essentially an operation to find *which* resources to allocate
@@ -97,7 +92,7 @@ class ResourcePool:
         ----------
             size : int
                 The size (amount) of resources to allocate
-            data : Optional[int]
+            data : int | None
                 The identifier of the "owner" of the found resources. This
                 allows us to keep track which job "owns" which resources during
                 execution.
@@ -123,9 +118,7 @@ class ResourcePool:
                 used_size = temp_size
             else:
                 used.add(
-                    Interval(
-                        interval.begin, interval.begin + size - used_size, data
-                    )
+                    Interval(interval.begin, interval.begin + size - used_size, data)
                 )
                 break
         return used
@@ -147,9 +140,7 @@ class ResourcePool:
         """
         for i in intervals:
             if self.used_resources + self.measure(i) > self.size:
-                raise AssertionError(
-                    'Tried to allocate past size of resource pool'
-                )
+                raise AssertionError("Tried to allocate past size of resource pool")
             self.used_pool.add(i)
             self.used_resources += self.measure(i)
 
@@ -167,18 +158,17 @@ class ResourcePool:
         """
         for i in intervals:
             if i not in self.used_pool:
-                raise AssertionError('Tried to free unused resource set')
+                raise AssertionError("Tried to free unused resource set")
             self.used_pool.remove(i)
             self.used_resources -= self.measure(i)
 
     @property
-    def intervals(self) -> List[Interval]:
+    def intervals(self) -> list[Interval]:
         """The set of intervals currently used in this resource pool."""
-        # pylint: disable=unnecessary-comprehension
-        return [i for i in self.used_pool]
+        return list(self.used_pool)
 
     def __repr__(self):
         return (
-            f'ResourcePool(resource_type={self.type}, '
-            f'size={self.size}, used_pool={self.used_pool})'
+            f"ResourcePool(resource_type={self.type}, "
+            f"size={self.size}, used_pool={self.used_pool})"
         )

@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """random - a random scheduler"""
 
 import random
@@ -17,4 +14,5 @@ class RandomScheduler(PackerScheduler):
 
     def get_priority(self, _) -> int:
         """Random priority function for random scheduler."""
-        return random.randint(0, len(self.queue_admission) - 1)
+        n = len(self.queue_admission)
+        return random.randint(0, n - 1) if n > 0 else 0

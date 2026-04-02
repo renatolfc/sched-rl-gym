@@ -1,9 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """packer_scheduler - A scheduler based on the Packer heuristic"""
-
-from typing import List
 
 from schedgym.job import Job
 from schedgym.scheduler import Scheduler
@@ -40,7 +35,7 @@ class PackerScheduler(Scheduler):
 
     def schedule(self) -> None:
         """Schedules jobs according to the Packer heuristic."""
-        ignored_jobs: List[Job] = []
+        ignored_jobs: list[Job] = []
         for job in reversed(
             sorted(self.queue_admission, key=lambda j: self.get_priority(j))
         ):

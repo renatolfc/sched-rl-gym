@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """event - Event Handling classes
 
 We have a basic Event type, which is specialized by
@@ -11,7 +8,8 @@ We have a basic Event type, which is specialized by
 import copy
 import enum
 import warnings
-from typing import List, Optional, Iterable, TypeVar, Generic, Iterator
+from typing import TypeVar, Generic
+from collections.abc import Iterable, Iterator
 
 from intervaltree import Interval
 
@@ -19,8 +17,8 @@ from .job import Job
 from .heap import Heap
 from .pool import ResourceType
 
-T = TypeVar('T', bound='Event')  # pylint: disable=C
-'Generic type for type annotations'
+T = TypeVar("T", bound="Event")  # pylint: disable=C
+"Generic type for type annotations"
 
 
 class EventType(enum.IntEnum):
@@ -120,7 +118,7 @@ class JobEvent(Event):
         return self.job.resources.memory
 
     def __str__(self):
-        return f'JobEvent<{self.time}, {self.type.name}, {self.job}>'
+        return f"JobEvent<{self.time}, {self.type.name}, {self.job}>"
 
     def __repr__(self):
         return str(self)
@@ -136,7 +134,7 @@ class EventQueue(Generic[T]):
     """
 
     time: int
-    past: List[T]
+    past: list[T]
     future: Heap[T]
 
     def __init__(self, time: int = 0):
@@ -158,9 +156,9 @@ class EventQueue(Generic[T]):
             self.past.append(event)
             self.past.sort(key=lambda e: e.time)
             warnings.warn(
-                'Adding events to the past might change the '
-                'ordering of events that happened at the same '
-                'time.'
+                "Adding events to the past might change the "
+                "ordering of events that happened at the same "
+                "time."
             )
 
     def step(self, time: int = 1) -> Iterable[T]:
@@ -176,9 +174,9 @@ class EventQueue(Generic[T]):
             the current time.
         """
         if time < 0:
-            raise AssertionError('Tried to move into the past.')
+            raise AssertionError("Tried to move into the past.")
         self.time += time
-        present: List[T] = []
+        present: list[T] = []
         first = self.future.first
         while first and first.time <= self.time:
             current = self.future.pop()
@@ -194,23 +192,23 @@ class EventQueue(Generic[T]):
         events is not supported.
         """
         if event not in self.future:
-            raise ValueError('Tried to remove non-existant value')
+            raise ValueError("Tried to remove non-existant value")
         self.future.remove(event)
 
     @property
-    def first(self) -> Optional[T]:  # XXX: This is probably not needed
+    def first(self) -> T | None:  # XXX: This is probably not needed
         """The first event in the future to happen in this queue."""
         return self.future.first
 
     @property
-    def next(self) -> Optional[T]:
+    def next(self) -> T | None:
         """The next event to happen in this queue."""
         if len(self.future) == 0:
             return None
         return self.future.first
 
     @property
-    def last(self) -> Optional[T]:
+    def last(self) -> T | None:
         """The last event to have happened in this queue."""
         return self.past[-1] if self.past else None
 
@@ -218,7 +216,7 @@ class EventQueue(Generic[T]):
         return self.future.heapsort()
 
     def __str__(self) -> str:
-        return f'{[e for e in self.future.heapsort()]}'
+        return f"{[e for e in self.future.heapsort()]}"
 
     def __repr__(self):
         return str(self)

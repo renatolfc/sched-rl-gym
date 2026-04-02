@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """resource - basic resource unit
 
 This module has two classes:
@@ -11,7 +8,6 @@ This module has two classes:
 
 import copy
 import enum
-from typing import Tuple
 
 from intervaltree import IntervalTree
 
@@ -23,7 +19,7 @@ class PrimaryResource(enum.IntEnum):
     MEMORY = 1
 
 
-class Resource(object):
+class Resource:
     """The basic resource group.
 
     This groups IntervalTrees into as many resources that can are supported in
@@ -50,32 +46,32 @@ class Resource(object):
 
     def __init__(
         self,
-        processors: IntervalTree = IntervalTree(),
-        memory: IntervalTree = IntervalTree(),
+        processors: IntervalTree | None = None,
+        memory: IntervalTree | None = None,
         ignore_memory: bool = False,
     ):
         self.ignore_memory = ignore_memory
-        self.processors = copy.copy(processors)
-        self.memory = copy.copy(memory)
+        self.processors = (
+            copy.copy(processors) if processors is not None else IntervalTree()
+        )
+        self.memory = copy.copy(memory) if memory is not None else IntervalTree()
 
-    def measure(self) -> Tuple[int, int]:
+    def measure(self) -> tuple[int, int]:
         """Returns the total amount of resources in use.
 
         Returns:
             Tuple: A tuple containing the amount of resources used for each
             resource type supported.
         """
-        processors = sum([i.end - i.begin for i in self.processors])
-        memory = sum([i.end - i.begin for i in self.memory])
+        processors = sum(i.end - i.begin for i in self.processors)
+        memory = sum(i.end - i.begin for i in self.memory)
         return processors, memory
 
     def __bool__(self) -> bool:
-        return bool(self.processors) and (
-            self.ignore_memory or bool(self.memory)
-        )
+        return bool(self.processors) and (self.ignore_memory or bool(self.memory))
 
-    def __repr__(self):
-        return f'Resource({self.processors}, {self.memory})'
+    def __repr__(self) -> str:
+        return f"Resource({self.processors}, {self.memory})"
 
-    def __str__(self):
-        return f'Resource({self.processors}, {self.memory})'
+    def __str__(self) -> str:
+        return f"Resource({self.processors}, {self.memory})"

@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """simulator - Classes for simulating job submission and execution.
 
 This module comprises an abstract base class for simulation and a time-based
@@ -46,7 +43,6 @@ class Simulator(ABC):
         workload_generator: workload.WorkloadGenerator,
         scheduler: sched.Scheduler,
     ):
-
         self.current_time = 0
         self.scheduler = scheduler
         self.simulation_start_time = 0
@@ -61,7 +57,7 @@ class Simulator(ABC):
         """Factory method for instantiating new simulators."""
         if simulation_type == SimulationType.TIME_BASED:
             return TimeBasedSimulator(workload_generator, scheduler)
-        raise RuntimeError(f'Unsupported simulation type {simulation_type}')
+        raise RuntimeError(f"Unsupported simulation type {simulation_type}")
 
     @abstractmethod
     def step(self, submit) -> None:

@@ -1,15 +1,12 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """heap - A Priority Queue based on the `heapq` module."""
 
 import heapq
 import itertools
-from typing import Generic, TypeVar, List, Dict, Generator, Optional, Iterator
-from typing import Tuple, cast
+from typing import Generic, TypeVar, cast
+from collections.abc import Iterator, Generator
 
-T = TypeVar('T')
-ENTRY_T = Tuple[int, int, List[Optional[T]]]
+T = TypeVar("T")
+ENTRY_T = tuple[int, int, list[T | None]]
 
 
 class Heap(Generic[T]):
@@ -19,15 +16,13 @@ class Heap(Generic[T]):
     memory by *not* actually deleting items.
     """
 
-    entry_finder: Dict[Optional[T], ENTRY_T]
-    'Cache to check in O(1) whether an entry exists in the heap.'
-    priority_queue: List[ENTRY_T]
-    'The actual priority queue, implemented as a list with heap ordering.'
+    entry_finder: dict[T | None, ENTRY_T]
+    "Cache to check in O(1) whether an entry exists in the heap."
+    priority_queue: list[ENTRY_T]
+    "The actual priority queue, implemented as a list with heap ordering."
 
     def __init__(self):
-        """Initializes the heap.
-
-        """
+        """Initializes the heap."""
         self.priority_queue = []
         self.entry_finder = {}
         self.counter = itertools.count()
@@ -55,7 +50,7 @@ class Heap(Generic[T]):
             if item is not None:
                 del self.entry_finder[item]  # type: ignore
                 return cast(T, item)
-        raise KeyError('pop from an empty priority queue')
+        raise KeyError("pop from an empty priority queue")
 
     def __iter__(self) -> Iterator[T]:
         return iter(self.heapsort())
@@ -67,19 +62,24 @@ class Heap(Generic[T]):
         return len(self.entry_finder)
 
     @property
-    def first(self) -> Optional[T]:
-        """Returns the "first" item (highest priority item) in the Heap."""
-        if len(self.entry_finder) == 0:
+    def first(self) -> T | None:
+        """Returns the "first" item (highest priority item) in the Heap.
+
+        Cleans up any removed entries at the top of the heap to ensure
+        the returned item is the true minimum.
+        """
+        # Purge removed entries from the top of the heap so that
+        # priority_queue[0] is always a valid entry (or the heap is empty).
+        while self.priority_queue and self.priority_queue[0][-1][0] is None:
+            heapq.heappop(self.priority_queue)
+        if not self.priority_queue:
             return None
-        for (_, _, (item,)) in self.priority_queue:
-            if item is not None:
-                return cast(T, item)
-        return None
+        return cast(T, self.priority_queue[0][-1][0])
 
     def heapsort(self) -> Generator[T, None, None]:
         """Generator that iterates over all elements in the heap in priority
         order."""
-        h = [e for e in self.priority_queue]
+        h = list(self.priority_queue)
         while h:
             entry = heapq.heappop(h)[-1][0]
             if entry is not None:
