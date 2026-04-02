@@ -42,3 +42,10 @@ uv.lock
 *.pth
 checkpoint/
 runs/
+
+# Rust
+target/
+Cargo.lock
+
+# Benchmark results
+benchmarks/*.json

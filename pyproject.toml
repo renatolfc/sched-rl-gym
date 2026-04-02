@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "sched-rl-gym"
@@ -64,8 +64,10 @@ Homepage = "https://github.com/renatolfc/sched-rl-gym"
 "Bug Tracker" = "https://github.com/renatolfc/sched-rl-gym/issues"
 Source = "https://github.com/renatolfc/sched-rl-gym"
 
-[tool.hatch.build.targets.wheel]
-packages = ["schedgym"]
+[tool.maturin]
+python-source = "."
+module-name = "schedgym._schedgym_rs"
+features = ["pyo3/extension-module"]
 
 [tool.pytest.ini_options]
 testpaths = ["schedgym"]

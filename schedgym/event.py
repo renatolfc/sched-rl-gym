@@ -11,7 +11,10 @@ import warnings
 from typing import TypeVar, Generic
 from collections.abc import Iterable, Iterator
 
-from intervaltree import Interval
+try:
+    from ._schedgym_rs import Interval
+except ImportError:
+    from intervaltree import Interval
 
 from .job import Job
 from .heap import Heap

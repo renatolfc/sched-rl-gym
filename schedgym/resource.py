@@ -9,7 +9,10 @@ This module has two classes:
 import copy
 import enum
 
-from intervaltree import IntervalTree
+try:
+    from ._schedgym_rs import IntervalTree
+except ImportError:
+    from intervaltree import IntervalTree
 
 
 class PrimaryResource(enum.IntEnum):
