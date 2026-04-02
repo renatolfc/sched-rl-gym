@@ -1,19 +1,11 @@
-use std::collections::hash_map::DefaultHasher;
-use std::collections::BinaryHeap;
-use std::hash::{Hash, Hasher};
+use std::collections::{BinaryHeap, HashMap, HashSet};
 
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
-
 use pyo3::types::PyType;
 
-fn py_hash(py: Python<'_>, obj: &Py<PyAny>) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    match obj.bind(py).hash() {
-        Ok(h) => h.hash(&mut hasher),
-        Err(_) => obj.as_ptr().hash(&mut hasher),
-    }
-    hasher.finish()
+fn py_hash(py: Python<'_>, obj: &Py<PyAny>) -> isize {
+    obj.bind(py).hash().unwrap_or(obj.as_ptr() as isize)
 }
 
 fn py_eq(py: Python<'_>, a: &Py<PyAny>, b: &Py<PyAny>) -> bool {
@@ -24,7 +16,6 @@ struct HeapEntry {
     priority: (i64, i64),
     counter: u64,
     generation: u64,
-    key_hash: u64,
     item: Py<PyAny>,
 }
 
@@ -48,16 +39,12 @@ impl Ord for HeapEntry {
     }
 }
 
-struct FinderEntry {
-    key_hash: u64,
-    item: Py<PyAny>,
-    generation: u64,
-}
-
 #[pyclass(name = "Heap", module = "schedgym._schedgym_rs")]
 pub struct PyHeap {
     pq: BinaryHeap<HeapEntry>,
-    finder: Vec<FinderEntry>,
+    live_gens: HashSet<u64>,
+    finder: HashMap<isize, Vec<(u64, Py<PyAny>)>>,
+    len: usize,
     counter: u64,
     generation: u64,
 }
@@ -68,7 +55,9 @@ impl PyHeap {
     fn new() -> Self {
         PyHeap {
             pq: BinaryHeap::new(),
-            finder: Vec::new(),
+            live_gens: HashSet::new(),
+            finder: HashMap::new(),
+            len: 0,
             counter: 0,
             generation: 0,
         }
@@ -93,23 +82,24 @@ impl PyHeap {
                 }
             }
         };
+
         let h = py_hash(py, &item);
-        self.remove_from_finder(py, h, &item);
+        self.remove_by_hash(py, h, &item);
 
         self.generation += 1;
         let gen = self.generation;
 
-        self.finder.push(FinderEntry {
-            key_hash: h,
-            item: item.clone_ref(py),
-            generation: gen,
-        });
+        self.live_gens.insert(gen);
+        self.finder
+            .entry(h)
+            .or_default()
+            .push((gen, item.clone_ref(py)));
+        self.len += 1;
 
         self.pq.push(HeapEntry {
             priority: prio,
             counter: self.counter,
             generation: gen,
-            key_hash: h,
             item,
         });
         self.counter += 1;
@@ -117,7 +107,7 @@ impl PyHeap {
 
     fn remove(&mut self, py: Python<'_>, item: Py<PyAny>) -> PyResult<()> {
         let h = py_hash(py, &item);
-        if !self.remove_from_finder(py, h, &item) {
+        if !self.remove_by_hash(py, h, &item) {
             return Err(PyKeyError::new_err("Item not found in heap"));
         }
         Ok(())
@@ -125,8 +115,9 @@ impl PyHeap {
 
     fn pop(&mut self, py: Python<'_>) -> PyResult<PyObject> {
         while let Some(entry) = self.pq.pop() {
-            if self.is_live(py, &entry) {
-                self.remove_from_finder(py, entry.key_hash, &entry.item);
+            if self.live_gens.remove(&entry.generation) {
+                self.remove_finder_by_gen(py, &entry.item, entry.generation);
+                self.len -= 1;
                 return Ok(entry.item);
             }
         }
@@ -139,7 +130,7 @@ impl PyHeap {
             match self.pq.peek() {
                 None => return None,
                 Some(top) => {
-                    if self.is_live(py, top) {
+                    if self.live_gens.contains(&top.generation) {
                         return Some(top.item.clone_ref(py));
                     }
                     self.pq.pop();
@@ -149,7 +140,11 @@ impl PyHeap {
     }
 
     fn heapsort(&self, py: Python<'_>) -> HeapSortIter {
-        let mut entries: Vec<&HeapEntry> = self.pq.iter().filter(|e| self.is_live(py, e)).collect();
+        let mut entries: Vec<&HeapEntry> = self
+            .pq
+            .iter()
+            .filter(|e| self.live_gens.contains(&e.generation))
+            .collect();
         entries.sort_by(|a, b| (a.priority, a.counter).cmp(&(b.priority, b.counter)));
         let items = entries.into_iter().map(|e| e.item.clone_ref(py)).collect();
         HeapSortIter { items, index: 0 }
@@ -161,13 +156,19 @@ impl PyHeap {
 
     fn __contains__(&self, py: Python<'_>, item: Py<PyAny>) -> bool {
         let h = py_hash(py, &item);
-        self.finder
-            .iter()
-            .any(|f| f.key_hash == h && py_eq(py, &f.item, &item))
+        match self.finder.get(&h) {
+            None => false,
+            Some(bucket) => {
+                if bucket.len() == 1 {
+                    return true;
+                }
+                bucket.iter().any(|(_, it)| py_eq(py, it, &item))
+            }
+        }
     }
 
     fn __len__(&self) -> usize {
-        self.finder.len()
+        self.len
     }
 
     fn __copy__(&self, py: Python<'_>) -> Self {
@@ -178,22 +179,24 @@ impl PyHeap {
                 priority: e.priority,
                 counter: e.counter,
                 generation: e.generation,
-                key_hash: e.key_hash,
                 item: e.item.clone_ref(py),
             })
             .collect();
-        let new_finder: Vec<FinderEntry> = self
+        let new_finder: HashMap<isize, Vec<(u64, Py<PyAny>)>> = self
             .finder
             .iter()
-            .map(|f| FinderEntry {
-                key_hash: f.key_hash,
-                item: f.item.clone_ref(py),
-                generation: f.generation,
+            .map(|(&k, v)| {
+                (
+                    k,
+                    v.iter().map(|(gen, it)| (*gen, it.clone_ref(py))).collect(),
+                )
             })
             .collect();
         PyHeap {
             pq: new_pq,
+            live_gens: self.live_gens.clone(),
             finder: new_finder,
+            len: self.len,
             counter: self.counter,
             generation: self.generation,
         }
@@ -206,24 +209,36 @@ impl PyHeap {
 }
 
 impl PyHeap {
-    fn is_live(&self, py: Python<'_>, entry: &HeapEntry) -> bool {
-        self.finder.iter().any(|f| {
-            f.generation == entry.generation
-                && f.key_hash == entry.key_hash
-                && py_eq(py, &f.item, &entry.item)
-        })
-    }
-
-    fn remove_from_finder(&mut self, py: Python<'_>, h: u64, item: &Py<PyAny>) -> bool {
-        if let Some(pos) = self
-            .finder
-            .iter()
-            .position(|f| f.key_hash == h && py_eq(py, &f.item, item))
-        {
-            self.finder.swap_remove(pos);
-            return true;
+    fn remove_by_hash(&mut self, py: Python<'_>, h: isize, item: &Py<PyAny>) -> bool {
+        if let Some(bucket) = self.finder.get_mut(&h) {
+            let pos = if bucket.len() == 1 {
+                Some(0)
+            } else {
+                bucket.iter().position(|(_, it)| py_eq(py, it, item))
+            };
+            if let Some(idx) = pos {
+                let (gen, _) = bucket.swap_remove(idx);
+                if bucket.is_empty() {
+                    self.finder.remove(&h);
+                }
+                self.live_gens.remove(&gen);
+                self.len -= 1;
+                return true;
+            }
         }
         false
+    }
+
+    fn remove_finder_by_gen(&mut self, _py: Python<'_>, item: &Py<PyAny>, generation: u64) {
+        let h = py_hash(_py, item);
+        if let Some(bucket) = self.finder.get_mut(&h) {
+            if let Some(idx) = bucket.iter().position(|(g, _)| *g == generation) {
+                bucket.swap_remove(idx);
+                if bucket.is_empty() {
+                    self.finder.remove(&h);
+                }
+            }
+        }
     }
 }
 
