@@ -160,6 +160,8 @@ class EventQueue(Generic[T]):
         else:
             self.past.append(event)
             self.past.sort(key=lambda e: e.time)
+            if len(self.past) > _PAST_LIMIT:
+                self.past = self.past[-_PAST_LIMIT:]
             warnings.warn(
                 "Adding events to the past might change the "
                 "ordering of events that happened at the same "
