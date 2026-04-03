@@ -738,6 +738,13 @@ class TestEvent(unittest.TestCase):
         present = list(self.req.step())
         self.assertEqual(0, len(present))
 
+    def test_past_bounded(self):
+        for i in range(1, 2001):
+            self.req.add(self.build_event(event.EventType.JOB_FINISH, (0, 2), i))
+        list(self.req.step(2001))
+        self.assertLessEqual(len(self.req.past), 1000)
+        self.assertEqual(2000, self.req.last.time)
+
 
 class TestHeap(unittest.TestCase):
     def setUp(self) -> None:

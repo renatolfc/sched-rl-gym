@@ -23,6 +23,8 @@ from .pool import ResourceType
 T = TypeVar("T", bound="Event")  # pylint: disable=C
 "Generic type for type annotations"
 
+_PAST_LIMIT = 1000
+
 
 class EventType(enum.IntEnum):
     """Enumeration for the different types of events that can occur."""
@@ -186,6 +188,8 @@ class EventQueue(Generic[T]):
             present.append(current)
             self.past.append(current)
             first = self.future.first
+        if len(self.past) > _PAST_LIMIT:
+            self.past = self.past[-_PAST_LIMIT:]
         return present
 
     def remove(self, event: Event) -> None:
