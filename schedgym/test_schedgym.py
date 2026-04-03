@@ -1339,3 +1339,45 @@ class TestRewardMappers(unittest.TestCase):
                 env.step(env.job_slots)  # forward time
                 self.assertEqual(env.simulator.current_time, 1)
                 self.assertAlmostEqual(env.reward, rewards[m], delta=1e-5)
+
+
+class TestHeapHashCollision(unittest.TestCase):
+    """Tests that expose bugs in PyHeap when two items share the same hash.
+
+    In CPython, hash(-1) == hash(-2) == -2, so -1 and -2 naturally collide.
+    Bug 1 (__contains__): if bucket.len() == 1 returns True without py_eq check.
+    Bug 2 (remove_by_hash): if bucket.len() == 1 takes pos=0 without equality check.
+    """
+
+    def test_contains_hash_collision(self):
+        h = heap.Heap()
+        h.add(-1)
+        self.assertTrue(-1 in h)
+        self.assertFalse(-2 in h)  # FAILS with current Rust: returns True due to Bug 1
+
+    def test_remove_hash_collision(self):
+        h = heap.Heap()
+        h.add(-1)
+        h.add(-2)
+        h.remove(-2)
+        self.assertTrue(-1 in h)  # -1 should still be there
+        self.assertFalse(-2 in h)  # FAILS: remove_by_hash removes wrong item (Bug 2)
+
+    def test_contains_after_remove_collision(self):
+        # After removing -1, popping should give -2 (not crash)
+        h = heap.Heap()
+        h.add(-1, (1, 0))
+        h.add(-2, (2, 0))
+        h.remove(-1)
+        result = h.pop()
+        self.assertEqual(result, -2)
+
+    def test_pop_order_with_collision(self):
+        # Both -1 and -2 in heap — pop order must be correct by priority
+        h = heap.Heap()
+        h.add(-1, (1, 0))  # lower priority number = pops first (min-heap)
+        h.add(-2, (2, 0))
+        first = h.pop()
+        second = h.pop()
+        self.assertEqual(first, -1)
+        self.assertEqual(second, -2)

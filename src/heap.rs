@@ -158,12 +158,7 @@ impl PyHeap {
         let h = py_hash(py, &item);
         match self.finder.get(&h) {
             None => false,
-            Some(bucket) => {
-                if bucket.len() == 1 {
-                    return true;
-                }
-                bucket.iter().any(|(_, it)| py_eq(py, it, &item))
-            }
+            Some(bucket) => bucket.iter().any(|(_, it)| py_eq(py, it, &item)),
         }
     }
 
@@ -211,11 +206,7 @@ impl PyHeap {
 impl PyHeap {
     fn remove_by_hash(&mut self, py: Python<'_>, h: isize, item: &Py<PyAny>) -> bool {
         if let Some(bucket) = self.finder.get_mut(&h) {
-            let pos = if bucket.len() == 1 {
-                Some(0)
-            } else {
-                bucket.iter().position(|(_, it)| py_eq(py, it, item))
-            };
+            let pos = bucket.iter().position(|(_, it)| py_eq(py, it, item));
             if let Some(idx) = pos {
                 let (gen, _) = bucket.swap_remove(idx);
                 if bucket.is_empty() {
