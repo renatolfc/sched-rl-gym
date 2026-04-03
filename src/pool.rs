@@ -77,27 +77,32 @@ impl PyResourcePool {
             return Ok(PyIntervalTree::new(None, py));
         }
 
-        let mut free = PyIntervalTree::new(None, py);
-        free.add(
-            &PyInterval {
-                begin: 0,
+        let used_tree = self.used_pool.borrow(py);
+        let mut free_intervals: Vec<PyInterval> = Vec::new();
+        let mut cursor: i64 = 0;
+
+        for iv in &used_tree.intervals {
+            if iv.begin > cursor {
+                free_intervals.push(PyInterval {
+                    begin: cursor,
+                    end: iv.begin,
+                    data: data.as_ref().map(|d| d.clone_ref(py)),
+                });
+            }
+            cursor = cursor.max(iv.end);
+        }
+        if cursor < self.size {
+            free_intervals.push(PyInterval {
+                begin: cursor,
                 end: self.size,
                 data: data.as_ref().map(|d| d.clone_ref(py)),
-            },
-            py,
-        );
-
-        {
-            let used_tree = self.used_pool.borrow(py);
-            for iv in &used_tree.intervals {
-                free.chop(iv.begin, iv.end, py);
-            }
+            });
         }
 
         let mut result = PyIntervalTree::new(None, py);
         let mut used_size: i64 = 0;
 
-        for interval in &free.intervals {
+        for interval in &free_intervals {
             let measure = interval.end - interval.begin;
             let temp_size = measure + used_size;
 
