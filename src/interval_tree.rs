@@ -22,8 +22,9 @@ impl PyIntervalTree {
     }
 
     pub fn add(&mut self, interval: &PyInterval, py: Python<'_>) {
-        self.intervals.push(interval.clone_ref(py));
-        self.intervals.sort_by_key(|iv| iv.begin);
+        let iv = interval.clone_ref(py);
+        let pos = self.intervals.partition_point(|x| x.begin < iv.begin);
+        self.intervals.insert(pos, iv);
     }
 
     pub fn remove(&mut self, interval: &PyInterval, py: Python<'_>) -> PyResult<()> {
@@ -82,7 +83,6 @@ impl PyIntervalTree {
                 });
             }
         }
-        new_intervals.sort_by_key(|iv| iv.begin);
         self.intervals = new_intervals;
     }
 
