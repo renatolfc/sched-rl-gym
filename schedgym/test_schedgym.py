@@ -1381,3 +1381,36 @@ class TestHeapHashCollision(unittest.TestCase):
         second = h.pop()
         self.assertEqual(first, -1)
         self.assertEqual(second, -2)
+
+    def test_copy_no_dead_entries(self):
+        import copy
+
+        h = heap.Heap()
+        h.add("a", (1, 0))
+        h.add("b", (2, 0))
+        h.add("c", (3, 0))
+        h.remove("b")
+        h2 = copy.copy(h)
+        self.assertEqual(len(h2), 2)
+        self.assertIn("a", h2)
+        self.assertNotIn("b", h2)
+        self.assertIn("c", h2)
+        p1 = h2.pop()
+        p2 = h2.pop()
+        self.assertEqual(p1, "a")
+        self.assertEqual(p2, "c")
+        self.assertEqual(len(h2), 0)
+        self.assertEqual(len(h), 2)
+
+    def test_copy_preserves_order(self):
+        import copy
+
+        h = heap.Heap()
+        h.add("x", (3, 0))
+        h.add("y", (1, 0))
+        h.add("z", (4, 0))
+        h.add("w", (2, 0))
+        h2 = copy.copy(h)
+        results_orig = [h.pop(), h.pop(), h.pop(), h.pop()]
+        results_copy = [h2.pop(), h2.pop(), h2.pop(), h2.pop()]
+        self.assertEqual(results_orig, results_copy)

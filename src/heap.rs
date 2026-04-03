@@ -170,6 +170,7 @@ impl PyHeap {
         let new_pq: BinaryHeap<HeapEntry> = self
             .pq
             .iter()
+            .filter(|e| self.live_gens.contains(&e.generation))
             .map(|e| HeapEntry {
                 priority: e.priority,
                 counter: e.counter,
