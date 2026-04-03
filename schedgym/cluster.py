@@ -104,7 +104,13 @@ class Cluster:
 
     def clone(self):
         """Clones this Cluster (duplicating it in memory)."""
-        return copy.deepcopy(self)
+        return Cluster(
+            self.processors.size,
+            self.memory.size,
+            self.ignore_memory,
+            copy.copy(self.processors.used_pool),
+            copy.copy(self.memory.used_pool),
+        )
 
     def find(self, job: Job) -> Resource:
         """Finds resources for a job.
