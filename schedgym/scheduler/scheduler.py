@@ -58,6 +58,10 @@ class Scheduler(ABC):
     current_time: int
     total_memory: int
     used_processors: int
+    requested_processors_in_system: int
+    completed_slowdown_sum: float
+    completed_bounded_slowdown_sum: float
+    completed_makespan: int
     need_schedule_call: bool
     number_of_processors: int
     queue_waiting: list[Job]
@@ -81,6 +85,10 @@ class Scheduler(ABC):
         self.used_memory = 0
         self.current_time = 0
         self.used_processors = 0
+        self.requested_processors_in_system = 0
+        self.completed_slowdown_sum = 0.0
+        self.completed_bounded_slowdown_sum = 0.0
+        self.completed_makespan = 0
         self.ignore_memory = ignore_memory
         self.job_events = EventQueue(self.current_time - 1)
         self.cluster = Cluster(number_of_processors, total_memory, ignore_memory)
@@ -110,7 +118,7 @@ class Scheduler(ABC):
     @property
     def makespan(self) -> int:
         """Computes the makespan of all finished jobs"""
-        return max([0] + [j.finish_time for j in self.queue_completed])
+        return self.completed_makespan
 
     @property
     def load(self) -> float:
@@ -119,10 +127,7 @@ class Scheduler(ABC):
         The load is the ratio between the number of requested processors and
         the number of processors in the system.
         """
-        requested_processors = sum(
-            [j.requested_processors for j in self.jobs_in_system]
-        )
-        return requested_processors / self.number_of_processors
+        return self.requested_processors_in_system / self.number_of_processors
 
     @property
     def utilization(self) -> float:
@@ -165,6 +170,10 @@ class Scheduler(ABC):
         j.finish_time = j.start_time + j.execution_time
         self.used_memory -= j.memory_use
         self.used_processors -= j.processors_allocated
+        self.requested_processors_in_system -= j.requested_processors
+        self.completed_makespan = max(self.completed_makespan, j.finish_time)
+        self.completed_slowdown_sum += j.slowdown
+        self.completed_bounded_slowdown_sum += j.bounded_slowdown
 
     def _add_job_events(self, job: Job, time: int) -> tuple[JobEvent, JobEvent]:
         """Adds start and finish events for a job to the current events.
@@ -361,12 +370,12 @@ class Scheduler(ABC):
                 a sequence, all jobs in the sequence are submitted at the same
                 time.
         """
+        self.need_schedule_call = True
         if isinstance(job, Iterable):
             for j in job:
                 self._submit(j)
         else:
             self._submit(job)
-        self.need_schedule_call = True
 
     def _submit(self, job: Job | None) -> None:
         """Internal implementation of job submission.
@@ -393,6 +402,7 @@ class Scheduler(ABC):
         # }}}
 
         self.queue_admission.append(job)
+        self.requested_processors_in_system += job.requested_processors
 
     def state(self, timesteps: int, job_slots: int):
         """Returns the current state of the cluster as viewed by the scheduler.
@@ -483,10 +493,13 @@ class Scheduler(ABC):
 
         Statistics are only computed when job events happen in the cluster.
         """
+        completed_jobs = len(self.queue_completed)
         self.stats[self.current_time] = Stats(
             self.utilization,
             self.load,
-            np.mean(self.slowdown) if self.queue_completed else 0.0,
+            self.completed_slowdown_sum / completed_jobs if completed_jobs else 0.0,
             self.makespan,
-            np.mean(self.bounded_slowdown) if self.queue_completed else 0.0,
+            self.completed_bounded_slowdown_sum / completed_jobs
+            if completed_jobs
+            else 0.0,
         )

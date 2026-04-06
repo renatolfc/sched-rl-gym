@@ -105,6 +105,48 @@ class TestSimulator(unittest.TestCase):
                 self.scheduler,
             )
 
+    def test_time_based_simulator_batched_submit_preserves_queue_snapshots(self):
+        class BurstWorkload(workload.WorkloadGenerator):
+            def __init__(self, jobs):
+                self.current_time = 0
+                self._jobs = jobs
+                self._done = False
+
+            def step(self, offset: int = 1) -> list[job.Job | None]:
+                self.current_time += offset
+                if self._done:
+                    return []
+                self._done = True
+                return self._jobs
+
+            def __len__(self) -> int:
+                return 1
+
+            def peek(self) -> job.Job | None:
+                return None
+
+        j1 = self.small_job_parameters.sample(1)
+        j2 = self.small_job_parameters.sample(1)
+        j3 = self.small_job_parameters.sample(1)
+        burst = BurstWorkload([j1, None, j2, j3])
+        sim = simulator.TimeBasedSimulator(burst, self.scheduler)
+
+        sim.step()
+
+        self.assertEqual([j1, j2, j3], self.scheduler.queue_admission)
+        self.assertEqual([1, 1, 1], [j.submission_time for j in (j1, j2, j3)])
+        self.assertEqual([0, 1, 2], [j.queue_size for j in (j1, j2, j3)])
+        self.assertEqual([16, 16, 16], [j.free_processors for j in (j1, j2, j3)])
+        self.assertEqual(
+            [
+                0,
+                j1.requested_time * j1.requested_processors,
+                j1.requested_time * j1.requested_processors
+                + j2.requested_time * j2.requested_processors,
+            ],
+            [j.queued_work for j in (j1, j2, j3)],
+        )
+
 
 class TestJobParameters(unittest.TestCase):
     def setUp(self):
@@ -385,6 +427,30 @@ class TestFifoBasedSchedulers(unittest.TestCase):
         self.scheduler.step(2)
         self.assertQueuesSane(3, 1, 0, 0, 0)
 
+    def test_stats_track_cached_aggregates(self):
+        j = self.small_job_parameters.sample(1)
+        j.execution_time = 2
+        self.scheduler.submit(j)
+        self.assertAlmostEqual(
+            self.scheduler.load,
+            j.requested_processors / self.scheduler.number_of_processors,
+        )
+
+        self.scheduler.step()
+        self.assertAlmostEqual(
+            self.scheduler.load,
+            j.requested_processors / self.scheduler.number_of_processors,
+        )
+
+        self.scheduler.step(2)
+        self.assertEqual(self.scheduler.load, 0.0)
+        self.assertEqual(self.scheduler.makespan, j.finish_time)
+
+        stats = self.scheduler.stats[max(self.scheduler.stats)]
+        self.assertEqual(stats.makespan, j.finish_time)
+        self.assertAlmostEqual(stats.slowdown, j.slowdown)
+        self.assertAlmostEqual(stats.bsld, j.bounded_slowdown)
+
     def test_two_jobs_until_completion(self):
         j = self.small_job_parameters.sample(1)
         j.execution_time = 5
@@ -425,6 +491,35 @@ class TestFifoBasedSchedulers(unittest.TestCase):
         self.assertNotEqual(
             self.scheduler.current_time, self.scheduler.find_first_time_for(j)
         )
+
+    def test_fifo_removes_only_scheduled_prefix(self):
+        s = scheduler.FifoScheduler(3, 999999)
+        j1 = self.make_job(0, 5, 1)
+        j2 = self.make_job(0, 5, 2)
+        j3 = self.make_job(0, 5, 2)
+        j4 = self.make_job(0, 5, 1)
+        s.submit([j1, j2, j3, j4])
+
+        s.schedule()
+
+        self.assertEqual([j1, j2], list(s.queue_waiting))
+        self.assertEqual([j3, j4], s.queue_admission)
+
+    def test_fifo_keeps_admission_queue_when_first_job_cannot_schedule(self):
+        s = scheduler.FifoScheduler(2, 999999)
+        running = self.make_job(0, 5, 2)
+        running.resources.processors = pool.IntervalTree([pool.Interval(0, 2)])
+        running.resources.memory = pool.IntervalTree([pool.Interval(0, 1)])
+        s.assign_schedule(running, running.resources, 0)
+        s.step()
+
+        j1 = self.make_job(1, 5, 1)
+        j2 = self.make_job(1, 5, 1)
+        s.submit([j1, j2])
+
+        s.schedule()
+
+        self.assertEqual([j1, j2], s.queue_admission)
 
     def test_easy_submitting_six_jobs(self):
         j1 = self.make_job(0, 2, 2)

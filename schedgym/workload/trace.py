@@ -4,8 +4,7 @@ Inherits from the base WorkloadGenerator and uses the swf_parser to parse SWF
 files.
 """
 
-from itertools import takewhile
-from collections.abc import Iterator, Sequence, Callable
+from collections.abc import Callable, Iterator, Sequence
 
 from ..job import Job
 from .base import WorkloadGenerator
@@ -17,7 +16,9 @@ class TraceGenerator(WorkloadGenerator):
     trace: Sequence[Job]
     refresh_jobs: Callable | None = None
 
-    def __init__(self, restart=False, trace=None):
+    def __init__(
+        self, restart: bool = False, trace: Sequence[Job] | None = None
+    ) -> None:
         self.current_time = 0
         self.restart = restart
         self.current_element = 0
@@ -27,7 +28,7 @@ class TraceGenerator(WorkloadGenerator):
         else:
             self.trace = []
 
-    def step(self, offset=1):
+    def step(self, offset: int = 1) -> list[Job | None]:
         """ "Samples" jobs from the trace file.
 
         Parameters
@@ -47,24 +48,27 @@ class TraceGenerator(WorkloadGenerator):
             else:
                 raise StopIteration("Workload finished")
         submission_time = self.current_time + offset
-        jobs = takewhile(
-            lambda j: j[1].submission_time <= submission_time,
-            enumerate(self.trace[self.current_element :], self.current_element),
-        )
         self.current_time = submission_time
-        jobs = list(jobs)
-        if jobs:
-            self.current_element = jobs[-1][0] + 1
-            return [j for (i, j) in jobs]
-        return []
+        if self.trace[self.current_element].submission_time > submission_time:
+            return []
+
+        start = self.current_element
+        end = start
+        trace = self.trace
+        trace_len = len(trace)
+        while end < trace_len and trace[end].submission_time <= submission_time:
+            end += 1
+
+        self.current_element = end
+        return list(trace[start:end])
 
     @property
-    def last_event_time(self):
+    def last_event_time(self) -> int:
         """The submission time of the last generated job"""
         offset = self.current_element if self.current_element < len(self.trace) else -1
         return self.trace[offset].submission_time
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.trace)
 
     def __next__(self) -> Job:

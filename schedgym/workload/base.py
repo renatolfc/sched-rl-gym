@@ -24,9 +24,9 @@ class WorkloadGenerator(ABC):
         """
 
     @abstractmethod
-    def __len__(self):
+    def __len__(self) -> int:
         """Returns the length of the workload. Zero if unbounded."""
 
     @abstractmethod
-    def peek(self):
+    def peek(self) -> Job | None:
         """Peeks what would be the next job"""
