@@ -82,6 +82,4 @@ class TimeBasedSimulator(Simulator):
         self.scheduler.step()
         jobs = self.workload.step()
         if submit and jobs:
-            for job in jobs:
-                if job is not None:
-                    self.scheduler.submit(job)
+            self.scheduler.submit(jobs)

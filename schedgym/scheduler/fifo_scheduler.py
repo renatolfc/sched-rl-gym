@@ -13,13 +13,12 @@ class FifoScheduler(Scheduler):
         This implements a *string* FIFO strategy, meaning it will always obey
         submission order, even when it creates fragmentation.
         """
-        scheduled_jobs: list[Job] = []
+        scheduled_count = 0
         for job in self.queue_admission:
             resources = self.can_schedule_now(job)
             if resources:
                 self.assign_schedule(job, resources, self.current_time)
-                scheduled_jobs.append(job)
+                scheduled_count += 1
             else:
                 break
-        for job in scheduled_jobs:
-            self.queue_admission.remove(job)
+        self.queue_admission = self.queue_admission[scheduled_count:]
