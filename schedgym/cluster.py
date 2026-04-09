@@ -6,6 +6,7 @@ which manages resources in a cluster.
 
 import copy
 from collections.abc import Iterable
+from typing import Protocol, cast
 
 from . import pool
 
@@ -13,6 +14,10 @@ from .job import Job, Resource
 from .event import JobEvent, EventType
 
 RESOURCE_TYPE = tuple[Iterable[pool.Interval], Iterable[pool.Interval]]
+
+
+class _EventWindowIterable(Protocol):
+    def events_between(self, start: int, end: int) -> Iterable[JobEvent]: ...
 
 
 class Cluster:
@@ -172,14 +177,41 @@ class Cluster:
             an empty set of resources otherwise. (See
             :func:`schedgym.cluster.Cluster.find`.)
         """
+        window_end = time + job.requested_time
+        event_queue = (
+            cast(_EventWindowIterable, events)
+            if hasattr(events, "events_between")
+            else None
+        )
+        if event_queue is not None:
+            relevant_events = event_queue.events_between(time, window_end)
+        else:
+            relevant_events = (
+                e
+                for e in events
+                if time <= e.time < window_end and e.type == EventType.JOB_START
+            )
 
-        def valid(e, time):
-            return time <= e.time < job.requested_time + time
+        if self.ignore_memory:
+            used_processors = copy.copy(self.processors.used_pool)
+            for event in relevant_events:
+                if event.type != EventType.JOB_START:
+                    continue
+                for interval in event.processors:
+                    used_processors.add(interval)
+            used_processors.merge_overlaps()
+            return Cluster(
+                self.processors.size,
+                self.memory.size,
+                True,
+                used_processors,
+                None,
+            ).find(job)
 
         used = Resource(self.processors.used_pool, self.memory.used_pool)
-        for event in (
-            e for e in events if (valid(e, time) and e.type == EventType.JOB_START)
-        ):
+        for event in relevant_events:
+            if event.type != EventType.JOB_START:
+                continue
             for i in event.processors:
                 used.processors.add(i)
             for i in event.memory:

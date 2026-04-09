@@ -4,6 +4,7 @@ This is the core of the simulator, since this module contains functionality
 that interacts with all other components.
 """
 
+import copy
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Iterable
@@ -14,6 +15,13 @@ import numpy as np
 from schedgym.cluster import Cluster
 from schedgym.job import Job, JobStatus, Resource
 from schedgym.event import JobEvent, EventType, EventQueue
+from schedgym.scheduler._bitmask_timeline import (
+    _intervaltree_to_bitmask,
+    build_timeline,
+    find_earliest_fit,
+    bitmask_to_resource,
+    select_lowest_bits,
+)
 
 
 class Stats(NamedTuple):
@@ -236,6 +244,22 @@ class Scheduler(ABC):
             self.current_time += 1
         return scheduled
 
+    def replay_advance_to(self, time: int) -> int:
+        if time < self.current_time:
+            raise AssertionError("Tried to move backwards in replay")
+        delta = time - self.job_events.time
+        if delta < 0:
+            raise AssertionError("Tried to replay before event queue time")
+        present = self.job_events.step(delta)
+        present = list(present)
+        self.cluster = self.play_events(present, self.cluster, update_queues=True)
+        self.current_time = max(self.current_time, time)
+        return len(present)
+
+    def replay_schedule(self) -> None:
+        self.need_schedule_call = False
+        self.schedule()
+
     def play_events(
         self,
         events: Iterable[JobEvent],
@@ -315,19 +339,67 @@ class Scheduler(ABC):
         This is a special case of :func:`fits` in which we're operating right
         now with the current cluster.
 
+        Uses a bitmask fast-path that avoids ``Cluster.clone()`` and event
+        replay.  By the time this is called, ``self.cluster`` already reflects
+        all events up to ``current_time`` (``step()`` calls ``play_events()``
+        first), so only future JOB_START events in the job's time window need
+        to be considered.
+
         Parameters
         ----------
             job : Job
                 The job to check.
         """
-        cluster = self.cluster.clone()
-        events = filter(lambda e: e.time <= self.current_time, self.job_events)
-        for event in events:
-            if event.type == EventType.JOB_START:
-                cluster.allocate(event.job)
-            elif event.type == EventType.JOB_FINISH:
-                cluster.free(event.job)
-        return cluster.find_resources_at_time(self.current_time, job, self.job_events)
+        # schedule() is called before job_events.step(), so events AT current_time
+        # have not been applied to self.cluster yet.  We must apply them manually:
+        # - JOB_FINISH at current_time: these jobs are done, release their processors
+        # - JOB_START at current_time: these jobs just started, occupy their processors
+        # Then OR in JOB_START events in (current_time, current_time + requested_time).
+        occupied = _intervaltree_to_bitmask(self.cluster.processors.used_pool)
+
+        for ev in self.job_events.events_between(
+            self.current_time, self.current_time + job.requested_time
+        ):
+            if ev.type == EventType.JOB_START:
+                occupied |= _intervaltree_to_bitmask(ev.job.resources.processors)
+            elif ev.type == EventType.JOB_FINISH and ev.time == self.current_time:
+                occupied &= ~_intervaltree_to_bitmask(ev.job.resources.processors)
+
+        # Check: do we have enough free processors?
+        full_mask = (1 << self.number_of_processors) - 1
+        free_mask = full_mask & ~occupied
+        if free_mask.bit_count() < job.requested_processors:
+            return Resource()
+
+        # Memory check (when ignore_memory=False)
+        if not self.ignore_memory and job.requested_memory > 0:
+            current_used_memory = sum(
+                iv.end - iv.begin for iv in self.cluster.memory.used_pool
+            )
+            for ev in self.job_events.events_between(
+                self.current_time, self.current_time + job.requested_time
+            ):
+                if ev.type == EventType.JOB_START:
+                    current_used_memory += ev.job.resources.measure()[1]
+                elif ev.type == EventType.JOB_FINISH and ev.time == self.current_time:
+                    current_used_memory -= ev.job.resources.measure()[1]
+            if self.cluster.memory.size - current_used_memory < job.requested_memory:
+                return Resource()
+
+        # Allocate lowest processors
+        allocated_mask = select_lowest_bits(free_mask, job.requested_processors)
+
+        # Build resource with memory if needed
+        if not self.ignore_memory and job.requested_memory > 0:
+            memory_pool = copy.copy(self.cluster.memory.used_pool)
+            return bitmask_to_resource(
+                allocated_mask,
+                job.id,
+                memory_amount=job.requested_memory,
+                total_memory=self.cluster.memory.size,
+                memory_used_pool=memory_pool,
+            )
+        return bitmask_to_resource(allocated_mask, job.id)
 
     def find_first_time_for(self, job: Job) -> tuple[int, Resource]:
         """Finds the first time stamp on which we can start a job.
@@ -337,28 +409,59 @@ class Scheduler(ABC):
             job : Job
                 The job to find a time for
         """
+        future_by_time, future_times = self.job_events.future_events_snapshot()
 
-        if (not self.job_events.next) or (
-            self.job_events.next.time > self.current_time
-        ):
-            resources = self.cluster.find_resources_at_time(
-                self.current_time, job, self.job_events
-            )
-            if resources:
-                return self.current_time, resources
+        base_memory_pool = None
+        total_memory = 0
+        if not self.ignore_memory:
+            base_memory_pool = copy.copy(self.cluster.memory.used_pool)
+            total_memory = self.cluster.memory.size
 
-        near_future: dict[int, list[JobEvent]] = defaultdict(list)
-        for e in self.job_events:
-            near_future[e.time].append(e)
+        timeline = build_timeline(
+            self.current_time,
+            self.number_of_processors,
+            self.cluster.processors.used_pool,
+            future_by_time,
+            future_times,
+            used_memory_pool=base_memory_pool if not self.ignore_memory else None,
+            total_memory=total_memory,
+        )
 
-        cluster = self.cluster.clone()
-        for time in sorted(near_future):
-            cluster = self.play_events(near_future[time], cluster)
-            resources = cluster.find_resources_at_time(time, job, self.job_events)
-            if resources:
-                return time, resources
+        start_time, allocated_mask = find_earliest_fit(
+            timeline, job, ignore_memory=self.ignore_memory
+        )
 
-        raise AssertionError("Failed to find time for job, even in the far future.")
+        if not self.ignore_memory and base_memory_pool is not None:
+            memory_pool_at_start = copy.copy(base_memory_pool)
+
+            for t in sorted(future_by_time.keys()):
+                if t > start_time:
+                    break
+                for ev in future_by_time[t]:
+                    if ev.type == EventType.JOB_FINISH:
+                        for iv in ev.job.resources.memory:
+                            try:
+                                memory_pool_at_start.chop(iv.begin, iv.end)
+                            except Exception:
+                                pass
+                    elif ev.type == EventType.JOB_START and t < start_time:
+                        for iv in ev.job.resources.memory:
+                            memory_pool_at_start.add(iv)
+        else:
+            memory_pool_at_start = None
+
+        resources = bitmask_to_resource(
+            allocated_mask,
+            job.id,
+            memory_amount=job.requested_memory if not self.ignore_memory else 0,
+            total_memory=total_memory,
+            memory_used_pool=memory_pool_at_start,
+        )
+
+        if not resources:
+            raise AssertionError("Failed to find time for job, even in the far future.")
+
+        return start_time, resources
 
     def submit(self, job: Job | Iterable[Job | None]) -> None:
         """Submits a new job to the system.
