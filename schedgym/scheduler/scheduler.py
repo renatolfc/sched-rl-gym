@@ -501,7 +501,7 @@ class Scheduler(ABC):
         job.queued_work = sum(
             [j.requested_time * j.requested_processors for j in self.queue_admission]
         )
-        job.free_processors = self.cluster.state[0][0]
+        job.free_processors = self.cluster.processors.free_resources
         # }}}
 
         self.queue_admission.append(job)
@@ -528,9 +528,8 @@ class Scheduler(ABC):
         """
         # Gets all events between now and `timesteps` {{{
         near_future: dict[int, list[JobEvent]] = defaultdict(list)
-        for e in filter(
-            lambda e: e.time < self.current_time + timesteps,
-            self.job_events,
+        for e in self.job_events.events_between(
+            self.current_time, self.current_time + timesteps
         ):
             near_future[e.time - self.current_time].append(e)
         # }}}

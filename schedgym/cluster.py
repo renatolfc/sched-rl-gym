@@ -72,6 +72,8 @@ class Cluster:
         self.processors = pool.ResourcePool(
             pool.ResourceType.CPU, processors, used_processors
         )
+        self._dirty: bool = True
+        self._cached_state: tuple | None = None
 
     @property
     def free_resources(self) -> tuple[int, int]:
@@ -106,6 +108,7 @@ class Cluster:
             raise AssertionError(f"Unable to allocate resources for {job} in {self}")
         self.processors.allocate(job.resources.processors)
         self.memory.allocate(job.resources.memory)
+        self._dirty = True
 
     def clone(self):
         """Clones this Cluster (duplicating it in memory)."""
@@ -148,6 +151,7 @@ class Cluster:
         self.processors.free(job.resources.processors)
         if not self.ignore_memory:
             self.memory.free(job.resources.memory)
+        self._dirty = True
 
     def find_resources_at_time(
         self, time: int, job: Job, events: Iterable[JobEvent]
@@ -234,6 +238,8 @@ class Cluster:
             Tuple: a pair containing the number of processors used and the
             memory used and the jobs that are using such resources.
         """
+        if not self._dirty and self._cached_state is not None:
+            return self._cached_state
         processors = (
             self.processors.free_resources,
             self.processors.used_resources,
@@ -245,9 +251,12 @@ class Cluster:
             {(i.begin, i.end): i.data for i in self.memory.used_pool},
         )
         if self.ignore_memory:
-            return (processors,)
+            result = (processors,)
         else:
-            return processors, memory
+            result = processors, memory
+        self._cached_state = result
+        self._dirty = False
+        return self._cached_state
 
     def __bool__(self):
         if self.ignore_memory:
