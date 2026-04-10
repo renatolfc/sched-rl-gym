@@ -103,8 +103,10 @@ class BaseRmEnv(ABC, gymnasium.Env):
             RewardJobs.JOB_SLOTS: lambda: self.scheduler.queue_admission[
                 : self.job_slots
             ],
-            RewardJobs.RUNNING_JOB_SLOTS: lambda: self.scheduler.queue_running
-            + self.scheduler.queue_admission[: self.job_slots],
+            RewardJobs.RUNNING_JOB_SLOTS: lambda: (
+                self.scheduler.queue_running
+                + self.scheduler.queue_admission[: self.job_slots]
+            ),
         }
 
         self.backlog_size = kwargs.get("backlog_size", BACKLOG_SIZE)
@@ -200,9 +202,12 @@ class BaseRmEnv(ABC, gymnasium.Env):
         need_color = unique - set(self.color_cache.keys())
         for i, j in enumerate(need_color):
             self.color_cache[j] = available_colors[i]
-        for j in unique:  # noqa
-            for resource in current:
-                resource[resource == j] = self.colormap[self.color_cache[j]]
+        max_job_id = int(max(unique)) if unique else 0
+        lut = np.zeros(max_job_id + 1, dtype=np.float64)
+        for j in unique:
+            lut[int(j)] = self.colormap[self.color_cache[j]]
+        for resource in current:
+            resource[:] = lut[resource.astype(np.intp)]
 
         return (
             np.array(current),

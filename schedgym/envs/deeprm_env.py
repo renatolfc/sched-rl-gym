@@ -56,20 +56,19 @@ class DeepRmEnv(BaseRmEnv):
             self.setup_image_spaces()
 
     def setup_image_spaces(self):
+        total_width = (
+            (0 if self.ignore_memory else (self.job_slots + 1))
+            * self.scheduler.total_memory
+            + (self.job_slots + 1) * self.scheduler.number_of_processors
+            + self.backlog_width
+            + 1
+        )
         self.observation_space = gymnasium.spaces.Box(
             low=0.0,
             high=1.0,
-            shape=(
-                self.time_horizon,
-                (
-                    (0 if self.ignore_memory else (self.job_slots + 1))
-                    * self.scheduler.total_memory
-                )
-                + (self.job_slots + 1) * self.scheduler.number_of_processors
-                + self.backlog_width
-                + 1,
-            ),
+            shape=(self.time_horizon, total_width),
         )
+        self._obs_buffer = np.empty((self.time_horizon, total_width), dtype=np.float64)
 
     def setup_raw_spaces(self):
         self.processor_space = gymnasium.spaces.Box(
@@ -158,7 +157,18 @@ class DeepRmEnv(BaseRmEnv):
         current, wait, backlog, time = ob
         wait = wait.reshape(self.time_horizon, -1)
         current = current.reshape(self.time_horizon, -1)
-        return np.hstack((current, wait, backlog, time))
+        col = 0
+        w = current.shape[1]
+        self._obs_buffer[:, col : col + w] = current
+        col += w
+        w = wait.shape[1]
+        self._obs_buffer[:, col : col + w] = wait
+        col += w
+        w = backlog.shape[1]
+        self._obs_buffer[:, col : col + w] = backlog
+        col += w
+        self._obs_buffer[:, col : col + 1] = time
+        return self._obs_buffer
 
     def find_slot_position(self, action):
         if action < len(self.scheduler.queue_admission):

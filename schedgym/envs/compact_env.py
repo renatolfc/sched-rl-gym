@@ -45,6 +45,15 @@ class CompactRmEnv(BaseRmEnv):
         self.maximum_work = self.processors
         self.maximum_work_mem = self.memory
 
+        self._state_buffer_size = (
+            self.time_horizon * (1 if self.ignore_memory else 2) * 2
+            + self.job_slots * 7
+            + 1
+            + 3
+            + 4
+        )
+        self._state_buffer = np.zeros(self._state_buffer_size, dtype=np.float64)
+
         self._setup_spaces()
 
     def _setup_spaces(self):
@@ -95,22 +104,25 @@ class CompactRmEnv(BaseRmEnv):
     @property
     def state(self):
         state, jobs, backlog = self.scheduler.state(self.time_horizon, self.job_slots)
-        newstate = np.zeros((len(state[0]) * (1 if self.ignore_memory else 2) * 2))
-        newstate[: len(state[0]) * 2] = (
-            np.array([(e[0], e[1]) for e in state[0]], dtype=np.float32).reshape(
-                (-1,),
-            )
+        newstate_size = self.time_horizon * (1 if self.ignore_memory else 2) * 2
+        self._state_buffer[: self.time_horizon * 2] = (
+            np.array([(e[0], e[1]) for e in state[0]], dtype=np.float32).reshape((-1,))
             / self.processors
         )
         if not self.ignore_memory:
-            newstate[len(state[0]) * 2 :] = (
+            self._state_buffer[self.time_horizon * 2 : newstate_size] = (
                 np.array([(e[0], e[1]) for e in state[1]], dtype=np.float32).reshape(
                     (-1,)
                 )
                 / self.memory
             )
-        jobs = self._normalize_jobs(jobs).reshape((-1,))
-        backlog = backlog * np.ones(1) / self.backlog_size
+
+        jobs_flat = self._normalize_jobs(jobs).reshape((-1,))
+        jobs_end = newstate_size + len(jobs_flat)
+        self._state_buffer[newstate_size:jobs_end] = jobs_flat
+
+        backlog_end = jobs_end + 1
+        self._state_buffer[jobs_end] = backlog / self.backlog_size
 
         running = [
             j
@@ -139,15 +151,12 @@ class CompactRmEnv(BaseRmEnv):
             / self.maximum_work_mem
         )
 
-        # XXX: this normalization only works while we're sampling at most one
-        # job per time step. Once this is not true, we risk having the
-        # queue_size feature > 1.0 (which is incorrect)
         queue_size = len(self.scheduler.queue_admission) / self.time_limit
         time_left = 1 - self.scheduler.current_time / self.time_limit
 
         try:
             next_free = min(running, key=lambda x: x.start_time + x.execution_time)
-            next_free = np.array(
+            next_free_arr = np.array(
                 (
                     (
                         next_free.start_time
@@ -160,17 +169,18 @@ class CompactRmEnv(BaseRmEnv):
                 )
             )
         except ValueError:
-            next_free = np.array((0, 0, 1.0))
+            next_free_arr = np.array((0, 0, 1.0))
 
-        return np.hstack(
-            (
-                newstate,
-                jobs,
-                backlog,
-                next_free,
-                np.array((remaining_work, remaining_work_mem, queue_size, time_left)),
-            ),
+        next_free_end = backlog_end + 3
+        self._state_buffer[backlog_end:next_free_end] = next_free_arr
+        self._state_buffer[next_free_end : next_free_end + 4] = (
+            remaining_work,
+            remaining_work_mem,
+            queue_size,
+            time_left,
         )
+
+        return self._state_buffer
 
     def _normalize_jobs(self, jobs):
         def _sumdiv(arr, idx, orig, limit):
