@@ -85,3 +85,25 @@ class TestIncrementalQueuedWork(unittest.TestCase):
         scheduler.schedule()
 
         self.assertEqual(0, scheduler._queued_work_total)  # type: ignore[attr-defined]
+
+    def test_backfilling_schedule_resets_incremental_total(self):
+        from schedgym.scheduler import BackfillingScheduler
+
+        scheduler = BackfillingScheduler(16, 2048)
+        jobs = [self.make_job(14, 1, 5), self.make_job(15, 2, 3)]
+        for job in jobs:
+            scheduler.submit(job)
+
+        scheduler.schedule()
+        self.assertEqual(0, scheduler._queued_work_total)  # type: ignore[attr-defined]
+
+    def test_null_scheduler_schedule_updates_incremental_total(self):
+        from schedgym.scheduler import NullScheduler
+
+        scheduler = NullScheduler(16, 2048)
+        job = self.make_job(16, 1, 2)
+        scheduler.submit(job)
+        initial_total = scheduler._queued_work_total  # type: ignore[attr-defined]
+        self.assertEqual(2, initial_total)
+        scheduler.step(0)
+        self.assertEqual(0, scheduler._queued_work_total)  # type: ignore[attr-defined]

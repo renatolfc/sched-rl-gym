@@ -1,6 +1,5 @@
 """fifo_scheduler - First-In First-Out module"""
 
-from schedgym.job import Job
 from schedgym.scheduler import Scheduler
 
 

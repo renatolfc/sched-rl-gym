@@ -10,8 +10,6 @@ from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any, NamedTuple
 
-import numpy as np
-
 from schedgym.cluster import Cluster
 from schedgym.job import Job, JobStatus, Resource
 from schedgym.event import JobEvent, EventType, EventQueue
@@ -101,7 +99,7 @@ class Scheduler(ABC):
         self.job_events = EventQueue(self.current_time - 1)
         self.cluster = Cluster(number_of_processors, total_memory, ignore_memory)
         self.need_schedule_call = False
-        "Tracks whether we might need to schedule jobs"
+        # Tracks whether we might need to schedule jobs
         self._queued_work_total: int = 0
 
     @property
