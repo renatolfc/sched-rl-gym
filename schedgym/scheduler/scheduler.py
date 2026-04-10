@@ -102,6 +102,7 @@ class Scheduler(ABC):
         self.cluster = Cluster(number_of_processors, total_memory, ignore_memory)
         self.need_schedule_call = False
         "Tracks whether we might need to schedule jobs"
+        self._queued_work_total: int = 0
 
     @property
     def all_jobs(self) -> list[Job]:
@@ -498,13 +499,12 @@ class Scheduler(ABC):
 
         # Compute statistics to be used in state representation {{{
         job.queue_size = len(self.queue_admission)
-        job.queued_work = sum(
-            [j.requested_time * j.requested_processors for j in self.queue_admission]
-        )
+        job.queued_work = self._queued_work_total
         job.free_processors = self.cluster.processors.free_resources
         # }}}
 
         self.queue_admission.append(job)
+        self._queued_work_total += job.requested_time * job.requested_processors
         self.requested_processors_in_system += job.requested_processors
 
     def state(self, timesteps: int, job_slots: int):

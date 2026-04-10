@@ -106,7 +106,12 @@ class NullScheduler(Scheduler):
                 resources = self.can_schedule_now(job)
                 if resources:
                     self.assign_schedule(job, resources, self.current_time)
+                    removed_work = (
+                        self.queue_admission[self.current_slot].requested_time
+                        * self.queue_admission[self.current_slot].requested_processors
+                    )
                     self.queue_admission.pop(self.current_slot)
+                    self._queued_work_total -= removed_work
                     return True
                 return False
             return False

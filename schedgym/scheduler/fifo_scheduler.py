@@ -22,3 +22,6 @@ class FifoScheduler(Scheduler):
             else:
                 break
         self.queue_admission = self.queue_admission[scheduled_count:]
+        self._queued_work_total = sum(
+            j.requested_time * j.requested_processors for j in self.queue_admission
+        )

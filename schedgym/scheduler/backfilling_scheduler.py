@@ -12,6 +12,7 @@ class BackfillingScheduler(Scheduler):
     def schedule(self) -> None:
         self._schedule_bitmask()
         self.queue_admission.clear()
+        self._queued_work_total = 0
 
     def _schedule_bitmask(self) -> None:
         from schedgym.scheduler._bitmask_timeline import (

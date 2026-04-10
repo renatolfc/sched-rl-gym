@@ -63,3 +63,6 @@ class EasyScheduler(Scheduler):
                     # We already have a reservation, so we skip this job
                     ignored_jobs.append(job)
         self.queue_admission = ignored_jobs
+        self._queued_work_total = sum(
+            j.requested_time * j.requested_processors for j in self.queue_admission
+        )
