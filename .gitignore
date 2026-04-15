@@ -49,3 +49,7 @@ Cargo.lock
 
 # Benchmark results
 benchmarks/*.json
+
+# Tooling artifacts
+.sisyphus/
+test/tmp*
