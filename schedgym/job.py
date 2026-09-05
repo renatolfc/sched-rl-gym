@@ -3,6 +3,7 @@
 import enum
 import random
 import warnings
+import dataclasses
 from dataclasses import dataclass, field
 
 from .resource import Resource, PrimaryResource
@@ -19,6 +20,7 @@ class JobState:
     queue_size: int = -1
     queued_work: int = -1
     free_processors: int = -1
+    can_schedule_now: int = 0
 
     def __iter__(self):
         return iter(
@@ -30,11 +32,12 @@ class JobState:
                 self.queue_size,
                 self.queued_work,
                 self.free_processors,
+                self.can_schedule_now,
             )
         )
 
     def __len__(self):
-        return 7
+        return len(dataclasses.fields(self))
 
     def __getitem__(self, idx):
         return tuple(self)[idx]
@@ -255,6 +258,7 @@ class Job:
             self.queue_size,
             self.queued_work,
             self.free_processors,
+            0,
         )
 
 

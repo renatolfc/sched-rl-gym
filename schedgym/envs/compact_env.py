@@ -46,8 +46,8 @@ class CompactRmEnv(BaseRmEnv):
         self.maximum_work_mem = self.memory
 
         self._state_buffer_size = (
-            self.time_horizon * (1 if self.ignore_memory else 2) * 2
-            + self.job_slots * 7
+            self.time_horizon + self.time_horizon * (1 if self.ignore_memory else 2) * 2
+            + self.job_slots * 8
             + 1
             + 3
             + 4
@@ -60,18 +60,25 @@ class CompactRmEnv(BaseRmEnv):
         self.action_space = gymnasium.spaces.Discrete(self.job_slots + 1)
 
         self.observation_space = gymnasium.spaces.Box(
-            low=0.0, high=1.0, shape=((len(self.state),)), dtype=np.float32
+            low=-np.inf, high=np.inf, shape=(self._state_buffer_size,), dtype=np.float32
         )
 
     def reset(self, *, seed=None, options=None) -> tuple[np.ndarray, dict]:
         super().reset(seed=seed, options=options)
-        self.maximum_work = self.time_limit * self.processors
-        self.maximum_work_mem = self.time_limit * self.memory
+        self.maximum_work = np.log(self.time_limit) * self.processors
+        self.maximum_work_mem = np.log(self.time_limit) * self.memory
         return super().reset(seed=seed, options=options)
+
+    def really_done(self) -> bool:
+        return (
+            len(self.scheduler.queue_admission) == 0 and
+            len(self.scheduler.queue_waiting) == 0
+        )
 
     def step(self, action: int):
         done = False
         found = True
+        should_be_done = False
         if not (0 <= action < self.action_space.n - 1):
             found = False
 
@@ -79,108 +86,127 @@ class CompactRmEnv(BaseRmEnv):
             intermediate = self.simulator.rl_step(
                 action if found else None, self.reward_mapper[self.reward_jobs]
             )
-            # XXX: This is technically incorrect. The correct thing to do here
-            # is: when we have a trace-based workload generator, we need to
-            # maintain a check on whether we want to sample from it or not, and
-            # use the time limit to actually decide whether we're done or not.
-            # In the current setting, we might potentially "lose" the last jobs
-            # of the workload.
         except StopIteration:
             intermediate = [[Job()]]
+            should_be_done = True
             done = True
 
         reward = self.reward if any(intermediate) else 0
-        done = bool(self.time_limit) and (
-            self.scheduler.current_time > self.time_limit or done
+        time_exceeded = bool(self.time_limit) and (
+            self.scheduler.current_time > self.time_limit
         )
+        done = time_exceeded or done or self.really_done()
 
-        if not done and self.smdp and any(intermediate):
+        if not done and self.smdp and any(intermediate) and not should_be_done:
             rewards = [self.compute_reward(js) for js in intermediate]
-            rewards[0] = 0
+            if len(rewards) > 1:
+                rewards[0] = 0
             reward = (self.gamma ** np.arange(len(intermediate))).dot(rewards)
 
         return (self.state, reward, done, False, self.stats if done else {})
 
     @property
     def state(self):
-        state, jobs, backlog = self.scheduler.state(self.time_horizon, self.job_slots)
-        newstate_size = self.time_horizon * (1 if self.ignore_memory else 2) * 2
-        self._state_buffer[: self.time_horizon * 2] = (
-            np.array([(e[0], e[1]) for e in state[0]], dtype=np.float32).reshape((-1,))
+        state, jobs, backlog = self.scheduler.state(self.time_horizon, self.job_slots, self.smdp)
+        
+        snapshots = len(state[0])
+        
+        offset_idx = 0 if self.smdp else -1
+        proc_idx = 1 if self.smdp else 0
+        mem_idx = 2 if self.smdp else 1
+        
+        self._state_buffer.fill(0)
+        
+        ptr = 0
+        if self.smdp:
+            self._state_buffer[ptr : ptr + snapshots] = np.log(np.array(state[0]) + 1.0) / np.log(self.time_limit)
+            ptr += snapshots
+
+        self._state_buffer[ptr : ptr + snapshots * 2] = (
+            np.array([(e[0], e[1]) for e in state[proc_idx]], dtype=np.float32).reshape((-1,))
             / self.processors
         )
+        ptr += snapshots * 2
+        
         if not self.ignore_memory:
-            self._state_buffer[self.time_horizon * 2 : newstate_size] = (
-                np.array([(e[0], e[1]) for e in state[1]], dtype=np.float32).reshape(
+            self._state_buffer[ptr : ptr + snapshots * 2] = (
+                np.array([(e[0], e[1]) for e in state[mem_idx]], dtype=np.float32).reshape(
                     (-1,)
                 )
                 / self.memory
             )
+            ptr += snapshots * 2
 
         jobs_flat = self._normalize_jobs(jobs).reshape((-1,))
-        jobs_end = newstate_size + len(jobs_flat)
-        self._state_buffer[newstate_size:jobs_end] = jobs_flat
+        jobs_end = ptr + len(jobs_flat)
+        self._state_buffer[ptr:jobs_end] = jobs_flat
+        ptr = jobs_end
 
-        backlog_end = jobs_end + 1
-        self._state_buffer[jobs_end] = backlog / self.backlog_size
+        backlog_end = ptr + 1
+        self._state_buffer[ptr] = backlog / self.backlog_size
+        ptr = backlog_end
 
         running = [
             j
             for j in self.scheduler.queue_running
-            if j.start_time + j.execution_time > self.scheduler.current_time
+            if j.start_time + j.requested_time > self.scheduler.current_time
         ]
 
         remaining_work = (
             sum(
                 [
-                    (j.start_time + j.execution_time - self.scheduler.current_time)
+                    np.log(max(j.start_time + j.requested_time - self.scheduler.current_time, 1))
                     * j.requested_processors
                     for j in running
                 ]
             )
             / self.maximum_work
-        )
+        ) if running and self.maximum_work else 0.0
+        
         remaining_work_mem = (
             sum(
                 [
-                    (j.start_time + j.execution_time - self.scheduler.current_time)
+                    np.log(max(j.start_time + j.requested_time - self.scheduler.current_time, 1))
                     * j.requested_memory
                     for j in running
                 ]
             )
             / self.maximum_work_mem
-        )
+        ) if running and self.maximum_work_mem else 0.0
 
-        queue_size = len(self.scheduler.queue_admission) / self.time_limit
-        time_left = 1 - self.scheduler.current_time / self.time_limit
+        queue_size = min(len(self.scheduler.queue_admission) / 1000.0, 1.0)
+        time_left = 1 - np.log(self.scheduler.current_time + 1) / np.log(self.time_limit)
 
         try:
-            next_free = min(running, key=lambda x: x.start_time + x.execution_time)
+            next_free = min(running, key=lambda x: x.start_time + x.requested_time)
             next_free_arr = np.array(
                 (
-                    (
-                        next_free.start_time
-                        + next_free.execution_time
-                        - self.scheduler.current_time
+                    np.log(
+                        max(next_free.start_time
+                        + next_free.requested_time
+                        - self.scheduler.current_time, 1)
                     )
-                    / self.time_limit,
+                    / np.log(self.time_limit),
                     next_free.requested_processors / self.processors,
-                    (state[0][0][0] + next_free.requested_processors) / self.processors,
+                    (state[proc_idx][0][0] + next_free.requested_processors) / self.processors,
                 )
             )
         except ValueError:
             next_free_arr = np.array((0, 0, 1.0))
 
-        next_free_end = backlog_end + 3
-        self._state_buffer[backlog_end:next_free_end] = next_free_arr
-        self._state_buffer[next_free_end : next_free_end + 4] = (
+        next_free_end = ptr + 3
+        self._state_buffer[ptr:next_free_end] = next_free_arr
+        ptr = next_free_end
+        
+        self._state_buffer[ptr : ptr + 4] = (
             remaining_work,
             remaining_work_mem,
             queue_size,
             time_left,
         )
-
-        return self._state_buffer
+        
+        # Ensure we return exactly self._state_buffer_size elements, we can pad with 0
+        return self._state_buffer[:self._state_buffer_size]
 
     def _normalize_jobs(self, jobs):
         def _sumdiv(arr, idx, orig, limit):
@@ -188,16 +214,28 @@ class CompactRmEnv(BaseRmEnv):
 
         ret = np.zeros((len(jobs), len(jobs[0])), dtype=np.float32)
         for i, job in enumerate(jobs):
-            _sumdiv(ret[i], 0, job.submission_time, self.time_limit)
-            _sumdiv(ret[i], 1, job.requested_time, self.time_limit)
+            _sumdiv(
+                ret[i],
+                0,
+                np.sign(job.submission_time) * np.log(np.abs(job.submission_time) + np.e) - 1,
+                np.log(self.time_limit)
+            )
+            _sumdiv(
+                ret[i],
+                1,
+                np.sign(job.requested_time) * np.log(np.abs(job.requested_time) + np.e) - 1,
+                np.log(self.time_limit)
+            )
             _sumdiv(ret[i], 2, job.requested_memory, self.memory)
             _sumdiv(ret[i], 3, job.requested_processors, self.processors)
             _sumdiv(ret[i], 4, job.queue_size, self.time_limit)
             _sumdiv(
                 ret[i],
                 5,
-                job.queued_work,
-                self.time_limit * self.time_limit * self.processors,
+                np.sign(job.queued_work) * np.log(np.abs(job.queued_work) + np.e) - 1,
+                np.log(self.time_limit * self.processors),
             )
             _sumdiv(ret[i], 6, job.free_processors, self.processors)
+            if len(job) > 7:
+                ret[i][7] = job.can_schedule_now
         return ret

@@ -200,7 +200,7 @@ class Scheduler(ABC):
             )
         start = JobEvent(time, EventType.JOB_START, job)
         finish = start.clone()
-        finish.time += job.execution_time
+        finish.time += min(job.execution_time, job.requested_time)
         finish.type = EventType.JOB_FINISH
         self.job_events.add(start)
         self.job_events.add(finish)
@@ -288,6 +288,8 @@ class Scheduler(ABC):
                 are found.
         """
         for event in events:
+            if not event:
+                continue
             if event.type == EventType.JOB_START:
                 cluster.allocate(event.job)
                 if update_queues:
@@ -505,7 +507,7 @@ class Scheduler(ABC):
         self._queued_work_total += job.requested_time * job.requested_processors
         self.requested_processors_in_system += job.requested_processors
 
-    def state(self, timesteps: int, job_slots: int):
+    def state(self, timesteps: int, job_slots: int, smdp: bool = False):
         """Returns the current state of the cluster as viewed by the scheduler.
 
         The state representation used here is deeply inspired by the DeepRM
@@ -523,33 +525,62 @@ class Scheduler(ABC):
             job_slots : int
                 The number of job slots to use (the amount of jobs in the
                 admission queue to represent)
+            smdp : bool
+                Whether this is an SMDP and steps should be based on events,
+                not time
         """
         # Gets all events between now and `timesteps` {{{
         near_future: dict[int, list[JobEvent]] = defaultdict(list)
-        for e in self.job_events.events_between(
-            self.current_time, self.current_time + timesteps
-        ):
-            near_future[e.time - self.current_time].append(e)
+        if smdp:
+            last_time = 0
+            for e in self.job_events:
+                if e.time < self.current_time:
+                    continue
+                last_time = e.time - self.current_time
+                near_future[last_time].append(e)
+                if len(near_future) > timesteps:
+                    break
+            if len(near_future) < timesteps:
+                for i in range(last_time + 1, last_time + 1 + timesteps - len(near_future)):
+                    near_future[last_time + i].append([])  # type: ignore
+            elif len(near_future) > timesteps:
+                near_future = {
+                    k: v for i, (k, v) in enumerate(near_future.items()) if i < timesteps
+                }
+        else:
+            for e in self.job_events.events_between(
+                self.current_time, self.current_time + timesteps
+            ):
+                near_future[e.time - self.current_time].append(e)
         # }}}
 
         # Gets the state representation of currently in use resources {{{
         tmp = []
         cluster = self.cluster.clone()
-        for t in range(timesteps):
+        for t in (near_future.keys() if smdp else range(timesteps)):
             if t in near_future:
                 cluster = self.play_events(near_future[t], cluster)
-            tmp.append(cluster.state)
+            tmp.append((t, *cluster.state) if smdp else cluster.state)
         state = list(zip(*tmp))
-        if self.ignore_memory:
-            state = state[:1]
+        if self.ignore_memory and not cluster.ignore_memory:
+            state = state[:2] if smdp else state[:1]
         # }}}
 
         # Gets the representation of jobs in `job_slots` {{{
-        jobs = [j.state for i, j in enumerate(self.queue_admission) if i < job_slots]
+        jobs = []
         for i, job in enumerate(self.queue_admission):
             if i >= job_slots:
                 break
             job.slot_position = i
+            # In master, j.state is a JobState class, not a mutable list. But dataclass is frozen=True.
+            # We can use object.__setattr__ to bypass frozen, or we can just reconstruct it.
+            # Reconstructing is safer.
+            j_state = job.state
+            if self.can_schedule_now(job):
+                # reconstruct with can_schedule_now=1
+                j_state = type(j_state)(*(list(j_state)[:-1] + [1]))
+            jobs.append(j_state)
+            
         jobs += [Job().state for _ in range(job_slots - len(jobs))]
         # }}}
 

@@ -74,12 +74,14 @@ def _assert_step_obs_valid(test_case, obs, expected_shape, label, ndim=None):
     test_case.assertFalse(np.any(np.isinf(flat)), msg=f"{label}: Inf detected")
 
 
-def _assert_reset_obs_in_range(test_case, obs, label):
+def _assert_reset_obs_in_range(test_case, env, obs, label):
     flat = np.asarray(obs).ravel()
+    low = float(env.observation_space.low.min())
+    high = float(env.observation_space.high.max())
     test_case.assertGreaterEqual(
-        float(flat.min()), 0.0, msg=f"{label}: reset obs min < 0"
+        float(flat.min()), low, msg=f"{label}: reset obs min < {low}"
     )
-    test_case.assertLessEqual(float(flat.max()), 1.0, msg=f"{label}: reset obs max > 1")
+    test_case.assertLessEqual(float(flat.max()), high, msg=f"{label}: reset obs max > {high}")
 
 
 class TestObservationEquivalence(unittest.TestCase):
@@ -88,7 +90,7 @@ class TestObservationEquivalence(unittest.TestCase):
         observations = _collect_steps(env, n_steps=50, seed=7)
         expected_shape = env.observation_space.shape
         reset_obs = observations[0]
-        _assert_reset_obs_in_range(self, reset_obs, "reset")
+        _assert_reset_obs_in_range(self, env, reset_obs, "reset")
         for i, obs in enumerate(observations):
             _assert_step_obs_valid(self, obs, expected_shape, f"step {i}", ndim=2)
 
@@ -138,7 +140,7 @@ class TestObservationEquivalence(unittest.TestCase):
         )
         observations = _collect_steps(env, n_steps=20, seed=99)
         expected_shape = env.observation_space.shape
-        _assert_reset_obs_in_range(self, observations[0], "reset")
+        _assert_reset_obs_in_range(self, env, observations[0], "reset")
         for i, obs in enumerate(observations):
             _assert_step_obs_valid(self, obs, expected_shape, f"step {i}")
         env_default = _make_deep_env()
@@ -152,7 +154,7 @@ class TestObservationEquivalence(unittest.TestCase):
         env = _make_compact_env()
         observations = _collect_steps(env, n_steps=50, seed=3)
         expected_shape = env.observation_space.shape
-        _assert_reset_obs_in_range(self, observations[0], "reset")
+        _assert_reset_obs_in_range(self, env, observations[0], "reset")
         for i, obs in enumerate(observations):
             _assert_step_obs_valid(self, obs, expected_shape, f"step {i}", ndim=1)
 

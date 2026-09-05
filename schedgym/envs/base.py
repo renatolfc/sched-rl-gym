@@ -79,9 +79,13 @@ class BaseRmEnv(ABC, gymnasium.Env):
             "time_horizon", TIME_HORIZON
         )  # number of time steps in the graph
 
+        self.tolerance_factor = kwargs.get(
+            "tolerance_factor", 100
+        )
+
         time_limit = kwargs.get("time_limit", 200)
         if time_limit is None:
-            self.time_limit = 1
+            self.time_limit = np.e
             self.update_time_limit = True
         else:
             self.time_limit = time_limit
@@ -134,7 +138,7 @@ class BaseRmEnv(ABC, gymnasium.Env):
         )
         wl = build_workload(self.workload_config)
         if self.update_time_limit and hasattr(wl, "trace") and wl.trace:
-            self.time_limit = (
+            self.time_limit = self.tolerance_factor * (
                 wl.trace[-1].submission_time  # type: ignore
                 + wl.trace[-1].execution_time  # type: ignore
             )
@@ -157,8 +161,8 @@ class BaseRmEnv(ABC, gymnasium.Env):
     def build_current_state(self, current):
         ret = [np.zeros((self.time_horizon, sum(e[0][:-1]))) for e in current]
         for i, _ in enumerate(current):
-            for t in range(self.time_horizon):
-                for k, v in current[i][t][-1].items():
+            for t, c in enumerate(current[i]):
+                for k, v in c[-1].items():
                     ret[i][t][slice(*k)] = v
         return ret
 
@@ -188,7 +192,7 @@ class BaseRmEnv(ABC, gymnasium.Env):
         return (processors,) if self.ignore_memory else (processors, memory)
 
     def _convert_state(self, current, wait, backlog, time):
-        current = self.build_current_state(current)
+        current = self.build_current_state(current[1:] if self.smdp else current)
         wait = self.build_job_slots(wait)
         backlog_width = self.backlog_size // self.time_horizon
         backlog = np.ones(self.time_horizon * backlog_width) * backlog

@@ -136,7 +136,7 @@ class DeepRmEnv(BaseRmEnv):
 
     @property
     def state(self):
-        state, jobs, backlog = self.scheduler.state(self.time_horizon, self.job_slots)
+        state, jobs, backlog = self.scheduler.state(self.time_horizon, self.job_slots, self.smdp)
         s = self._convert_state(
             state,
             jobs,
@@ -178,6 +178,7 @@ class DeepRmEnv(BaseRmEnv):
     def step(self, action: int):
         done = False
         found = False
+        should_be_done = False
         if 0 <= action < self.action_space.n - 1:
             action = self.find_slot_position(action)
             found = True
@@ -187,6 +188,7 @@ class DeepRmEnv(BaseRmEnv):
             )
         except StopIteration:
             intermediate = [[Job()]]
+            should_be_done = True
             done = True
 
         reward = self.reward if any(intermediate) else 0
@@ -194,9 +196,10 @@ class DeepRmEnv(BaseRmEnv):
             self.scheduler.current_time > self.time_limit or done
         )
 
-        if not done and self.smdp and any(intermediate):
+        if not done and self.smdp and any(intermediate) and not should_be_done:
             rewards = [self.compute_reward(js) for js in intermediate]
-            rewards[0] = 0
+            if len(rewards) > 1:
+                rewards[0] = 0
             reward = (self.gamma ** np.arange(len(intermediate))).dot(rewards)
 
         return (self.state, reward, done, False, self.stats if done else {})

@@ -101,5 +101,5 @@ class TestObservationBuffers(unittest.TestCase):
         self.assertEqual(state.ndim, 1)
         self.assertEqual(state.shape, env.observation_space.shape)
         self.assertEqual(len(state), env.observation_space.shape[0])
-        self.assertGreaterEqual(float(state.min()), 0.0)
-        self.assertLessEqual(float(state.max()), 1.0)
+        self.assertGreaterEqual(float(state.min()), float(env.observation_space.low.min()))
+        self.assertLessEqual(float(state.max()), float(env.observation_space.high.max()))

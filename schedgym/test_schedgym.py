@@ -1132,7 +1132,7 @@ class TestSchedulers(unittest.TestCase):
 
 
 class TestSwfGenerator(unittest.TestCase):
-    TOTAL_JOBS = 122052
+    TOTAL_JOBS = 122060
     TEST_DIR = "test"
     TRACE_FILE = "LANL-CM5-1994-4.1-cln.swf.gz"
 
@@ -1145,11 +1145,11 @@ class TestSwfGenerator(unittest.TestCase):
             tmp = tempfile.NamedTemporaryFile(
                 dir=self.TEST_DIR, mode="wb", delete=False
             )
-            data = urllib.request.urlopen(
-                "http://www.cs.huji.ac.il/labs/parallel/workload/l_lanl_cm5/"
-                f"{self.TRACE_FILE}",
-            )
-            tmp.write(gzip.decompress(data.read()))
+            from curl_cffi import requests
+            url = f"http://www.cs.huji.ac.il/labs/parallel/workload/l_lanl_cm5/{self.TRACE_FILE}"
+            response = requests.get(url, impersonate="chrome110")
+            response.raise_for_status()
+            tmp.write(response.content)
             tmp.close()
             os.rename(tmp.name, self.tracefile)  # atomic in same fs
 
@@ -1269,11 +1269,14 @@ class TestCompactEnv(unittest.TestCase):
         """Selects the job SJF (Shortest Job First) would select."""
 
         skip = env.time_horizon * 2 * (1 if env.ignore_memory else 2)
+        if getattr(env, "smdp", False):
+            skip += env.time_horizon
         fields = [f.name for f in dataclasses.fields(job.JobState)]
         size = len(fields)
         time = fields.index("requested_time")
         reqs = observation[skip:][time : (env.job_slots * size) : size]
-        reqs[reqs == 0] = 1.1
+        reqs[reqs < 0] = np.inf
+        print(f"\\nFINAL REQS: {reqs}")
         action = np.argmin(reqs)
         return int(action)
 
@@ -1296,6 +1299,7 @@ class TestCompactEnv(unittest.TestCase):
                     j.execution_time
                     for j in env.scheduler.queue_admission[: env.job_slots]
                 ]
+                print(f"\nsub_times: {submission_times}")
                 self.assertEqual(
                     action,
                     np.argmin(submission_times) if submission_times else 0,

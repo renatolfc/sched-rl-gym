@@ -5,9 +5,10 @@ A full description of the format, with meanings for each field is available on
 the web at http://www.cs.huji.ac.il/labs/parallel/workload/swf.html.
 """
 
-from enum import IntEnum
-
+import gzip
 import logging
+from enum import IntEnum
+from pathlib import Path
 
 from ..job import Job, SwfJobStatus
 
@@ -42,7 +43,16 @@ CONVERTERS = {
 }
 
 
-def parse(filename, processors, memory, ignore_memory=False):
+def open_swf(filename):
+    """Open a plain or gzip-compressed SWF trace as text."""
+
+    path = Path(filename)
+    if path.suffix == ".gz":
+        return gzip.open(path, "rt", encoding="utf-8", errors="replace")
+    return path.open("r", encoding="utf-8", errors="replace")
+
+
+def parse(filename, processors=None, memory=0, ignore_memory=False):
     """Parser for SWF job files.
 
     The SWF is a simple format with commented lines starting with the ';'
@@ -51,35 +61,58 @@ def parse(filename, processors, memory, ignore_memory=False):
     Parsing, therefore, involves splitting the lines and associating each
     column of the file with a field.
     """
+    
+    def parse_int(line: str) -> int:
+        return int(line.split(":")[-1].strip())
 
-    with open(filename, "r") as fp:  # pylint: disable=C
+    max_procs: int = 0
+    max_nodes: int = 0
+    with open_swf(filename) as fp:  # pylint: disable=C
         for line in fp:
-            if ";" in line:
+            if line.startswith(";"):
+                if line.startswith("; MaxNodes:"):
+                    max_nodes = parse_int(line)
+                elif line.startswith("; MaxProcs:"):
+                    max_procs = parse_int(line)
                 continue
+
+            if processors is None:
+                if max_procs == 0:
+                    if max_nodes == 0:
+                        raise ValueError(
+                            f"Unable to load trace {filename} "
+                            "without a number of processors"
+                        )
+                    else:
+                        processors = max_nodes
+                else:
+                    processors = max_procs
+
             fields = line.strip().split()
-            fields = [  # Converts all fields according to our rules
-                CONVERTERS[SwfFields(i)](f) for i, f in enumerate(fields)
-            ]
+            fields = [CONVERTERS[SwfFields(i)](field) for i, field in enumerate(fields)]
+
+            def integer(field: SwfFields) -> int:
+                return int(fields[field])
 
             job = Job(
-                fields[SwfFields.JOB_ID],
-                fields[SwfFields.SUBMITTED],
-                fields[SwfFields.EXEC_TIME],
-                fields[SwfFields.ALLOC_PROCS],
-                fields[SwfFields.AVG_CPU_USAGE],
-                fields[SwfFields.USED_MEM],
-                fields[SwfFields.REQ_PROCS],
-                fields[SwfFields.REQ_TIME],
-                fields[SwfFields.REQ_MEM],
-                SwfJobStatus(fields[SwfFields.STATUS]),
-                fields[SwfFields.USER_ID],
-                fields[SwfFields.GROUP_ID],
-                fields[SwfFields.EXECUTABLE],
-                fields[SwfFields.QUEUE_NUM],
-                fields[SwfFields.PART_NUM],
-                fields[SwfFields.PRECEDING_JOB],
-                fields[SwfFields.THINK_TIME],
-                fields[SwfFields.WAIT_TIME],
+                integer(SwfFields.JOB_ID),
+                integer(SwfFields.SUBMITTED),
+                integer(SwfFields.EXEC_TIME),
+                integer(SwfFields.ALLOC_PROCS),
+                int(fields[SwfFields.AVG_CPU_USAGE]),
+                integer(SwfFields.USED_MEM),
+                integer(SwfFields.REQ_PROCS),
+                integer(SwfFields.REQ_TIME),
+                integer(SwfFields.REQ_MEM),
+                SwfJobStatus(integer(SwfFields.STATUS)),
+                integer(SwfFields.USER_ID),
+                integer(SwfFields.GROUP_ID),
+                integer(SwfFields.EXECUTABLE),
+                integer(SwfFields.QUEUE_NUM),
+                integer(SwfFields.PART_NUM),
+                integer(SwfFields.PRECEDING_JOB),
+                integer(SwfFields.THINK_TIME),
+                integer(SwfFields.WAIT_TIME),
             )
 
             if job.requested_memory < 0 < job.memory_use:
@@ -91,14 +124,14 @@ def parse(filename, processors, memory, ignore_memory=False):
             if job.requested_memory < 0 and ignore_memory:
                 job.requested_memory = 0
 
-            if (
-                job.requested_processors < 1
-                or (job.requested_memory < 1 and not ignore_memory)
-                or job.execution_time < 1
-                or job.submission_time < 0
-            ):
-                logger.warning(f"Ignoring malformed job {job.id}")
-                continue
+            if job.requested_processors < 1:
+                job.requested_processors = 1
+            if job.requested_memory < 1 and not ignore_memory:
+                job.requested_memory = 1
+            if job.execution_time < 1:
+                job.execution_time = 1
+            if job.submission_time < 0:
+                job.submission_time = 0
 
             if job.requested_time < job.execution_time:
                 job.requested_time = job.execution_time
