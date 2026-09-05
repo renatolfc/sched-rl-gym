@@ -1,8 +1,8 @@
 """distribution - Generative models for workload generation"""
 
+import itertools
 import math
 import random
-import itertools
 from abc import ABC, abstractmethod
 
 from schedgym.job import Job, JobParameters

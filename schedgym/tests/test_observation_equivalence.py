@@ -4,7 +4,6 @@ import numpy as np
 
 from schedgym.envs import compact_env, deeprm_env
 
-
 DEEP_WORKLOAD = {
     "type": "deeprm",
     "new_job_rate": 1.0,

@@ -5,9 +5,8 @@ trace-based workloads in the Standard Workload Format.
 """
 
 from .base import WorkloadGenerator
-from .distribution import BinomialWorkloadGenerator
-from .distribution import DistributionalWorkloadGenerator
-from .trace import TraceGenerator, SwfGenerator
+from .distribution import BinomialWorkloadGenerator, DistributionalWorkloadGenerator
+from .trace import SwfGenerator, TraceGenerator
 
 __all__ = [
     "WorkloadGenerator",

@@ -9,10 +9,10 @@ step.
 """
 
 import enum
-
 from abc import ABC, abstractmethod
 
-from . import workload, scheduler as sched
+from . import scheduler as sched
+from . import workload
 
 
 class SimulationType(enum.Enum):

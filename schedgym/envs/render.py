@@ -1,9 +1,8 @@
 import matplotlib
+import matplotlib.backends.backend_agg as agg
 import numpy as np
-
 import pyglet
 from matplotlib import pylab as plt
-import matplotlib.backends.backend_agg as agg
 
 DPI = 96
 WIDTH = 800
@@ -105,7 +104,7 @@ class DeepRmHumanRenderer(DeepRmRgbRenderer, pyglet.window.Window):
 class DeepRmRenderer:
     def __init__(self, mode, *args, **kwargs):
         if mode not in SUPPORTED_MODES:
-            raise RuntimeError("Requested unsupported mode %s" % mode)
+            raise RuntimeError(f"Requested unsupported mode {mode}")
         self.renderer = SUPPORTED_MODES[mode]()(*args, **kwargs)
 
     def render(self, state):

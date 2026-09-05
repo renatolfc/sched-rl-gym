@@ -1,7 +1,7 @@
 """SJF (Shortest Job First) agent for the DeepRM gymnasium environment."""
 
-import os
 import json
+import os
 
 import gymnasium
 import numpy as np

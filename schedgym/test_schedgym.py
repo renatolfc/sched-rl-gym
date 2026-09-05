@@ -1,23 +1,20 @@
 import dataclasses
+import itertools
 import os
-import gzip
 import random
 import tempfile
 import unittest
-import itertools
-import urllib.request
-
 from pathlib import Path
 from typing import cast
 
 import gymnasium
 import numpy as np
 
-from . import simulator, job, workload, pool, event, heap, scheduler
 from . import cluster as clstr
+from . import event, heap, job, pool, scheduler, simulator, workload
+from .envs import base, compact_env, deeprm_env
 from .envs import workload as env_workload
 from .workload import swf_parser
-from .envs import base, deeprm_env, compact_env
 
 
 class MockLugarRL:
