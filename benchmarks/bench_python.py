@@ -10,23 +10,22 @@ Measures performance of the hot paths identified in the deep analysis:
 """
 
 import json
+import statistics
 import sys
 import time
-import statistics
 from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from intervaltree import IntervalTree, Interval
+from intervaltree import Interval, IntervalTree
 
+from schedgym.cluster import Cluster
+from schedgym.event import EventQueue, EventType, JobEvent
 from schedgym.heap import Heap
-from schedgym.event import EventQueue, JobEvent, ResourceEvent, EventType
+from schedgym.job import Job
 from schedgym.pool import ResourcePool, ResourceType
 from schedgym.resource import Resource
-from schedgym.cluster import Cluster
-from schedgym.job import Job
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -290,7 +289,7 @@ def bench_cluster_find_resources_at_time(n_procs: int = 64, n_mem: int = 128):
         for t in range(0, 200, 5):
             c.find_resources_at_time(t, target, events)
 
-    return bench(run, label=f"Cluster find_resources_at_time (40 time steps)")
+    return bench(run, label="Cluster find_resources_at_time (40 time steps)")
 
 
 # ---------------------------------------------------------------------------

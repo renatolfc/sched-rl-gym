@@ -6,21 +6,21 @@ Loads the Python baseline from baseline_python.json and prints a comparison.
 """
 
 import json
+import statistics
 import sys
 import time
-import statistics
 from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Import through the project modules — these use Rust when available
-from schedgym.pool import Interval, IntervalTree, ResourcePool, ResourceType
-from schedgym.heap import Heap
-from schedgym.event import EventQueue, JobEvent, ResourceEvent, EventType
-from schedgym.resource import Resource
 from schedgym.cluster import Cluster
+from schedgym.event import EventQueue, EventType, JobEvent
+from schedgym.heap import Heap
 from schedgym.job import Job
+from schedgym.pool import Interval, IntervalTree, ResourcePool, ResourceType
+from schedgym.resource import Resource
 
 # Detect backend
 try:
@@ -293,7 +293,7 @@ def bench_cluster_find_resources_at_time(n_procs: int = 64, n_mem: int = 128):
         for t in range(0, 200, 5):
             c.find_resources_at_time(t, target, events)
 
-    return bench(run, label=f"Cluster find_resources_at_time (40 time steps)")
+    return bench(run, label="Cluster find_resources_at_time (40 time steps)")
 
 
 # ---------------------------------------------------------------------------

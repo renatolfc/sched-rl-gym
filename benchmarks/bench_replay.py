@@ -3,9 +3,8 @@ import json
 import time
 from pathlib import Path
 
-from schedgym.replay import ReplayConfig, TraceReplayEngine
 from schedgym import scheduler as schedulers
-
+from schedgym.replay import ReplayConfig, TraceReplayEngine
 
 SCHEDULERS = {
     "fifo": schedulers.FifoScheduler,

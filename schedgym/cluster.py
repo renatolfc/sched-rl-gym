@@ -9,9 +9,8 @@ from collections.abc import Iterable
 from typing import Protocol, cast
 
 from . import pool
-
+from .event import EventType, JobEvent
 from .job import Job, Resource
-from .event import JobEvent, EventType
 
 RESOURCE_TYPE = tuple[Iterable[pool.Interval], Iterable[pool.Interval]]
 

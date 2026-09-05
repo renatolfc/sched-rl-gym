@@ -5,8 +5,8 @@ try:
 except ImportError:
     import heapq
     import itertools
+    from collections.abc import Generator, Iterator
     from typing import Generic, TypeVar, cast
-    from collections.abc import Iterator, Generator
 
     T = TypeVar("T")
     ENTRY_T = tuple[int, int, list[T | None]]

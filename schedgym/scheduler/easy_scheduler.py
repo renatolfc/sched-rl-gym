@@ -1,8 +1,8 @@
 """easy_scheduler - A scheduler that uses easy backfilling."""
 
+from schedgym.event import JobEvent
 from schedgym.job import Job, JobStatus
 from schedgym.scheduler import Scheduler
-from schedgym.event import JobEvent
 
 
 class EasyScheduler(Scheduler):

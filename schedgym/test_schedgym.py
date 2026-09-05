@@ -1014,8 +1014,10 @@ class TestSchedulers(unittest.TestCase):
         self.submit_jobs(s, 10)
         top = max(
             s.queue_admission,
-            key=lambda j: s.free_resources[0] * j.requested_processors
-            + s.free_resources[1] * j.requested_memory,
+            key=lambda j: (
+                s.free_resources[0] * j.requested_processors
+                + s.free_resources[1] * j.requested_memory
+            ),
         )
         s.schedule()
         self.assertEqual(top, s.queue_waiting[0])
@@ -1055,8 +1057,10 @@ class TestSchedulers(unittest.TestCase):
         self.submit_jobs(s, 10)
         top = max(
             s.queue_admission,
-            key=lambda j: s.free_resources[0] * j.requested_processors
-            + s.free_resources[1] * j.requested_memory,
+            key=lambda j: (
+                s.free_resources[0] * j.requested_processors
+                + s.free_resources[1] * j.requested_memory
+            ),
         )
         s.schedule()
         self.assertEqual(s.get_priority(top), s.get_priority(s.queue_waiting[0]))
@@ -1073,11 +1077,13 @@ class TestSchedulers(unittest.TestCase):
         self.submit_jobs(s, 10)
         top = max(
             s.queue_admission,
-            key=lambda j: 0.5 / j.requested_time
-            + 0.5
-            * (
-                s.free_resources[0] * j.requested_processors
-                + s.free_resources[1] * j.requested_memory
+            key=lambda j: (
+                0.5 / j.requested_time
+                + 0.5
+                * (
+                    s.free_resources[0] * j.requested_processors
+                    + s.free_resources[1] * j.requested_memory
+                )
             ),
         )
         s.schedule()
@@ -1145,6 +1151,7 @@ class TestSwfGenerator(unittest.TestCase):
                 dir=self.TEST_DIR, mode="wb", delete=False
             )
             from curl_cffi import requests
+
             url = f"http://www.cs.huji.ac.il/labs/parallel/workload/l_lanl_cm5/{self.TRACE_FILE}"
             response = requests.get(url, impersonate="chrome110")
             response.raise_for_status()

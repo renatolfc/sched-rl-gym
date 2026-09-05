@@ -8,12 +8,14 @@ try:
     from ._schedgym_rs import (
         Interval,
         IntervalTree,
+    )
+    from ._schedgym_rs import (
         ResourcePool as _RustResourcePool,
     )
 
     _USE_RUST = True
 except ImportError:
-    from intervaltree import IntervalTree, Interval
+    from intervaltree import Interval, IntervalTree
 
     _USE_RUST = False
 

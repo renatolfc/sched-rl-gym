@@ -16,10 +16,10 @@ class BackfillingScheduler(Scheduler):
 
     def _schedule_bitmask(self) -> None:
         from schedgym.scheduler._bitmask_timeline import (
+            bitmask_to_resource,
             build_timeline,
             find_earliest_fit,
             update_timeline,
-            bitmask_to_resource,
         )
 
         future_by_time, future_times = self.job_events.future_events_snapshot()

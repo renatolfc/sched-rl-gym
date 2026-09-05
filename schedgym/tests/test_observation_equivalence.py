@@ -80,7 +80,9 @@ def _assert_reset_obs_in_range(test_case, env, obs, label):
     test_case.assertGreaterEqual(
         float(flat.min()), low, msg=f"{label}: reset obs min < {low}"
     )
-    test_case.assertLessEqual(float(flat.max()), high, msg=f"{label}: reset obs max > {high}")
+    test_case.assertLessEqual(
+        float(flat.max()), high, msg=f"{label}: reset obs max > {high}"
+    )
 
 
 class TestObservationEquivalence(unittest.TestCase):

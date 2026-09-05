@@ -1,12 +1,11 @@
-from enum import IntEnum
 from abc import ABC, abstractmethod
+from enum import IntEnum
 
 import gymnasium
-
 import numpy as np
 
-from .simulator import SimulationType, DeepRmSimulator
 from ..scheduler.null_scheduler import NullScheduler
+from .simulator import DeepRmSimulator, SimulationType
 from .workload import build as build_workload
 
 BACKLOG_SIZE = 60
@@ -79,9 +78,7 @@ class BaseRmEnv(ABC, gymnasium.Env):
             "time_horizon", TIME_HORIZON
         )  # number of time steps in the graph
 
-        self.tolerance_factor = kwargs.get(
-            "tolerance_factor", 100
-        )
+        self.tolerance_factor = kwargs.get("tolerance_factor", 100)
 
         time_limit = kwargs.get("time_limit", 200)
         if time_limit is None:

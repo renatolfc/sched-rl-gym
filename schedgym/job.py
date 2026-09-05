@@ -1,12 +1,12 @@
 """job - Classes for jobs in the simulator."""
 
+import dataclasses
 import enum
 import random
 import warnings
-import dataclasses
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from .resource import Resource, PrimaryResource
+from .resource import PrimaryResource, Resource
 
 
 @dataclass(frozen=True)

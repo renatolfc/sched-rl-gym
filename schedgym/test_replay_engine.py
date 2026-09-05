@@ -1,11 +1,11 @@
+import gzip
 import tempfile
 import unittest
 from pathlib import Path
 
-from . import scheduler
-from . import job
+from . import job, scheduler
 from .job import Job
-from .replay import ReplayConfig, TraceReplayEngine, BackfillingReplayScheduler
+from .replay import BackfillingReplayScheduler, ReplayConfig, TraceReplayEngine
 from .scheduler import Scheduler
 from .scheduler.backfilling_scheduler import BackfillingScheduler
 
@@ -296,6 +296,29 @@ class TestReplayEngine(unittest.TestCase):
         finally:
             path.unlink(missing_ok=True)
 
+    def test_from_gzipped_swf_runs_small_trace(self):
+        with tempfile.NamedTemporaryFile(suffix=".swf.gz", delete=False) as handle:
+            path = Path(handle.name)
+        try:
+            with gzip.open(path, "wt", encoding="utf-8") as trace:
+                trace.write("1 1 0 2 1 1.0 1 1 2 1 1 1 1 1 1 1 -1 -1\n")
+            engine = TraceReplayEngine.from_swf(
+                path,
+                ReplayConfig(
+                    scheduler_cls=scheduler.FifoScheduler,
+                    processors=4,
+                    memory=4,
+                    ignore_memory=True,
+                ),
+            )
+
+            result = engine.run()
+
+            self.assertEqual(1, result.jobs_completed)
+            self.assertFalse(result.timeout_hit)
+        finally:
+            path.unlink(missing_ok=True)
+
 
 def build_job_with_wallclock(
     job_id: int,
@@ -484,11 +507,11 @@ class _ForceIntervalTreeScheduler(BackfillingScheduler):
     """Forces the IntervalTree path even when ignore_memory=True."""
 
     def schedule(self) -> None:
-        for job in self.queue_admission:
-            time, resources = self.find_first_time_for(job)
+        for queued_job in self.queue_admission:
+            time, resources = self.find_first_time_for(queued_job)
             if not resources:
                 raise AssertionError("Something is terribly wrong")
-            self.assign_schedule(job, resources, time)
+            self.assign_schedule(queued_job, resources, time)
         self.queue_admission.clear()
 
 
@@ -514,11 +537,11 @@ class _ForceIntervalTreeSchedulerWithMemory(BackfillingScheduler):
         super().__init__(number_of_processors, total_memory, ignore_memory=False)
 
     def schedule(self) -> None:
-        for job in self.queue_admission:
-            time, resources = self.find_first_time_for(job)
+        for queued_job in self.queue_admission:
+            time, resources = self.find_first_time_for(queued_job)
             if not resources:
                 raise AssertionError("Something is terribly wrong")
-            self.assign_schedule(job, resources, time)
+            self.assign_schedule(queued_job, resources, time)
         self.queue_admission.clear()
 
 

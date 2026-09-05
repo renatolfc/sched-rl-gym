@@ -1,30 +1,25 @@
 """DeepRM training agent using REINFORCE with policy gradient."""
 
-from collections import namedtuple, defaultdict
-
 import argparse
-
-import os
-import gymnasium
 import json
+import os
 import pickle
-import numpy as np
+from collections import OrderedDict, defaultdict, namedtuple
 from pathlib import Path
-from collections import OrderedDict
+
+import gymnasium
+import numpy as np
+import torch
+import torch.multiprocessing as mp
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+import torch.utils.data as data
+from numpy.lib.stride_tricks import as_strided
+from torch.distributions import Categorical
+from torch.utils.tensorboard.writer import SummaryWriter
 
 import schedgym.envs as deeprm
-
-from numpy.lib.stride_tricks import as_strided
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import torch.utils.data as data
-import torch.multiprocessing as mp
-from torch.distributions import Categorical
-
-from torch.utils.tensorboard.writer import SummaryWriter
 
 SLOTS: int = 10
 BACKLOG: int = 60
@@ -84,7 +79,7 @@ class PGNet(nn.Module):
         return mass.log_prob(action), mass.entropy()
 
 
-class Callback(object):
+class Callback:
     def __call__(self, score) -> None:
         raise NotImplementedError
 
@@ -157,7 +152,7 @@ def run_episode(env, model, max_episode_length, device="cpu"):
 
 
 def compute_baselines(trajectories):
-    returns = np.zeros((len(trajectories), max((len(traj) for traj in trajectories))))
+    returns = np.zeros((len(trajectories), max(len(traj) for traj in trajectories)))
     for i in range(len(trajectories)):
         tmp = np.array([e.reward for e in trajectories[i]])
         returns[i, : len(tmp)] = tmp
@@ -382,7 +377,7 @@ def train_synchronous_parallel(
 
                 states = [[e.state for e in t] for t in trajectories]
                 actions = [[e.action for e in t] for t in trajectories]
-                maxlen = max((len(s) for s in states))
+                maxlen = max(len(s) for s in states)
                 for s, a in zip(states, actions):
                     s += [np.zeros_like(s[0])] * (maxlen - len(s))
                     a += [np.zeros_like(a[0])] * (maxlen - len(a))
@@ -442,11 +437,7 @@ def train_synchronous_parallel(
                         extras[f"{feature}σ"].append(extra[i * 2 + 1])
                         writer.add_scalar(f"{feature}μ/{rank}", extra[i * 2], epoch)
                         writer.add_scalar(f"{feature}σ/{rank}", extra[i * 2 + 1], epoch)
-                print(
-                    "Loss for epoch {}: {}±{}".format(
-                        epoch, np.mean(losses), np.std(losses)
-                    )
-                )
+                print(f"Loss for epoch {epoch}: {np.mean(losses)}±{np.std(losses)}")
                 writer.add_scalar("loss", np.mean(losses), epoch)
                 for i, feature in enumerate(features):
                     writer.add_scalar(

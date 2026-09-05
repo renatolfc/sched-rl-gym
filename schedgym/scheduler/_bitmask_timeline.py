@@ -16,7 +16,7 @@ from schedgym.job import Job
 try:
     from schedgym._schedgym_rs import Interval, IntervalTree
 except ImportError:
-    from intervaltree import IntervalTree, Interval
+    from intervaltree import Interval, IntervalTree
 
 from schedgym.resource import Resource
 

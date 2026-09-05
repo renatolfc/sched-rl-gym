@@ -1,13 +1,13 @@
-from enum import IntEnum
 from collections.abc import Callable
+from enum import IntEnum
 from typing import cast
 
-from schedgym.job import Job
-from schedgym.scheduler import NullScheduler
 from schedgym.envs.workload import (
     DeepRmWorkloadGenerator,
     SyntheticWorkloadGenerator,
 )
+from schedgym.job import Job
+from schedgym.scheduler import NullScheduler
 
 WorkloadGeneratorType = DeepRmWorkloadGenerator | SyntheticWorkloadGenerator
 

@@ -13,6 +13,7 @@ from schedgym.scheduler import (
     FifoScheduler,
     Scheduler,
 )
+from schedgym.workload.swf_parser import open_swf
 from schedgym.workload.swf_parser import parse as parse_swf
 
 
@@ -25,7 +26,8 @@ class TraceReplayEngine:
         )
         if not issubclass(config.scheduler_cls, supported):
             raise NotImplementedError(
-                "Replay currently supports only FifoScheduler, EasyScheduler, and BackfillingScheduler (or subclasses)"
+                "Replay currently supports only FifoScheduler, EasyScheduler, "
+                "and BackfillingScheduler (or subclasses)"
             )
         self.jobs = jobs
         self.config = config
@@ -49,7 +51,7 @@ class TraceReplayEngine:
         config: ReplayConfig,
     ) -> TraceReplayEngine:
         loaded_records = 0
-        with open(trace_path, "r") as handle:
+        with open_swf(trace_path) as handle:
             for line in handle:
                 if ";" in line or not line.strip():
                     continue

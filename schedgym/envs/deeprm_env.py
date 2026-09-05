@@ -1,13 +1,12 @@
-import numpy as np
+import logging
 
 import gymnasium.spaces
+import numpy as np
 
 from ..job import Job
 from .base import BaseRmEnv
 from .simulator import DeepRmSimulator
 from .workload import DeepRmWorkloadGenerator
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +135,9 @@ class DeepRmEnv(BaseRmEnv):
 
     @property
     def state(self):
-        state, jobs, backlog = self.scheduler.state(self.time_horizon, self.job_slots, self.smdp)
+        state, jobs, backlog = self.scheduler.state(
+            self.time_horizon, self.job_slots, self.smdp
+        )
         s = self._convert_state(
             state,
             jobs,

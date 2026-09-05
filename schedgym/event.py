@@ -9,16 +9,16 @@ import copy
 import enum
 import warnings
 from bisect import insort
-from typing import TypeVar, Generic
 from collections.abc import Iterable, Iterator
+from typing import Generic, TypeVar
 
 try:
     from ._schedgym_rs import Interval
 except ImportError:
     from intervaltree import Interval
 
-from .job import Job
 from .heap import Heap
+from .job import Job
 from .pool import ResourceType
 
 T = TypeVar("T", bound="Event")  # pylint: disable=C

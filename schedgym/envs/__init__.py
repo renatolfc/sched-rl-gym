@@ -1,8 +1,9 @@
 import logging
+
 from gymnasium.envs.registration import register
 
-from .deeprm_env import DeepRmEnv
 from .compact_env import CompactRmEnv
+from .deeprm_env import DeepRmEnv
 
 logger = logging.getLogger(__name__)
 

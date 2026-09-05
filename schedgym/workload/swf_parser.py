@@ -61,7 +61,7 @@ def parse(filename, processors=None, memory=0, ignore_memory=False):
     Parsing, therefore, involves splitting the lines and associating each
     column of the file with a field.
     """
-    
+
     def parse_int(line: str) -> int:
         return int(line.split(":")[-1].strip())
 

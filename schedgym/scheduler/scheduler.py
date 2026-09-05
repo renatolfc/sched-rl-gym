@@ -11,13 +11,13 @@ from collections.abc import Iterable
 from typing import Any, NamedTuple
 
 from schedgym.cluster import Cluster
+from schedgym.event import EventQueue, EventType, JobEvent
 from schedgym.job import Job, JobStatus, Resource
-from schedgym.event import JobEvent, EventType, EventQueue
 from schedgym.scheduler._bitmask_timeline import (
     _intervaltree_to_bitmask,
+    bitmask_to_resource,
     build_timeline,
     find_earliest_fit,
-    bitmask_to_resource,
     select_lowest_bits,
 )
 
@@ -541,11 +541,15 @@ class Scheduler(ABC):
                 if len(near_future) > timesteps:
                     break
             if len(near_future) < timesteps:
-                for i in range(last_time + 1, last_time + 1 + timesteps - len(near_future)):
+                for i in range(
+                    last_time + 1, last_time + 1 + timesteps - len(near_future)
+                ):
                     near_future[last_time + i].append([])  # type: ignore
             elif len(near_future) > timesteps:
                 near_future = {
-                    k: v for i, (k, v) in enumerate(near_future.items()) if i < timesteps
+                    k: v
+                    for i, (k, v) in enumerate(near_future.items())
+                    if i < timesteps
                 }
         else:
             for e in self.job_events.events_between(
@@ -557,7 +561,7 @@ class Scheduler(ABC):
         # Gets the state representation of currently in use resources {{{
         tmp = []
         cluster = self.cluster.clone()
-        for t in (near_future.keys() if smdp else range(timesteps)):
+        for t in near_future.keys() if smdp else range(timesteps):
             if t in near_future:
                 cluster = self.play_events(near_future[t], cluster)
             tmp.append((t, *cluster.state) if smdp else cluster.state)
@@ -580,7 +584,7 @@ class Scheduler(ABC):
                 # reconstruct with can_schedule_now=1
                 j_state = type(j_state)(*(list(j_state)[:-1] + [1]))
             jobs.append(j_state)
-            
+
         jobs += [Job().state for _ in range(job_slots - len(jobs))]
         # }}}
 

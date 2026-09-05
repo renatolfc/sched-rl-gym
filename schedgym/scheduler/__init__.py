@@ -1,14 +1,14 @@
 """scheduler - basic scheduling algorithms for the *simulation* layer."""
 
-from .scheduler import Scheduler
-from .sjf_scheduler import SjfScheduler
-from .fifo_scheduler import FifoScheduler
 from .backfilling_scheduler import BackfillingScheduler
+from .easy_scheduler import EasyScheduler
+from .fifo_scheduler import FifoScheduler
 from .null_scheduler import NullScheduler
 from .packer_scheduler import PackerScheduler
 from .random_scheduler import RandomScheduler
+from .scheduler import Scheduler
+from .sjf_scheduler import SjfScheduler
 from .tetris_scheduler import TetrisScheduler
-from .easy_scheduler import EasyScheduler
 
 __all__ = [
     "Scheduler",
