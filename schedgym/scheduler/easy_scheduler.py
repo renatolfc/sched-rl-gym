@@ -2,6 +2,7 @@
 
 from schedgym.event import JobEvent
 from schedgym.job import Job, JobStatus
+
 from .scheduler import Scheduler
 
 

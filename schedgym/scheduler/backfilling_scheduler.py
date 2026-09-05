@@ -3,6 +3,7 @@
 import copy as _copy
 
 from schedgym.event import EventType
+
 from .scheduler import Scheduler
 
 

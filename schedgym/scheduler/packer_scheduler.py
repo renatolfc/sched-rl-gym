@@ -1,6 +1,7 @@
 """packer_scheduler - A scheduler based on the Packer heuristic"""
 
 from schedgym.job import Job
+
 from .scheduler import Scheduler
 
 
