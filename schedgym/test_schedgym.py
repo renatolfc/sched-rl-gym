@@ -454,6 +454,7 @@ class TestFifoBasedSchedulers(unittest.TestCase):
     def test_two_jobs_until_completion(self):
         j = self.small_job_parameters.sample(1)
         j.execution_time = 5
+        j.requested_time = 5
         self.scheduler.submit(j)
         self.assertQueuesSane(0, 0, 0, 0, 1)
         self.scheduler.step()
@@ -464,6 +465,7 @@ class TestFifoBasedSchedulers(unittest.TestCase):
         self.assertQueuesSane(1, 0, 1, 0, 0)
         j = self.small_job_parameters.sample(1)
         j.execution_time = 5
+        j.requested_time = 5
         self.scheduler.submit(j)
         self.assertQueuesSane(1, 0, 1, 0, 1)
         self.scheduler.step(3)
