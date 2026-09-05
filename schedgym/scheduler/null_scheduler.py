@@ -8,7 +8,7 @@ schedule in an iterative way.
 """
 
 from ..job import Job
-from ..scheduler import Scheduler
+from .scheduler import Scheduler
 
 # The main issue here is that we have two kinds of steps:
 # 1. OpenAI Gym steps

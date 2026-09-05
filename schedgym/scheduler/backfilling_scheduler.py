@@ -3,7 +3,7 @@
 import copy as _copy
 
 from schedgym.event import EventType
-from schedgym.scheduler import Scheduler
+from .scheduler import Scheduler
 
 
 class BackfillingScheduler(Scheduler):

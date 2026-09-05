@@ -1,7 +1,7 @@
 """sjf_scheduler - Shortest job first scheduler"""
 
 from schedgym.job import Job
-from schedgym.scheduler import Scheduler
+from .scheduler import Scheduler
 
 
 class SjfScheduler(Scheduler):

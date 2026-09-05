@@ -2,7 +2,7 @@
 
 from schedgym.event import JobEvent
 from schedgym.job import Job, JobStatus
-from schedgym.scheduler import Scheduler
+from .scheduler import Scheduler
 
 
 class EasyScheduler(Scheduler):
